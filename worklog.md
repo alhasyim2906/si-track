@@ -2643,3 +2643,111 @@ Hal yang sama juga terjadi di:
 3. **Test kirim email/WA dengan URL publik**: verify bahwa link di email/WA notifikasi juga mengarah ke domain publik (bukan localhost).
 4. **Tanda terima PDF**: pastikan QR code di Tanda Terima PDF (component TandaTerima) juga memakai URL publik — kemungkinan sudah benar karena memakai qrData yang sama, tapi perlu verify.
 5. **History log**: tambah audit log entry khusus saat public_base_url diubah, agar ada trail siapa/berapa kali domain diubah (compliance).
+
+---
+Task ID: 26
+Agent: main
+Task: Fix "tidak dapat menambahkan permohonan" dan "edit luas tanah gagal" — Prisma rejects `luasTanah: Int` because schema defines it as `String?`.
+
+## Root Cause
+Prisma schema mendefinisikan `luasTanah` sebagai `String?` (nullable string), tapi dua tempat di frontend mengkonversi nilai input ke `Number()` sebelum mengirim ke API:
+
+1. **Create form** (`src/components/app/petugas/PermohonanForm.tsx` line 252):
+   ```ts
+   luasTanah: form.luasTanah ? Number(form.luasTanah) : undefined,
+   ```
+   → Mengirim `luasTanah: 120` (Int) ke POST /api/permohonan.
+
+2. **Edit form** (`src/components/app/shared/PermohonanDetail.tsx` line 747):
+   ```ts
+   else body.luasTanah = Number(body.luasTanah);
+   ```
+   → Mengirim `luasTanah: 120` (Int) ke PUT /api/permohonan/[id].
+
+Prisma error saat update:
+```
+Argument `luasTanah`: Invalid value provided. Expected String, NullableStringFieldUpdateOperationsInput or Null, provided Int.
+```
+
+Error ini menyebabkan:
+- **Edit luas tanah gagal**: PUT route melewatkan `luasTanah: 120` (Int) langsung ke `db.permohonan.update()` → Prisma reject → HTTP 500 → toast "Gagal memperbarui".
+- **Create permohonan gagal**: POST route melewatkan `luasTanah: 120` (Int) ke `db.permohonan.create()` → Prisma reject → HTTP 500 → toast "Gagal membuat permohonan".
+
+## Work Completed
+
+### 1. Create form — `src/components/app/petugas/PermohonanForm.tsx` (line 252)
+- **Before**: `luasTanah: form.luasTanah ? Number(form.luasTanah) : undefined,`
+- **After**: `luasTanah: form.luasTanah.trim() || undefined,`
+- Tetap sebagai string (sesuai schema `String?`). Trim whitespace. Empty → undefined (omit dari payload).
+
+### 2. Edit form — `src/components/app/shared/PermohonanDetail.tsx` (lines 745-750)
+- **Before**:
+  ```ts
+  if (body.luasTanah === "" || body.luasTanah == null) delete body.luasTanah;
+  else body.luasTanah = Number(body.luasTanah);
+  ```
+- **After**:
+  ```ts
+  if (body.luasTanah === "" || body.luasTanah == null) delete body.luasTanah;
+  else body.luasTanah = String(body.luasTanah).trim();
+  ```
+- Konversi ke `String()` + trim. Empty/null → delete dari payload (preserve existing value).
+
+### 3. POST route (defensive) — `src/app/api/permohonan/route.ts` (line 130-134)
+- **Before**: `luasTanah: body.luasTanah || null,`
+- **After**:
+  ```ts
+  luasTanah: body.luasTanah != null && body.luasTanah !== ""
+    ? String(body.luasTanah).trim()
+    : null,
+  ```
+- Server-side coercion: walau client kirim Number, server coerce ke String. Defense-in-depth agar bug serupa di masa depan tidak crash server.
+
+### 4. PUT route (defensive) — `src/app/api/permohonan/[id]/route.ts` (lines 58-63)
+- Tambah block khusus untuk `luasTanah` setelah generic field loop:
+  ```ts
+  if ("luasTanah" in data) {
+    if (data.luasTanah === "" || data.luasTanah == null) data.luasTanah = null;
+    else data.luasTanah = String(data.luasTanah).trim();
+  }
+  ```
+- Generic loop (`for k in allowed: data[k] = body[k]`) masih bekerja untuk field lain, tapi `luasTanah` di-coerce khusus. Empty string → null (clear field).
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile, no runtime errors.
+- **API tests (curl with admin cookie)**:
+  - POST create dengan `luasTanah: 150` (Number) → 200 OK, stored as `'150'` (string) ✓
+  - PUT edit dengan `luasTanah: 250` (Number) → 200 OK, stored as `'250'` (string) ✓
+  - PUT edit dengan `luasTanah: "120.5"` (String) → 200 OK, stored as `'120.5'` (string) ✓
+  - PUT edit dengan `luasTanah: ""` (empty) → 200 OK, stored as `null` ✓
+- **Agent-browser E2E tests**:
+  - Login admin → Daftar Baru → isi form (Jenis Surat, NIK, Nama, Luas Tanah = "175.5", Keperluan) → klik "Simpan & Buat Nomor Register" → berhasil create, navigasi ke detail page, toast sukses ✓
+  - Tab Data → "LUAS TANAH 175.5 m²" tampil ✓
+  - Klik Edit → ubah Luas Tanah dari "175.5" ke "250.75" → klik "Simpan Perubahan" → toast "Data permohonan diperbarui" ✓
+  - Tab Data → "LUAS TANAH 250.75 m²" tampil (value updated) ✓
+  - Tidak ada error di dev.log selama seluruh flow ✓
+  - Test record dibersihkan (DELETE API) ✓
+
+## Files Changed (summary)
+- Updated: `src/components/app/petugas/PermohonanForm.tsx` (1 line — remove Number() conversion)
+- Updated: `src/components/app/shared/PermohonanDetail.tsx` (2 lines — String() + trim instead of Number())
+- Updated: `src/app/api/permohonan/route.ts` (5 lines — defensive String coercion in POST)
+- Updated: `src/app/api/permohonan/[id]/route.ts` (6 lines — defensive String coercion in PUT)
+
+## Stage Summary
+- **Create permohonan RESOLVED**: form sekarang mengirim `luasTanah` sebagai string (bukan Number). POST route juga coerce defensively. Tidak lagi Prisma validation error.
+- **Edit luas tanah RESOLVED**: edit form mengirim string, PUT route coerce defensively. Edit berhasil tanpa error.
+- **Defense-in-depth**: server-side coercion di kedua route (POST + PUT) memastikan bahwa walau ada client lain (mobile app, API client, script) yang mengirim Number, server tetap handle dengan benar. Bug serupa di masa depan tidak akan crash server.
+- **No schema migration needed**: `luasTanah` tetap `String?` — mendukung nilai desimal ("175.5"), pecahan, bahkan teks ("1 hektar") jika dibutuhkan. Tidak ada data existing yang teraffected.
+- Lint: 0 errors. Dev server: no runtime errors. Semua fitur verified end-to-end via curl API tests + agent-browser UI tests.
+
+## Unresolved Issues / Risks
+- **Field `luasTanah` sebagai String**: secara desain, luas tanah seharusnya numerik (Float/Decimal/Int). Tapi schema menggunakan String, kemungkinan untuk fleksibilitas input (mendukung "1.5 hektar", "200 m²", dll). Jika ingin validasi numerik ketat, perlu migration ke Float? + UI validation. Tapi untuk sekarang, String? sudah cukup dan tidak break existing data.
+- **No client-side numeric validation**: input `luasTanah` menerima teks bebas (type="number" di edit form, tapi type="text" di create form via `update("luasTanah", e.target.value)`). User bisa input "abc" → disimpan sebagai "abc". Future: tambah validation regex `^\d+(\.\d+)?$` di form.
+
+## Priority Recommendations for Next Round
+1. **Konsistensi input type**: create form pakai `<Input type="text">` untuk luasTanah, edit form pakai `<Input type="number">`. Samakan ke `type="number"` dengan `step="0.01"` di kedua form.
+2. **Numeric validation**: tambah regex validation `^\d+(\.\d{1,2})?$` di form (max 2 decimal places) + server-side validation di POST/PUT route.
+3. **Display formatting**: saat ini luas tanah ditampilkan sebagai `${luasTanah} m²`. Tambah formatribuan (e.g., "1,250.5 m²") via `Intl.NumberFormat('id-ID')`.
+4. **Schema review**: audit field lain yang mungkin punya type mismatch serupa (e.g., `tanahRt`, `tanahRw` yang seharusnya numerik tapi disimpan sebagai String).

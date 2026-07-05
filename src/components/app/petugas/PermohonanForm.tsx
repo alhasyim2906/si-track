@@ -249,7 +249,7 @@ export function PermohonanForm() {
         lokasiTanah: form.lokasiTanah.trim() || undefined,
         tanahRt: form.tanahRt.trim() || undefined,
         tanahRw: form.tanahRw.trim() || undefined,
-        luasTanah: form.luasTanah ? Number(form.luasTanah) : undefined,
+        luasTanah: form.luasTanah.trim() || undefined,
         batasUtara: form.batasUtara.trim() || undefined,
         batasSelatan: form.batasSelatan.trim() || undefined,
         batasTimur: form.batasTimur.trim() || undefined,

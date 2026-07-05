@@ -55,6 +55,12 @@ export async function PUT(
   for (const k of allowed as string[]) {
     if (k in body) data[k] = body[k];
   }
+  // luasTanah is String? in the schema — coerce to string in case the client
+  // sent a Number. Empty string → null (clear the field).
+  if ("luasTanah" in data) {
+    if (data.luasTanah === "" || data.luasTanah == null) data.luasTanah = null;
+    else data.luasTanah = String(data.luasTanah).trim();
+  }
   data.updatedBy = current.user.id;
 
   const updated = await db.permohonan.update({ where: { id }, data });

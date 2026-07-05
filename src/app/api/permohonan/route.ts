@@ -127,7 +127,11 @@ export async function POST(req: NextRequest) {
         lokasiTanah: body.lokasiTanah || null,
         tanahRt: body.tanahRt || null,
         tanahRw: body.tanahRw || null,
-        luasTanah: body.luasTanah || null,
+        // luasTanah is String? in the schema — coerce to string in case the
+        // client sent a Number. Preserve null when empty.
+        luasTanah: body.luasTanah != null && body.luasTanah !== ""
+          ? String(body.luasTanah).trim()
+          : null,
         batasUtara: body.batasUtara || null,
         batasSelatan: body.batasSelatan || null,
         batasTimur: body.batasTimur || null,

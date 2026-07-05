@@ -743,8 +743,11 @@ export function PermohonanDetail() {
     setEditSaving(true);
     try {
       const body: Record<string, any> = { ...editForm };
+      // luasTanah is a String? in the schema — keep it as a string, don't
+      // convert to Number (Prisma will reject an Int). Empty/null → omit from
+      // the payload so the existing value is preserved.
       if (body.luasTanah === "" || body.luasTanah == null) delete body.luasTanah;
-      else body.luasTanah = Number(body.luasTanah);
+      else body.luasTanah = String(body.luasTanah).trim();
       await api.updatePermohonan(selectedPermohonanId, body);
       toast.success("Data permohonan diperbarui");
       setEditOpen(false);
