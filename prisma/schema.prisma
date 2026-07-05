@@ -1,0 +1,185 @@
+// SI-TRACK TANAH — Prisma schema
+// Sistem Informasi Tracking Pendaftaran Surat Tanah
+// Kelurahan Kuala Pembuang II
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ===== Master: Status Proses =====
+model StatusProses {
+  id          String   @id @default(cuid())
+  kode        String   @unique // PENGAJUAN, CEK_ADMIN, ...
+  nama        String
+  urutan      Int
+  warna       String   @default("#d4af37") // hex color for UI
+  icon        String?
+  keterangan  String?
+  isKhusus    Boolean  @default(false) // REVISI, DITOLAK
+  isFinal     Boolean  @default(false) // SELESAI, DITOLAK
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ===== Master: Jenis Surat Tanah =====
+model JenisSurat {
+  id               String   @id @default(cuid())
+  kode             String   @unique
+  nama             String
+  deskripsi        String?
+  butuhPengukuran  Boolean  @default(true)
+  butuhTtdCamat    Boolean  @default(false)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  permohonan       Permohonan[]
+}
+
+// ===== User =====
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  password     String
+  name         String
+  role         String    @default("PETUGAS") // ADMIN | PETUGAS | ATASAN
+  phone        String?
+  position     String?
+  nip          String?
+  avatar       String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  permohonanDibuat  Permohonan[]
+  riwayatProses     RiwayatProses[]
+  auditLogs         AuditLog[]
+  notifikasi        Notifikasi[]
+}
+
+// ===== Permohonan (core) =====
+model Permohonan {
+  id            String    @id @default(cuid())
+  nomorRegister String    @unique
+  jenisSuratId  String
+
+  // Data pemohon
+  pemohonNik          String
+  pemohonNama         String
+  pemohonTempatLahir  String?
+  pemohonTanggalLahir String?
+  pemohonAlamat       String?
+  pemohonRt           String?
+  pemohonRw           String?
+  pemohonHp           String?
+
+  // Data tanah
+  lokasiTanah         String?
+  tanahRt             String?
+  tanahRw             String?
+  luasTanah           String?
+  batasUtara          String?
+  batasSelatan        String?
+  batasTimur          String?
+  batasBarat          String?
+  statusPenguasaan    String?
+  keperluan           String?
+
+  // Proses
+  statusSaatIni       String    @default("PENGAJUAN")
+  alasanDitolak       String?
+  catatan             String?
+  prioritas           String    @default("NORMAL") // NORMAL | TINGGI | MENDESAK
+
+  // Audit
+  createdBy           String
+  updatedBy           String?
+
+  // QR
+  qrToken             String?
+
+  // Timestamps
+  tanggalSelesai      DateTime?
+  estimasiSelesai     DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  jenisSurat  JenisSurat      @relation(fields: [jenisSuratId], references: [id])
+  creator     User            @relation(fields: [createdBy], references: [id])
+  dokumen     Dokumen[]
+  riwayat     RiwayatProses[]
+  notifikasi  Notifikasi[]
+}
+
+// ===== Dokumen =====
+model Dokumen {
+  id            String   @id @default(cuid())
+  permohonanId  String
+  jenisDokumen  String   // KTP, KK, SPPT_PBB, BUKTI_PENGUASAAN, SURAT_PERNYATAAN, FOTO_LOKASI, DOKUMEN_PENDUKUNG
+  namaFile      String
+  filePath      String
+  ukuran        Int?
+  mimeType      String?
+  createdAt     DateTime @default(now())
+
+  permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
+}
+
+// ===== Riwayat Proses =====
+model RiwayatProses {
+  id           String   @id @default(cuid())
+  permohonanId String
+  statusKode   String
+  statusNama   String
+  catatan      String?
+  petugasId    String
+  createdAt    DateTime @default(now())
+
+  permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
+  petugas    User       @relation(fields: [petugasId], references: [id])
+}
+
+// ===== Notifikasi =====
+model Notifikasi {
+  id           String   @id @default(cuid())
+  permohonanId String?
+  userId       String?
+  judul        String
+  pesan        String
+  tipe         String   @default("INFO") // INFO | SUCCESS | WARNING | DANGER
+  dibaca       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  permohonan Permohonan? @relation(fields: [permohonanId], references: [id])
+  user       User?       @relation(fields: [userId], references: [id])
+}
+
+// ===== Audit Log =====
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  userName  String?
+  userRole  String?
+  aksi      String   // LOGIN | LOGOUT | CREATE | UPDATE | DELETE | STATUS_CHANGE | APPROVE
+  modul     String   // AUTH | PERMOHONAN | USER | JENIS_SURAT | STATUS | LAPORAN
+  entitasId String?
+  detail    String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+}
+
+// ===== Settings =====
+model Settings {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
