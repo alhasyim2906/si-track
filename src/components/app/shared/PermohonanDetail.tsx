@@ -39,6 +39,7 @@ import {
   ChevronRight, FileCheck, FileWarning, Files, MessageSquare,
   Phone, MapPinned, Tag, Gauge, ScanLine, FileType2, Printer,
   ChevronDown, FileImage, IdCard, Home, Compass, Paperclip,
+  Mail, Send, Bell,
 } from "lucide-react";
 import { TandaTerima } from "@/components/app/shared/TandaTerima";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -91,6 +92,7 @@ interface PermohonanDetail {
   pemohonRt: string | null;
   pemohonRw: string | null;
   pemohonHp: string | null;
+  pemohonEmail: string | null;
   // tanah
   lokasiTanah: string | null;
   tanahRt: string | null;
@@ -181,6 +183,9 @@ export function PermohonanDetail() {
 
   // tanda terima (printable receipt) state
   const [tandaTerimaOpen, setTandaTerimaOpen] = useState(false);
+
+  // resend notification state (manual re-dispatch email + WA)
+  const [resendingNotify, setResendingNotify] = useState(false);
 
   // collapsible section state
   const [pemohonOpen, setPemohonOpen] = useState(true);
@@ -275,6 +280,7 @@ export function PermohonanDetail() {
       pemohonRt: permohonan.pemohonRt || "",
       pemohonRw: permohonan.pemohonRw || "",
       pemohonHp: permohonan.pemohonHp || "",
+      pemohonEmail: permohonan.pemohonEmail || "",
       lokasiTanah: permohonan.lokasiTanah || "",
       tanahRt: permohonan.tanahRt || "",
       tanahRw: permohonan.tanahRw || "",
@@ -294,6 +300,38 @@ export function PermohonanDetail() {
     setTandaTerimaOpen(true);
     // Lazily fetch QR for the receipt if not already cached.
     if (!qrData && selectedPermohonanId) fetchQr();
+  };
+
+  // Manual re-dispatch of email + WA notifications to the pemohon.
+  // Uses the permohonan's current status to pick the right template
+  // (SELESAI for completed, REVISI for incomplete/ditolak, fallback to SELESAI).
+  // force=true bypasses the global notify_enabled toggles so admins can
+  // always send a manual reminder even when auto-notify is off.
+  const handleResendNotify = async () => {
+    if (!selectedPermohonanId) return;
+    if (!p) return;
+    setResendingNotify(true);
+    try {
+      const r = await api.resendPermohonanNotify(selectedPermohonanId, true);
+      const ok = r.results.filter((x) => x.success).length;
+      const fail = r.results.filter((x) => !x.success);
+      if (ok > 0 && fail.length === 0) {
+        toast.success(
+          `Notifikasi ${r.triggerStatus === "SELESAI" ? "Surat Selesai" : "Perbaikan Dokumen"} berhasil dikirim ke ${ok} channel`
+        );
+      } else if (ok > 0 && fail.length > 0) {
+        toast.warning(
+          `${ok} channel berhasil, ${fail.length} gagal: ${fail.map((f) => `${f.channel.toUpperCase()} (${f.error})`).join(", ")}`
+        );
+      } else {
+        const reasons = r.results.map((x) => `${x.channel.toUpperCase()}: ${x.error || "unknown"}`).join(" | ");
+        toast.error(`Notifikasi gagal dikirim — ${reasons}`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal mengirim ulang notifikasi");
+    } finally {
+      setResendingNotify(false);
+    }
   };
 
   const handleEditSave = async () => {
@@ -529,6 +567,21 @@ export function PermohonanDetail() {
                 className="gold-border text-primary hover:bg-primary/10"
               >
                 <Printer className="w-4 h-4" /> Cetak Tanda Terima
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResendNotify}
+                disabled={resendingNotify}
+                className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+                title="Kirim ulang notifikasi Email & WhatsApp ke pemohon"
+              >
+                {resendingNotify ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}{" "}
+                Kirim Ulang Notifikasi
               </Button>
             </div>
           )}
@@ -777,6 +830,7 @@ export function PermohonanDetail() {
                       <DLRow label="RT" value={p.pemohonRt} icon={MapPin} />
                       <DLRow label="RW" value={p.pemohonRw} icon={MapPin} />
                       <DLRow label="No. HP" value={p.pemohonHp} icon={Phone} />
+                      <DLRow label="Email" value={p.pemohonEmail} icon={Mail} />
                     </div>
                   </CollapsibleContent>
                 </CardContent>
@@ -1284,6 +1338,10 @@ export function PermohonanDetail() {
                 <div className="space-y-1.5">
                   <Label className="text-xs">No. HP</Label>
                   <Input value={editForm.pemohonHp || ""} onChange={(e) => setEditForm({ ...editForm, pemohonHp: e.target.value.replace(/[^0-9+]/g, "").slice(0, 15) })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Email</Label>
+                  <Input type="email" value={editForm.pemohonEmail || ""} onChange={(e) => setEditForm({ ...editForm, pemohonEmail: e.target.value.slice(0, 100) })} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Prioritas</Label>

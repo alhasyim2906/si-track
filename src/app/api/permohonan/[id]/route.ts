@@ -47,7 +47,7 @@ export async function PUT(
 
   const allowed: (keyof typeof db.permohonan.fields)[] = [
     "pemohonNik","pemohonNama","pemohonTempatLahir","pemohonTanggalLahir","pemohonAlamat",
-    "pemohonRt","pemohonRw","pemohonHp","lokasiTanah","tanahRt","tanahRw","luasTanah",
+    "pemohonRt","pemohonRw","pemohonHp","pemohonEmail","lokasiTanah","tanahRt","tanahRw","luasTanah",
     "batasUtara","batasSelatan","batasTimur","batasBarat","statusPenguasaan","keperluan","prioritas","catatan",
   ];
   const data: any = {};

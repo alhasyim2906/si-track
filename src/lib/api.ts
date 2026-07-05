@@ -128,6 +128,30 @@ export const api = {
       { method: "DELETE" }
     ),
 
+  // notification test (Fonnte WA + email)
+  testNotify: (channel: "wa" | "email", to?: string) =>
+    req<{
+      ok: boolean;
+      channel: string;
+      recipient?: string;
+      error?: string;
+      settings: { wa_enabled: string; email_enabled: string; fonnte_token_set: boolean; email_provider: string; email_from: string };
+    }>("/api/settings/notify/test", {
+      method: "POST",
+      body: JSON.stringify({ channel, to }),
+    }),
+
+  // resend permohonan notification manually
+  resendPermohonanNotify: (id: string, force = false) =>
+    req<{
+      ok: boolean;
+      triggerStatus: string;
+      results: { channel: string; success: boolean; error?: string; recipient?: string }[];
+    }>(`/api/permohonan/${id}/notify`, {
+      method: "POST",
+      body: JSON.stringify({ force }),
+    }),
+
   // public stats
   publicStats: () => req<{ total: number; selesai: number; diproses: number; ditolak: number; thisMonth: number; completionRate: number }>("/api/public/stats"),
 };

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { STATUS_BY_KODE, nextStatus, NOTIF_TEMPLATES } from "@/lib/constants";
+import { dispatchPermohonanNotification, type NotifyContext } from "@/lib/notify";
 
 // POST /api/permohonan/[id]/status — advance / change status
 // body: { statusKode?: string, catatan?: string, alasanDitolak?: string }
@@ -95,6 +96,48 @@ export async function POST(
     await db.notifikasi.create({ data: { permohonanId: id, judul: notif.judul, pesan: notif.pesan, tipe: notif.tipe } });
   }
 
+  // ===== External notifications (Email + WhatsApp via Fonnte) =====
+  // Fire only for terminal/informative statuses the applicant needs to know
+  // about: REVISI (incomplete docs) and SELESAI (surat ready for pickup).
+  // Failures are logged via AuditLog inside the dispatcher; they do NOT
+  // roll back the status change (the in-app flow already succeeded).
+  let notifyResults: { channel: string; success: boolean; error?: string; recipient?: string }[] | null = null;
+  if (targetKode === "REVISI" || targetKode === "SELESAI") {
+    try {
+      // Pull kelurahan info + pemohon email for templates
+      const kelSettings = await db.settings.findMany({
+        where: { key: { in: ["nama_kelurahan", "alamat_kelurahan", "telepon_kelurahan", "email_kelurahan"] } },
+      });
+      const kMap: Record<string, string> = {};
+      for (const s of kelSettings) kMap[s.key] = s.value || "";
+
+      const ctx: NotifyContext = {
+        nomorRegister: updated.nomorRegister,
+        pemohonNama: updated.pemohonNama,
+        pemohonHp: updated.pemohonHp,
+        pemohonEmail: updated.pemohonEmail,
+        statusNama: def.nama,
+        catatan: catatan || null,
+        alasanDitolak: body.alasanDitolak || null,
+        jenisSuratNama: permohonan.jenisSurat?.nama,
+        kelurahanNama: kMap.nama_kelurahan,
+        kelurahanAlamat: kMap.alamat_kelurahan,
+        kelurahanTelepon: kMap.telepon_kelurahan,
+        kelurahanEmail: kMap.email_kelurahan,
+        appUrl: process.env.NEXT_PUBLIC_APP_URL || "",
+      };
+      notifyResults = await dispatchPermohonanNotification(
+        id,
+        targetKode as "REVISI" | "SELESAI",
+        ctx,
+        current.user.id
+      );
+    } catch (e) {
+      // Notification failure should never block the status change
+      console.error("[notify] dispatch failed:", e);
+    }
+  }
+
   await writeAudit(current.session, {
     aksi: targetKode === "DITOLAK" ? "STATUS_CHANGE" : targetKode.startsWith("TTD") || targetKode === "SELESAI" ? "APPROVE" : "STATUS_CHANGE",
     modul: "PERMOHONAN",
@@ -107,5 +150,6 @@ export async function POST(
     statusSaatIni: targetKode,
     statusNama: def.nama,
     statusWarna: def.warna,
+    notify: notifyResults,
   });
 }

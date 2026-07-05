@@ -40,6 +40,7 @@ interface FormState {
   pemohonRt: string;
   pemohonRw: string;
   pemohonHp: string;
+  pemohonEmail: string;
   lokasiTanah: string;
   tanahRt: string;
   tanahRw: string;
@@ -63,6 +64,7 @@ const initialState: FormState = {
   pemohonRt: "",
   pemohonRw: "",
   pemohonHp: "",
+  pemohonEmail: "",
   lokasiTanah: "",
   tanahRt: "",
   tanahRw: "",
@@ -179,6 +181,7 @@ export function PermohonanForm() {
         pemohonRt: form.pemohonRt.trim() || undefined,
         pemohonRw: form.pemohonRw.trim() || undefined,
         pemohonHp: form.pemohonHp.trim() || undefined,
+        pemohonEmail: form.pemohonEmail.trim() || undefined,
         lokasiTanah: form.lokasiTanah.trim() || undefined,
         tanahRt: form.tanahRt.trim() || undefined,
         tanahRw: form.tanahRw.trim() || undefined,
@@ -361,12 +364,21 @@ export function PermohonanForm() {
                   inputMode="numeric"
                 />
               </Field>
-              <Field label="No. HP" hint="Format: 08xxxxxxxxxx">
+              <Field label="No. HP" hint="Format: 08xxxxxxxxxx — untuk notifikasi WA">
                 <Input
                   value={form.pemohonHp}
                   onChange={(e) => update("pemohonHp", e.target.value.replace(/[^0-9+]/g, "").slice(0, 15))}
                   placeholder="081234567890"
                   inputMode="tel"
+                />
+              </Field>
+              <Field label="Email" hint="Untuk notifikasi email saat surat selesai / perlu kelengkapan">
+                <Input
+                  type="email"
+                  value={form.pemohonEmail}
+                  onChange={(e) => update("pemohonEmail", e.target.value.slice(0, 100))}
+                  placeholder="pemohon@email.com"
+                  inputMode="email"
                 />
               </Field>
             </div>

@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   Settings,
@@ -40,6 +42,13 @@ import {
   Mountain,
   Sparkles,
   RefreshCw,
+  Send,
+  MessageCircle,
+  Key,
+  Server,
+  TestTube2,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { BrandingUploader, type BrandingAssetSpec } from "@/components/app/shared/BrandingUploader";
 import { Logo } from "@/components/app/Logo";
@@ -63,6 +72,24 @@ const DEFAULTS: Record<string, string> = {
   register_use_random: "true",
   app_name: "SI-TRACK TANAH",
   app_subtitle: "Kelurahan Kuala Pembuang II",
+  // ===== Notification defaults (Task 15) =====
+  notify_email_enabled: "true",
+  notify_wa_enabled: "true",
+  notify_fonnte_token: "",
+  notify_email_provider: "log",
+  notify_email_from: "",
+  notify_email_api_url: "",
+  notify_email_api_key: "",
+  notify_tpl_selesai_subject: "Surat Tanah Anda Telah Selesai — {nomor_register}",
+  notify_tpl_selesai_email:
+    "Yth. {pemohon_nama},\n\nKabar baik! Permohonan surat tanah Anda dengan Nomor Register {nomor_register} telah SELESAI diproses.\n\nJenis Surat: {jenis_surat}\nStatus: {status_nama}\nTanggal: {tanggal}\n\nSilakan mengunjungi {kelurahan_nama} untuk mengambil surat Anda. Bawalah tanda terima permohonan dan dokumen identitas asli.\n\nAlamat: {kelurahan_alamat}\nTelepon: {kelurahan_telepon}\nEmail: {kelurahan_email}\n\nTerima kasih atas kepercayaan Anda.\n\nHormat kami,\n{kelurahan_nama}",
+  notify_tpl_selesai_wa:
+    "*{kelurahan_nama}*\n\nYth. {pemohon_nama},\n\nKabar baik! Permohonan surat tanah Anda dengan Nomor Register *{nomor_register}* telah *SELESAI* diproses.\n\nJenis Surat: {jenis_surat}\nTanggal: {tanggal}\n\nSilakan ambil surat Anda di {kelurahan_alamat}. Bawa tanda terima & KTP asli.\n\nTerima kasih. 🙏",
+  notify_tpl_revisi_subject: "Permohonan Surat Tanah Memerlukan Kelengkapan Dokumen — {nomor_register}",
+  notify_tpl_revisi_email:
+    "Yth. {pemohon_nama},\n\nPermohonan surat tanah Anda dengan Nomor Register {nomor_register} memerlukan kelengkapan dokumen.\n\nJenis Surat: {jenis_surat}\nStatus: {status_nama}\nCatatan: {catatan}\nTanggal: {tanggal}\n\nMohon segera melengkapi dokumen yang diminta dengan mengunjungi {kelurahan_nama} atau menghubungi petugas kami.\n\nAlamat: {kelurahan_alamat}\nTelepon: {kelurahan_telepon}\nEmail: {kelurahan_email}\n\nTerima kasih.\n\nHormat kami,\n{kelurahan_nama}",
+  notify_tpl_revisi_wa:
+    "*{kelurahan_nama}*\n\nYth. {pemohon_nama},\n\nPermohonan surat tanah Anda dengan Nomor Register *{nomor_register}* memerlukan *kelengkapan dokumen*.\n\nCatatan: {catatan}\nTanggal: {tanggal}\n\nMohon segera lengkapi dokumen yang diminta. Hubungi {kelurahan_telepon} untuk info lebih lanjut.\n\nTerima kasih. 🙏",
 };
 
 /* ============================================================
@@ -686,6 +713,500 @@ export function SettingsManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ===== Section 6: Notifikasi Email & WhatsApp ===== */}
+      <NotifySection
+        settings={settings}
+        updateSetting={updateSetting}
+        activeSection={activeSection}
+        saving={saving}
+        onSaveSection={handleSaveSection}
+      />
+    </div>
+  );
+}
+
+/* ============================================================
+   Section 6 — Notifikasi Email & WhatsApp (Fonnte)
+   ============================================================ */
+const NOTIFY_FIELDS = [
+  "notify_email_enabled",
+  "notify_wa_enabled",
+  "notify_fonnte_token",
+  "notify_email_provider",
+  "notify_email_from",
+  "notify_email_api_url",
+  "notify_email_api_key",
+  "notify_tpl_selesai_subject",
+  "notify_tpl_selesai_email",
+  "notify_tpl_selesai_wa",
+  "notify_tpl_revisi_subject",
+  "notify_tpl_revisi_email",
+  "notify_tpl_revisi_wa",
+];
+
+// Placeholders help text for template editors
+const TEMPLATE_VARS = [
+  "{nomor_register}", "{pemohon_nama}", "{pemohon_hp}", "{pemohon_email}",
+  "{status_nama}", "{catatan}", "{alasan_ditolak}", "{jenis_surat}",
+  "{kelurahan_nama}", "{kelurahan_alamat}", "{kelurahan_telepon}", "{kelurahan_email}",
+  "{tanggal}", "{app_url}",
+];
+
+function NotifySection({
+  settings,
+  updateSetting,
+  activeSection,
+  saving,
+  onSaveSection,
+}: {
+  settings: Record<string, string>;
+  updateSetting: (key: string, value: string) => void;
+  activeSection: string | null;
+  saving: boolean;
+  onSaveSection: (keys: string[]) => void;
+}) {
+  const [showToken, setShowToken] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [testingWa, setTestingWa] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testTarget, setTestTarget] = useState("");
+  const [testResult, setTestResult] = useState<
+    null | { channel: string; ok: boolean; error?: string; recipient?: string }
+  >(null);
+
+  const emailEnabled = (settings.notify_email_enabled ?? "true") === "true";
+  const waEnabled = (settings.notify_wa_enabled ?? "true") === "true";
+  const fonnteTokenSet = !!(settings.notify_fonnte_token || "").trim();
+  const emailProvider = settings.notify_email_provider || "log";
+
+  const handleTest = async (channel: "wa" | "email") => {
+    if (channel === "wa" && !fonnteTokenSet) {
+      toast.error("Isi dulu Fonnte API Token sebelum menguji WhatsApp");
+      return;
+    }
+    setTestingWa(channel === "wa");
+    setTestingEmail(channel === "email");
+    setTestResult(null);
+    try {
+      const r = await api.testNotify(channel, testTarget.trim() || undefined);
+      setTestResult({ channel, ok: r.ok, error: r.error, recipient: r.recipient });
+      if (r.ok) {
+        toast.success(
+          `Notifikasi ${channel === "wa" ? "WhatsApp" : "Email"} uji coba berhasil dikirim ke ${r.recipient || testTarget || "(self)"}`
+        );
+      } else {
+        toast.error(`Gagal: ${r.error || "unknown error"}`);
+      }
+    } catch (e: any) {
+      const msg = e?.message || "Network error";
+      setTestResult({ channel, ok: false, error: msg });
+      toast.error(`Gagal: ${msg}`);
+    } finally {
+      setTestingWa(false);
+      setTestingEmail(false);
+    }
+  };
+
+  return (
+    <Card className="glass-card border-primary/15">
+      <CardContent className="p-6 space-y-5">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+              <Send className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base leading-tight">Notifikasi Email &amp; WhatsApp</h3>
+              <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                Kirim notifikasi otomatis ke pemohon saat status berubah menjadi <span className="font-semibold">Perbaikan Dokumen (REVISI)</span> atau <span className="font-semibold">Surat Selesai (SELESAI)</span>. WhatsApp menggunakan <a href="https://fonnte.com" target="_blank" rel="noreferrer" className="text-emerald-500 underline">Fonnte API</a>.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => onSaveSection(NOTIFY_FIELDS)}
+            disabled={saving}
+          >
+            {saving && activeSection === "notify_email_enabled" ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            Simpan
+          </Button>
+        </div>
+        <Separator className="opacity-50" />
+
+        {/* ===== Channel toggles ===== */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/15">
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+              <Mail className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">Notifikasi Email</p>
+                  <p className="text-[11px] text-muted-foreground">Kirim email saat REVISI / SELESAI</p>
+                </div>
+                <Switch
+                  checked={emailEnabled}
+                  onCheckedChange={(c) => updateSetting("notify_email_enabled", c ? "true" : "false")}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/15">
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+              <MessageCircle className="w-4 h-4 text-emerald-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">Notifikasi WhatsApp</p>
+                  <p className="text-[11px] text-muted-foreground">Kirim WA via Fonnte saat REVISI / SELESAI</p>
+                </div>
+                <Switch
+                  checked={waEnabled}
+                  onCheckedChange={(c) => updateSetting("notify_wa_enabled", c ? "true" : "false")}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ===== Fonnte config ===== */}
+        <div className="p-4 rounded-lg border border-emerald-500/15 bg-emerald-500/[0.03]">
+          <div className="flex items-center gap-2 mb-3">
+            <Key className="w-4 h-4 text-emerald-500" />
+            <p className="text-sm font-semibold">Konfigurasi Fonnte (WhatsApp Gateway)</p>
+            {fonnteTokenSet ? (
+              <span className="ml-auto text-[10px] font-medium inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                <CheckCircle2 className="w-3 h-3" /> Token aktif
+              </span>
+            ) : (
+              <span className="ml-auto text-[10px] font-medium inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
+                <XCircle className="w-3 h-3" /> Token belum diisi
+              </span>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Fonnte API Token</Label>
+            <div className="flex gap-2">
+              <Input
+                type={showToken ? "text" : "password"}
+                value={settings.notify_fonnte_token ?? ""}
+                onChange={(e) => updateSetting("notify_fonnte_token", e.target.value)}
+                placeholder="Tempel token dari dashboard Fonnte"
+                className="font-mono text-xs"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => setShowToken((s) => !s)}
+              >
+                {showToken ? <Eye className="w-3.5 h-3.5" /> : <Key className="w-3.5 h-3.5" />}
+                <span className="ml-1.5 text-xs">{showToken ? "Sembunyikan" : "Lihat"}</span>
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-snug">
+              Dapatkan token gratis di <a href="https://fonnte.com" target="_blank" rel="noreferrer" className="text-emerald-500 underline">fonnte.com</a> → menu <span className="font-mono">API</span>. Nomor pengirim ditentukan oleh perangkat yang Anda scan-pair di Fonnte.
+            </p>
+          </div>
+        </div>
+
+        {/* ===== Email config ===== */}
+        <div className="p-4 rounded-lg border border-blue-500/15 bg-blue-500/[0.03]">
+          <div className="flex items-center gap-2 mb-3">
+            <Server className="w-4 h-4 text-blue-500" />
+            <p className="text-sm font-semibold">Konfigurasi Email (SMTP)</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Provider Email</Label>
+              <Select
+                value={emailProvider}
+                onValueChange={(v) => updateSetting("notify_email_provider", v)}
+              >
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="log">Log (Dev — tidak benar-benar mengirim)</SelectItem>
+                  <SelectItem value="smtp_api">SMTP API Bridge (HTTP → SMTP)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Email Pengirim (From)</Label>
+              <Input
+                type="email"
+                value={settings.notify_email_from ?? ""}
+                onChange={(e) => updateSetting("notify_email_from", e.target.value)}
+                placeholder="noreply@kelurahan.go.id"
+              />
+            </div>
+          </div>
+
+          {emailProvider === "smtp_api" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs">SMTP API URL (Bridge Endpoint)</Label>
+                <Input
+                  value={settings.notify_email_api_url ?? ""}
+                  onChange={(e) => updateSetting("notify_email_api_url", e.target.value)}
+                  placeholder="https://smtp-bridge.example.com/send"
+                  className="font-mono text-xs"
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs">SMTP API Key (Bearer Token)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type={showApiKey ? "text" : "password"}
+                    value={settings.notify_email_api_key ?? ""}
+                    onChange={(e) => updateSetting("notify_email_api_key", e.target.value)}
+                    placeholder="opsional"
+                    className="font-mono text-xs"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => setShowApiKey((s) => !s)}
+                  >
+                    {showApiKey ? <Eye className="w-3.5 h-3.5" /> : <Key className="w-3.5 h-3.5" />}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-snug sm:col-span-2">
+                Mode <span className="font-semibold">SMTP API Bridge</span>: sistem akan POST JSON <span className="font-mono">{`{ from, to, subject, html }`}</span> ke URL di atas. Gunakan layanan seperti Mailgun, SendGrid, Resend, atau SMTP2GO yang menyediakan REST API.
+              </p>
+            </div>
+          )}
+          {emailProvider === "log" && (
+            <p className="text-[11px] text-amber-600 mt-3 leading-snug flex items-start gap-1.5">
+              <TestTube2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>
+                <span className="font-semibold">Mode Log aktif:</span> Email tidak benar-benar dikirim — body email hanya dicetak di server log. Berguna untuk development. Untuk produksi, ganti ke <span className="font-semibold">SMTP API Bridge</span>.
+              </span>
+            </p>
+          )}
+        </div>
+
+        {/* ===== Test buttons ===== */}
+        <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+          <div className="flex items-center gap-2 mb-3">
+            <TestTube2 className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold">Uji Coba Notifikasi</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+            <div className="flex-1 space-y-1.5">
+              <Label className="text-xs">Tujuan (opsional — kosongkan untuk kirim ke kontak Anda sendiri)</Label>
+              <Input
+                value={testTarget}
+                onChange={(e) => setTestTarget(e.target.value)}
+                placeholder="Nomor HP (628xxx) atau email tujuan"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleTest("wa")}
+                disabled={testingWa || !waEnabled || !fonnteTokenSet}
+                className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+              >
+                {testingWa ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                Test WA
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleTest("email")}
+                disabled={testingEmail || !emailEnabled}
+                className="border-blue-500/40 text-blue-600 hover:bg-blue-500/10"
+              >
+                {testingEmail ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Mail className="w-3.5 h-3.5 mr-1.5" />
+                )}
+                Test Email
+              </Button>
+            </div>
+          </div>
+          {testResult && (
+            <div
+              className={`mt-3 p-3 rounded-lg border text-[11px] leading-snug ${
+                testResult.ok
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                  : "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400"
+              }`}
+            >
+              <div className="flex items-start gap-1.5">
+                {testResult.ok ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                ) : (
+                  <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                )}
+                <div>
+                  <p className="font-semibold">
+                    {testResult.channel === "wa" ? "WhatsApp" : "Email"} —{" "}
+                    {testResult.ok ? "BERHASIL" : "GAGAL"}
+                  </p>
+                  {testResult.recipient && <p>Penerima: {testResult.recipient}</p>}
+                  {testResult.error && <p>Error: {testResult.error}</p>}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ===== Template editor ===== */}
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Bell className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold">Template Pesan</p>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3 leading-snug">
+            Kustomisasi pesan yang dikirim ke pemohon. Gunakan variabel dalam kurung kurawal untuk
+            mensubstitusi data pemohon secara otomatis.
+          </p>
+          {/* Variable chips */}
+          <div className="flex flex-wrap gap-1.5 mb-3 p-2.5 rounded-lg bg-muted/30 border border-border/40">
+            {TEMPLATE_VARS.map((v) => (
+              <code
+                key={v}
+                className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-mono border border-primary/20"
+                title={`Klik untuk menyalin: ${v}`}
+              >
+                {v}
+              </code>
+            ))}
+          </div>
+
+          {/* SELESAI templates */}
+          <div className="space-y-3">
+            <TemplateEditor
+              title="1. Surat Selesai — Subject Email"
+              hint="Subjek email yang dikirim saat status = SELESAI"
+              value={settings.notify_tpl_selesai_subject ?? ""}
+              onChange={(v) => updateSetting("notify_tpl_selesai_subject", v)}
+              rows={1}
+              accent="emerald"
+            />
+            <TemplateEditor
+              title="2. Surat Selesai — Body Email"
+              hint="Isi email (teks plain, otomatis dikonversi ke HTML)"
+              value={settings.notify_tpl_selesai_email ?? ""}
+              onChange={(v) => updateSetting("notify_tpl_selesai_email", v)}
+              rows={8}
+              accent="emerald"
+            />
+            <TemplateEditor
+              title="3. Surat Selesai — Pesan WhatsApp"
+              hint="Pesan WA. Gunakan *teks* untuk bold. Maks 1000 karakter."
+              value={settings.notify_tpl_selesai_wa ?? ""}
+              onChange={(v) => updateSetting("notify_tpl_selesai_wa", v)}
+              rows={6}
+              accent="emerald"
+            />
+
+            {/* REVISI templates */}
+            <TemplateEditor
+              title="4. Perbaikan Dokumen — Subject Email"
+              hint="Subjek email yang dikirim saat status = REVISI"
+              value={settings.notify_tpl_revisi_subject ?? ""}
+              onChange={(v) => updateSetting("notify_tpl_revisi_subject", v)}
+              rows={1}
+              accent="amber"
+            />
+            <TemplateEditor
+              title="5. Perbaikan Dokumen — Body Email"
+              hint="Isi email (teks plain, otomatis dikonversi ke HTML)"
+              value={settings.notify_tpl_revisi_email ?? ""}
+              onChange={(v) => updateSetting("notify_tpl_revisi_email", v)}
+              rows={8}
+              accent="amber"
+            />
+            <TemplateEditor
+              title="6. Perbaikan Dokumen — Pesan WhatsApp"
+              hint="Pesan WA. Gunakan *teks* untuk bold. Maks 1000 karakter."
+              value={settings.notify_tpl_revisi_wa ?? ""}
+              onChange={(v) => updateSetting("notify_tpl_revisi_wa", v)}
+              rows={6}
+              accent="amber"
+            />
+          </div>
+        </div>
+
+        {/* Info box — when notifications fire */}
+        <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+          <div className="flex items-start gap-2">
+            <Bell className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+            <div className="text-[11px] leading-snug text-muted-foreground">
+              <span className="font-semibold text-foreground">Kapan notifikasi dikirim?</span> Notifikasi
+              otomatis dipicu saat petugas mengubah status permohonan menjadi <span className="font-semibold">Perbaikan Dokumen</span> (REVISI)
+              atau <span className="font-semibold">Surat Selesai</span> (SELESAI). Kegagalan pengiriman tidak membatalkan perubahan status —
+              kegagalan dicatat di Audit Log. Anda juga dapat mengirim ulang notifikasi manual dari halaman detail permohonan.
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ============================================================
+   Reusable template editor (textarea + label + reset)
+   ============================================================ */
+function TemplateEditor({
+  title,
+  hint,
+  value,
+  onChange,
+  rows = 4,
+  accent = "primary",
+}: {
+  title: string;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+  rows?: number;
+  accent?: "primary" | "emerald" | "amber" | "blue";
+}) {
+  const accentClasses = {
+    primary: "border-primary/30 bg-primary/[0.04]",
+    emerald: "border-emerald-500/30 bg-emerald-500/[0.04]",
+    amber: "border-amber-500/30 bg-amber-500/[0.04]",
+    blue: "border-blue-500/30 bg-blue-500/[0.04]",
+  }[accent];
+  return (
+    <div className={`rounded-lg border ${accentClasses} p-3`}>
+      <div className="flex items-baseline justify-between gap-2 mb-1.5">
+        <Label className="text-xs font-semibold">{title}</Label>
+        <span className="text-[10px] text-muted-foreground">{value.length} karakter</span>
+      </div>
+      {hint && <p className="text-[10px] text-muted-foreground mb-2 leading-snug">{hint}</p>}
+      <Textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        className="text-xs font-mono leading-relaxed resize-y"
+      />
     </div>
   );
 }

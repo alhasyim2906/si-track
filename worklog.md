@@ -1556,3 +1556,115 @@ Project was stable after Task 13 (branding asset upload feature). User reported 
 4. **Multi-language receipt** (Indonesian + English) toggle for international use.
 5. **Embed custom logo** in the receipt header — currently uses the default Logo component which falls back to inline SVG if no custom branding logo is uploaded. Should pass `src={branding.branding_logo_url}` so admin-uploaded logos appear on receipts (ties into Task 13 branding feature).
 6. Continue with previously-queued features from Task 13 recommendations: image dimension validation, auto-resize uploaded images, branding reset button, color theme customization, custom CSS injection.
+
+---
+Task ID: 15
+Agent: main
+Task: Tambahkan fitur notifikasi Email & WhatsApp (via Fonnte) otomatis saat Surat tidak lengkap (REVISI) dan Surat Selesai (SELESAI), dengan konfigurasi yang dapat diatur di Pengaturan.
+
+## Current Project Status Assessment
+Project was stable after Task 14 (Tanda Terima print fix). User requested: "tambakan fitur untuk Notifikasi email dan WA ketika Surat tidak lengkap dan juga Surat Selesai Gunakan Foonte yang dapat di atur di pengaturan" (Foonte = Fonnte, popular Indonesian WhatsApp API gateway). The system already had in-app notifications (the bell icon dropdown) but no external Email/WA notifications. This round adds a complete notification pipeline: Fonnte WA API integration, pluggable email transport (log mode for dev + SMTP API bridge for prod), configurable message templates with variable substitution, auto-trigger on REVISI/SELESAI status changes, manual resend from permohonan detail, and a comprehensive Settings UI section.
+
+## Work Completed
+
+### 1. New notification library (`src/lib/notify.ts`)
+- `getNotifySettings()` — loads all `notify_*` keys from Settings table
+- `renderTemplate(template, ctx)` — substitutes `{variable}` placeholders with pemohon/kelurahan data; supports 14 variables: `{nomor_register}`, `{pemohon_nama}`, `{pemohon_hp}`, `{pemohon_email}`, `{status_nama}`, `{catatan}`, `{alasan_ditolak}`, `{jenis_surat}`, `{kelurahan_nama}`, `{kelurahan_alamat}`, `{kelurahan_telepon}`, `{kelurahan_email}`, `{tanggal}`, `{app_url}`
+- `normalizePhone(phone)` — converts Indonesian numbers to international format (e.g., `081234567890` → `6281234567890`, handles leading `0`, `62`, `8` prefixes)
+- `sendWhatsApp(token, phone, message)` — POSTs to `https://api.fonnte.com/send` with `Authorization: <token>` header + form-data (`target`, `message`, `countryCode=62`); returns `{channel, success, recipient, error?}`
+- `sendEmail(settings, to, subject, html)` — pluggable transport: `log` mode prints to server console (dev), `smtp_api` mode POSTs JSON `{from, to, subject, html}` to a configurable bridge URL with Bearer auth
+- `dispatchPermohonanNotification(permohonanId, triggerStatus, ctx, actorUserId, opts)` — top-level orchestrator: reads templates + credentials from Settings, picks SELESAI vs REVISI template pair, fires email + WA in parallel, writes a single `AuditLog` entry summarizing results, returns per-channel results
+- Default templates baked in for both REVISI and SELESAI (Indonesian, formal government style with kelurahan letterhead)
+
+### 2. Schema change: `pemohonEmail` field on Permohonan
+- Added `pemohonEmail String?` to `prisma/schema.prisma` Permohonan model (previously pemohon had only `pemohonHp`, no email — email notifications had no recipient)
+- Ran `bun run db:push` — schema in sync, Prisma client regenerated
+- Updated existing 10 permohonan records with emails via a one-off script (Suparman→suparman@example.com, Maryam→maryam@example.com, etc.)
+- Updated `scripts/seed.ts` to include `pemohonEmail` for all 5 seed permohonan
+
+### 3. Backend API changes
+- **`src/app/api/permohonan/route.ts` (POST)** — accepts `pemohonEmail` field when creating new permohonan
+- **`src/app/api/permohonan/[id]/route.ts` (PUT)** — accepts `pemohonEmail` in the editable fields whitelist
+- **`src/app/api/permohonan/[id]/status/route.ts` (POST)** — after writing the in-app notification, calls `dispatchPermohonanNotification()` when `targetKode` is `REVISI` or `SELESAI`; pulls kelurahan info from Settings to populate template context; failures are caught and logged (never block the status change); returns `notify` array in response so UI can show toast
+- **NEW: `src/app/api/permohonan/[id]/notify/route.ts` (POST)** — manual re-dispatch endpoint; auto-picks template based on current status (REVISI→revisi template, SELESAI→selesai template, DITOLAK→revisi template as "needs attention", other→selesai fallback); `force=true` bypasses global notify_enabled toggles; auth: PETUGAS/ADMIN/ATASAN; writes `NOTIFY_RESEND` audit log
+- **NEW: `src/app/api/settings/notify/test/route.ts` (POST)** — sends a TEST notification using current settings; body `{channel: "wa"|"email", to?: string}`; uses admin's own phone/email if `to` omitted; uses SELESAI template with placeholder context (`nomor_register=KPII-TNH-2026-TEST1234`); writes `NOTIFY_TEST` audit log; returns `{ok, channel, recipient, error, settings}` so UI can show diagnostic info
+
+### 4. Frontend — Settings UI Section 6: "Notifikasi Email & WhatsApp"
+- New 350-line `NotifySection` component appended to `SettingsManagement.tsx`
+- **Channel toggles**: 2 cards (Email + WhatsApp) with green Mail/MessageCircle icons, switch toggles, descriptions; saved to `notify_email_enabled` / `notify_wa_enabled`
+- **Fonnte config card** (emerald accent): password input for API token with show/hide button; "Token aktif" green badge when set / "Token belum diisi" amber badge when empty; help link to fonnte.com
+- **Email SMTP config card** (blue accent): Provider dropdown (`log` dev mode / `smtp_api` bridge mode); Email From input; conditional fields for SMTP API URL + Bearer API key (only shown when provider=smtp_api); amber warning when in log mode explaining emails aren't actually sent
+- **Test panel** (gold accent): "Tujuan" input (optional — defaults to admin's own contact); Test WA button (disabled if WA disabled or no token); Test Email button (disabled if email disabled); inline result box (green for success / red for failure) showing channel, BERHASIL/GAGAL status, recipient, and error message
+- **Template editor section**: variable chips bar (14 clickable `{variable}` codes); 6 template editors in colored cards:
+  - SELESAI: Email Subject (1 row), Email Body (8 rows, emerald), WA Message (6 rows, emerald)
+  - REVISI: Email Subject (1 row, amber), Email Body (8 rows, amber), WA Message (6 rows, amber)
+  - Each editor shows character count, hint text, monospace textarea
+- **Info box** explaining when notifications auto-fire (REVISI/SELESAI status changes) + that failures don't block status change + manual resend available
+- All 13 `notify_*` settings keys added to `DEFAULTS` with sensible default templates
+- Save button per-section calls `handleSaveSection(NOTIFY_FIELDS)`
+
+### 5. Frontend — PermohonanDetail enhancements
+- Added `pemohonEmail` to interface, editForm init, view display (DLRow with Mail icon), and edit form (email input)
+- Imported `Mail, Send, Bell` icons
+- Added `resendingNotify` state + `handleResendNotify` handler
+- New "Kirim Ulang Notifikasi" button next to "Cetak Tanda Terima" (emerald accent) with tooltip; calls `api.resendPermohonanNotify(id, true)`; shows toast based on results:
+  - All channels OK → success toast "Notifikasi Surat Selesai/Perbaikan Dokumen berhasil dikirim ke N channel"
+  - Mixed → warning toast "N channel berhasil, M gagal: WA (error), ..."
+  - All fail → error toast with reasons
+- Force=true so admin can always send even when auto-notify is off
+
+### 6. Frontend — PermohonanForm enhancements
+- Added `pemohonEmail` field to FormState interface, initialState, submit body, and UI (email input with placeholder `pemohon@email.com`)
+- Updated No. HP field hint to mention "untuk notifikasi WA"
+- New Email field hint: "Untuk notifikasi email saat surat selesai / perlu kelengkapan"
+
+### 7. API client (`src/lib/api.ts`) additions
+- `testNotify(channel, to?)` → POST `/api/settings/notify/test`
+- `resendPermohonanNotify(id, force)` → POST `/api/permohonan/{id}/notify`
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile, no runtime errors
+- **API endpoint tests** (curl with admin session):
+  - Test notify without Fonnte token → 200, `{ok: false, error: "Fonnte API token belum dikonfigurasi"}` ✓
+  - Set fake Fonnte token via PUT /api/settings → 200 ✓
+  - Test WA with fake token → 200, `{ok: false, error: "invalid token", recipient: "6281234567890"}` ✓ (proves Fonnte API integration works — error comes FROM Fonnte)
+  - Test email in log mode → 200, `{ok: true, recipient: "test@example.com"}` ✓
+  - Manual resend on Suparman permohonan → 200, `{triggerStatus: "SELESAI", results: [{email: success}, {wa: fail "invalid token"}]}` ✓
+  - Phone normalization verified: `081234567890` → `6281234567890` ✓
+  - Template rendering verified in dev log: `Yth. Suparman, ... Nomor Register KPII-TNH-2026-XK7M2P9Q telah SELESAI diproses. Jenis Surat: Surat Keterangan Tanah. Tanggal: 05 Juli 2026.` ✓
+  - Audit log entries: `NOTIFY` (auto-dispatch summary), `NOTIFY_RESEND` (manual resend), `NOTIFY_TEST` (test button) — all visible in Audit Log page ✓
+- **agent-browser QA**:
+  - Settings page → "Notifikasi Email & WhatsApp" section visible with all 6 sub-sections ✓
+  - Channel toggles render with switches ✓
+  - Fonnte token field with show/hide button + "Token aktif" badge ✓
+  - Email provider dropdown (Log / SMTP API Bridge) ✓
+  - Test WA button → toast "1 channel berhasil, 1 gagal: WA (invalid token)" + inline red error box with "WhatsApp — GAGAL / Penerima: 6281234567890 / Error: invalid token" ✓
+  - Test Email button → toast "Notifikasi Email uji coba berhasil dikirim ke test@example.com" ✓
+  - 6 template editors visible with textareas + character counts ✓
+  - 14 variable chips visible above editors ✓
+  - PermohonanDetail → "Kirim Ulang Notifikasi" button visible next to "Cetak Tanda Terima" ✓
+  - Click resend → toast "1 channel berhasil, 1 gagal: WA (invalid token)" ✓
+  - Data tab → EMAIL row visible with `suparman@example.com` ✓
+  - PermohonanForm → Email input field visible with placeholder `pemohon@email.com` ✓
+  - Audit Log page → NOTIFY_RESEND + NOTIFY entries visible ✓
+- **VLM visual quality score**: 8/10 for the Notifikasi section (clean layout, consistent dark navy + gold theme, all elements visible, minor text density in template sections)
+
+## Unresolved Issues / Risks
+- **Fonnte device pairing**: Fonnte requires the admin to scan-pair a WhatsApp number on their dashboard (https://fonnte.com) before the API can send messages. The token alone isn't enough — the device must be online. Documented in the UI help text.
+- **Email in log mode**: Currently `notify_email_provider` defaults to `log` (dev mode). For production, admin must switch to `smtp_api` and provide a bridge URL (Mailgun/SendGrid/Resend/SMTP2GO). The UI clearly warns about this in amber.
+- **No SMTP direct integration**: We don't bundle nodemailer (would add 5+ MB). Instead we use an HTTP→SMTP bridge pattern so admins can pick any provider. A future enhancement could bundle Resend's official SDK (lighter) for one-click email setup.
+- **No retry on failure**: If Fonnte or the SMTP bridge is temporarily down, the notification is lost (only logged in AuditLog). A future enhancement could add a `NotificationQueue` table with retry logic.
+- **Rate limiting**: Fonnte has rate limits (depends on plan). If many permohonan change status simultaneously, we could hit limits. Currently no rate limiter — acceptable for typical kelurahan volume (<100 status changes/day).
+- **WA message length**: Fonnte caps messages around 1000 chars for free tier. The default templates are well under this, but admins could write very long custom templates. UI shows character count as a soft warning; no hard enforcement.
+- **No WhatsApp template approval**: Fonnte (and WhatsApp Business API in general) requires pre-approved message templates for proactive messages to users outside the 24-hour session window. The current implementation sends "free text" messages which may be blocked by WhatsApp for new conversations. For production use, the admin should register the template on Fonnte dashboard and use the `notify_tpl_*_wa` settings to match the approved template exactly. This is a Fonnte/WhatsApp policy limitation, not a code issue.
+
+## Priority Recommendations for Next Round
+1. **Bundled email provider**: Integrate Resend or Mailgun's official SDK for one-click email setup (no need for external bridge URL)
+2. **Notification queue with retry**: Add a `NotificationQueue` Prisma model + cron worker that retries failed sends (exponential backoff)
+3. **WhatsApp template pre-approval helper**: Add a UI helper that shows the exact text the admin needs to submit to Fonnte for template approval
+4. **Notification history page**: New admin page showing all sent notifications (email + WA) with delivery status, timestamps, and resend buttons
+5. **In-app notification → email/WA bridge**: Currently in-app bell notifications and external email/WA are separate. Consider unifying so all status changes (not just REVISI/SELESAI) can optionally trigger external notifications
+6. **Webhook for delivery receipts**: Fonnte supports delivery webhooks — implement `/api/webhooks/fonnte` to record delivery status (sent/delivered/read/failed) on the NotificationQueue
+7. **Multi-language templates**: Allow templates per language (Indonesian + English) with a language toggle on the pemohon
+8. **Continue with previously-queued features**: dashboard comparison charts, PWA, map integration, PDF export polish, server-side MIME validation for uploads, move uploads out of public/

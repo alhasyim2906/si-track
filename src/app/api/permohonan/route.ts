@@ -123,6 +123,7 @@ export async function POST(req: NextRequest) {
         pemohonRt: body.pemohonRt || null,
         pemohonRw: body.pemohonRw || null,
         pemohonHp: body.pemohonHp || null,
+        pemohonEmail: body.pemohonEmail || null,
         lokasiTanah: body.lokasiTanah || null,
         tanahRt: body.tanahRt || null,
         tanahRw: body.tanahRw || null,
