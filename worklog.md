@@ -157,3 +157,51 @@ Stage Summary:
 - No runtime errors or hydration issues observed.
 - Demo credentials: admin@kpii.go.id/admin123, petugas@kpii.go.id/petugas123, lurah@kpii.go.id/lurah123.
 - Remaining: create the mandatory 15-min webDevReview cron job.
+
+---
+Task ID: 6 (cron review round 1)
+Agent: main (webDevReview)
+Task: QA via agent-browser, fix visual bugs, add new features (public stats, FAQ, tanda terima)
+
+## Current Project Status Assessment
+App was production-usable from Task 4 (all core flows verified). This round focused on visual polish + new public-facing features. Lint stayed clean (0 errors) throughout. Dev server stable on port 3000.
+
+## Work Completed
+
+### QA Findings (agent-browser + VLM visual review)
+- All views render without runtime errors (public, 3 dashboards, permohonan list/detail/form, reports, audit, users, jenis-surat).
+- Nav click "bug" was a false alarm — agent-browser ref staleness; navigation works correctly (verified via JS eval with proper wait for re-render).
+- VLM visual review (6 screenshots) identified: chart legend overlap (AdminDashboard), text truncation (JenisSurat cards), sparse tables (no zebra/hover), low muted-text contrast, inconsistent spacing.
+
+### Bug Fixes
+1. **AdminDashboard charts** (`AdminDashboard.tsx`): Replaced recharts built-in `<Legend>` (which overlapped) with custom legend rendered BELOW each chart. Bar chart legend = 2 inline items; Pie chart legend = 2-col grid with color dots + count values. Equalized chart heights (h-64 bar / h-52 pie + legend). Fixed "7 hari" stat card clipping by using `compact` + value `${avgDays}h` with hint.
+2. **JenisSurat card truncation** (`JenisSuratManagement.tsx`): Changed `truncate` → `line-clamp-2 break-words` on card title so long names wrap instead of clipping.
+3. **Global table polish** (`globals.css`): Added zebra striping (`nth-child(even)` gold 3.5% overlay), gold-tinted row hover (8%), increased row padding (0.7rem). Applied globally via `[data-slot]` selectors so all tables benefit.
+4. **Muted text contrast** (`globals.css`): Bumped `--muted-foreground` from `oklch(0.72 0.02 80)` → `oklch(0.78 0.025 80)` in both `:root` and `.dark` for better WCAG AA on navy.
+5. **Public hero spacing** (`PublicTracking.tsx`): Reduced `pt-14 pb-10` → `pt-10 pb-8`, added `leading-relaxed` to subtext, centered example registers (`justify-center`), added `animate-fade-in-up` entrance animation.
+
+### New Features
+6. **Public transparency stats banner** (new `PublicSections.tsx` + `/api/public/stats`): 4-counter card (Total / Selesai / Diproses / Tingkat Penyelesaian %) shown on landing page below search. No auth required. Includes "bulan ini" count.
+7. **Dokumen yang Diperlukan section** (`PublicSections.tsx`): 6-card grid (KTP, KK, SPPT PBB, Bukti Penguasaan, Surat Pernyataan, Foto Lokasi) + 3 info cards (Lokasi Kantor, Jam Layanan, Biaya Layanan Gratis).
+8. **FAQ accordion** (`PublicSections.tsx`): 6 Q&A items covering: what is SI-TRACK, how to track, required docs, processing time, what to do on "Perbaikan Dokumen", surat pickup. Uses shadcn Accordion.
+9. **Printable Tanda Terima** (new `TandaTerima.tsx` + integrated into `PermohonanDetail.tsx`): Formal government receipt with letterhead (Logo + PEMERINTAH KABUPATEN SERUYAN / KELURAHAN KUALA PEMBUANG II), title, nomor register box + QR code, Data Pemohon + Data Tanah definition lists, keperluan, signature footer (Pemohon/Petugas Penerima/date), bottom disclaimer. "Cetak Tanda Terima" button (Printer icon, PETUGAS/ADMIN only) opens Dialog with scrollable preview + "Cetak / Print" button calling `window.print()`. Print CSS (`@media print` in globals.css) flips glass-card to white+gold-border, hides nav/header/footer/buttons.
+10. **Global enhancements** (`globals.css`): Added `.card-hover` lift, `.animate-fade-in-up`, `.tabular-nums`, `*:focus-visible` gold ring for accessibility, `.print-only` utility.
+
+## Verification Results
+- `bun run lint`: 0 errors.
+- agent-browser verified: public page shows stats banner + requirements + FAQ; admin dashboard charts render with custom legends (no overlap); tanda terima dialog opens with full receipt content (scrollable, 1690px content in 546px viewport), all sections present (letterhead, title, register+QR, data pemohon, data tanah, signature footer).
+- VLM re-review: public page 8/10, admin dashboard 8/10 (legend fix confirmed), tanda terima content complete.
+- Dev server: all routes 200, no runtime errors.
+
+## Unresolved Issues / Risks
+- Tanda Terima print output not physically tested (window.print() opens browser print dialog — can't automate). The @media print CSS is in place but real print preview should be manually verified by user.
+- The VLM suggested making ALL status badges gold-only — intentionally NOT done: semantic colors (green=selesai, red=ditolak, amber=menunggu) are important for quick status scanning UX. Kept as-is.
+- Reports PDF export uses popup window + window.print() — functional but basic.
+
+## Priority Recommendations for Next Round
+1. **Profile/Account settings page** — let users change their own password (currently only admin can reset).
+2. **Dashboard date-range filter for petugas/atasan** (currently only admin has year filter).
+3. **Permohonan list bulk actions** (bulk status change, bulk export).
+4. **Search/global command palette** (Cmd+K) for quick navigation.
+5. **PWA manifest + service worker** for offline tracking (mentioned as optional in original spec).
+6. **WhatsApp/email notification integration** (currently dashboard-only notifications).

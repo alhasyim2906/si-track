@@ -65,7 +65,7 @@
   --secondary-foreground: oklch(0.96 0.01 80);
 
   --muted: oklch(0.26 0.03 255);
-  --muted-foreground: oklch(0.72 0.02 80);
+  --muted-foreground: oklch(0.78 0.025 80);
 
   --accent: oklch(0.32 0.05 255);
   --accent-foreground: oklch(0.96 0.01 80);
@@ -105,7 +105,7 @@
   --secondary: oklch(0.27 0.04 255);
   --secondary-foreground: oklch(0.96 0.01 80);
   --muted: oklch(0.26 0.03 255);
-  --muted-foreground: oklch(0.72 0.02 80);
+  --muted-foreground: oklch(0.78 0.025 80);
   --accent: oklch(0.32 0.05 255);
   --accent-foreground: oklch(0.96 0.01 80);
   --destructive: oklch(0.62 0.22 25);
@@ -195,4 +195,128 @@
   background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.15), transparent);
   background-size: 200% 100%;
   animation: shimmer 2.5s infinite;
+}
+
+/* ===== Table polish (zebra + hover + breathing room) ===== */
+[data-slot="table-body"] > [data-slot="table-row"]:nth-child(even) {
+  background-color: rgba(212, 175, 55, 0.035);
+}
+[data-slot="table-body"] > [data-slot="table-row"]:hover {
+  background-color: rgba(212, 175, 55, 0.08);
+}
+[data-slot="table-cell"], [data-slot="table-head"] {
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+
+/* ===== Focus-visible gold ring for accessibility ===== */
+*:focus-visible {
+  outline: 2px solid oklch(0.80 0.13 85 / 70%);
+  outline-offset: 2px;
+}
+
+/* ===== Print styles for Tanda Terima & Reports ===== */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0a1628 !important;
+    background-image: none !important;
+  }
+  .no-print, header, footer, nav, [role="dialog"], button {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .glass-card, .navy-glow {
+    background: #ffffff !important;
+    border: 1px solid #d4af37 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    color: #0a1628 !important;
+  }
+  .glass-card * {
+    color: #0a1628 !important;
+  }
+  .gold-gradient-text {
+    -webkit-text-fill-color: #b8941f !important;
+    color: #b8941f !important;
+  }
+  .gold-text {
+    color: #b8941f !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .container {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  @page {
+    margin: 1.5cm;
+  }
+
+  /* ===== Tanda Terima dialog print overrides ===== */
+  /* Override the generic [role=dialog] hide for our printable receipt.
+     NOTE: Lightning CSS strips `max-height: none` / `overflow: visible`
+     because they are initial values, so we use explicit overrides here
+     and also rely on Tailwind `print:` variants on the DialogContent. */
+  [role="dialog"].tanda-terima-printable {
+    display: block !important;
+    position: static !important;
+    transform: none !important;
+    inset: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 999999px !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    border-radius: 0 !important;
+  }
+  /* Hide the dialog overlay during print */
+  [data-slot="dialog-overlay"] {
+    display: none !important;
+  }
+  /* Hide all body direct children except the portal that hosts our printable dialog */
+  body > *:not([data-slot="dialog-portal"]) {
+    display: none !important;
+  }
+  /* Inside the portal, hide every sibling except our printable dialog content */
+  [data-slot="dialog-portal"] > *:not([role="dialog"].tanda-terima-printable) {
+    display: none !important;
+  }
+}
+.print-only {
+  display: none;
+}
+
+/* ===== Subtle card hover lift ===== */
+.glass-card.card-hover {
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.glass-card.card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(212, 175, 55, 0.4);
+}
+
+/* ===== Fade-in animation for content ===== */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out both;
+}
+
+/* ===== Number tabular for stats ===== */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }

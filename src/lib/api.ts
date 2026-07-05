@@ -80,4 +80,7 @@ export const api = {
 
   // settings
   settings: () => req<{ settings: Record<string, string> }>("/api/settings"),
+
+  // public stats
+  publicStats: () => req<{ total: number; selesai: number; diproses: number; ditolak: number; thisMonth: number; completionRate: number }>("/api/public/stats"),
 };

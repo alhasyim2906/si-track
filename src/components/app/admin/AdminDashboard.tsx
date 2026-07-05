@@ -51,7 +51,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   PieChart,
   Pie,
   Cell,
@@ -222,10 +221,11 @@ export function AdminDashboard() {
         />
         <StatCard
           label="Rata-rata Penyelesaian"
-          value={`${stats.avgDays} hari`}
+          value={`${stats.avgDays}h`}
           icon={Clock}
           accent="#d4af37"
-          hint="Waktu rata-rata sampai selesai"
+          hint={`${stats.avgDays} hari rata-rata`}
+          compact
         />
       </div>
 
@@ -242,7 +242,7 @@ export function AdminDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-72 w-full">
+            <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthly} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--muted)" vertical={false} opacity={0.3} />
@@ -259,14 +259,19 @@ export function AdminDashboard() {
                     tickLine={false}
                   />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.2 }} />
-                  <Legend
-                    wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-                    iconType="circle"
-                  />
                   <Bar dataKey="total" name="Total Permohonan" fill="#d4af37" radius={[4, 4, 0, 0]} maxBarSize={26} />
                   <Bar dataKey="selesai" name="Selesai" fill="#16a34a" radius={[4, 4, 0, 0]} maxBarSize={26} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+            {/* Custom legend */}
+            <div className="flex items-center justify-center gap-5 mt-3 pt-3 border-t border-border/40">
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#d4af37" }} /> Total Permohonan
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#16a34a" }} /> Selesai
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -281,38 +286,45 @@ export function AdminDashboard() {
           </CardHeader>
           <CardContent>
             {pieData.length === 0 ? (
-              <div className="h-72 flex items-center justify-center text-sm text-muted-foreground">
+              <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">
                 Belum ada data
               </div>
             ) : (
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey="value"
-                      nameKey="nama"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={55}
-                      outerRadius={90}
-                      paddingAngle={2}
-                      stroke="var(--background)"
-                      strokeWidth={2}
-                    >
-                      {pieData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<ChartTooltip />} />
-                    <Legend
-                      wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-                      iconType="circle"
-                      layout="horizontal"
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              <>
+                <div className="h-52 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        dataKey="value"
+                        nameKey="nama"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={80}
+                        paddingAngle={2}
+                        stroke="var(--background)"
+                        strokeWidth={2}
+                      >
+                        {pieData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                {/* Custom legend grid */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-3 pt-3 border-t border-border/40">
+                  {pieData.map((entry, i) => (
+                    <span key={i} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                      <span className="truncate">{entry.nama}</span>
+                      <span className="font-semibold text-foreground ml-auto pl-1">{entry.value}</span>
+                    </span>
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

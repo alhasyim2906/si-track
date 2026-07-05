@@ -186,7 +186,7 @@ export function JenisSuratManagement() {
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <h3 className="font-bold text-base leading-tight truncate">{j.nama}</h3>
+                    <h3 className="font-bold text-base leading-tight line-clamp-2 break-words">{j.nama}</h3>
                     <div className="flex items-center gap-1 mt-1">
                       <Hash className="w-3 h-3 text-muted-foreground" />
                       <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-primary/10 border border-primary/30 text-primary">

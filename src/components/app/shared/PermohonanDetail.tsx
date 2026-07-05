@@ -37,8 +37,9 @@ import {
   AlertCircle, AlertTriangle, XCircle, Loader2, Download, Trash2, Save,
   Upload, QrCode, Copy, CheckCircle2, PenTool, History, RotateCcw, ShieldAlert,
   ChevronRight, FileCheck, FileWarning, Files, MessageSquare,
-  Phone, MapPinned, Tag, Gauge, ScanLine, FileType2,
+  Phone, MapPinned, Tag, Gauge, ScanLine, FileType2, Printer,
 } from "lucide-react";
+import { TandaTerima } from "@/components/app/shared/TandaTerima";
 
 interface DokumenItem {
   id: string;
@@ -75,7 +76,7 @@ interface PermohonanDetail {
     id: string; kode: string; nama: string; deskripsi?: string;
     butuhPengukuran: boolean; butuhTtdCamat: boolean;
   };
-  creator: { id: string; name: string } | null;
+  creator: { id: string; name: string; position?: string | null } | null;
   // pemohon
   pemohonNik: string;
   pemohonNama: string;
@@ -171,6 +172,9 @@ export function PermohonanDetail() {
   const [editForm, setEditForm] = useState<Record<string, any>>({});
   const [editSaving, setEditSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // tanda terima (printable receipt) state
+  const [tandaTerimaOpen, setTandaTerimaOpen] = useState(false);
 
   const fetchDetail = useCallback(async () => {
     if (!selectedPermohonanId) return;
@@ -317,6 +321,12 @@ export function PermohonanDetail() {
       prioritas: permohonan.prioritas || "NORMAL",
     });
     setEditOpen(true);
+  };
+
+  const openTandaTerima = () => {
+    setTandaTerimaOpen(true);
+    // Lazily fetch QR for the receipt if not already cached.
+    if (!qrData && selectedPermohonanId) fetchQr();
   };
 
   const handleEditSave = async () => {
@@ -499,6 +509,20 @@ export function PermohonanDetail() {
                 <p className="text-xs font-semibold text-orange-500">Perlu Perbaikan</p>
                 <p className="text-sm text-foreground/90 mt-0.5">{p.catatan}</p>
               </div>
+            </div>
+          )}
+
+          {/* Action buttons row */}
+          {isPetugasOrAdmin && (
+            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border/40">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openTandaTerima}
+                className="gold-border text-primary hover:bg-primary/10"
+              >
+                <Printer className="w-4 h-4" /> Cetak Tanda Terima
+              </Button>
             </div>
           )}
         </CardContent>
@@ -1339,6 +1363,45 @@ export function PermohonanDetail() {
             >
               {editSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Simpan Perubahan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Tanda Terima (Printable Receipt) Dialog ===== */}
+      <Dialog open={tandaTerimaOpen} onOpenChange={setTandaTerimaOpen}>
+        <DialogContent
+          className="glass-card navy-glow border-primary/20 max-w-[900px] w-full max-h-[95vh] overflow-y-auto tanda-terima-printable print:!max-h-[999999px] print:!overflow-visible print:!max-w-full print:!w-full print:!p-0 print:!static print:!block print:!transform-none print:!bg-white print:!border-0 print:!shadow-none"
+          showCloseButton={false}
+        >
+          <DialogHeader className="no-print">
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="w-5 h-5 text-primary" /> Tanda Terima Permohonan
+            </DialogTitle>
+            <DialogDescription>
+              Pratinjau tanda terima. Klik &quot;Cetak / Print&quot; untuk mencetak
+              atau menyimpan sebagai PDF.
+            </DialogDescription>
+          </DialogHeader>
+
+          {qrLoading && !qrData && (
+            <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground no-print">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              Memuat QR code untuk tanda terima...
+            </div>
+          )}
+
+          <TandaTerima permohonan={p} qrDataUrl={qrData?.qr || null} />
+
+          <DialogFooter className="no-print">
+            <Button variant="outline" onClick={() => setTandaTerimaOpen(false)}>
+              Tutup
+            </Button>
+            <Button
+              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+              onClick={() => window.print()}
+            >
+              <Printer className="w-4 h-4" /> Cetak / Print
             </Button>
           </DialogFooter>
         </DialogContent>

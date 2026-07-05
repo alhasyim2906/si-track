@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { PublicStatsBanner, FAQSection, RequirementsSection } from "./PublicSections";
 import {
   Search, QrCode, Loader2, FileSearch, MapPin, User, Calendar,
   CheckCircle2, XCircle, AlertTriangle, Clock, FileText, ArrowRight, Info, Ruler, Building2,
@@ -60,14 +61,14 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
           <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
         </div>
-        <div className="container mx-auto max-w-5xl px-4 pt-14 pb-10 text-center">
+        <div className="container mx-auto max-w-5xl px-4 pt-10 pb-8 text-center animate-fade-in-up">
           <Badge variant="outline" className="mb-4 gold-border text-primary bg-primary/5">
             <Building2 className="w-3 h-3 mr-1" /> Pemerintah Kelurahan Kuala Pembuang II
           </Badge>
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mb-3">
             Lacak Status <span className="gold-gradient-text">Surat Tanah</span> Anda
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base">
+          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
             Pantau proses pendaftaran surat tanah secara real-time. Cukup masukkan
             <span className="gold-text font-semibold"> Nomor Register</span> yang Anda terima,
             atau pindai QR Code pada tanda terima.
@@ -95,7 +96,7 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
                 Lacak
               </Button>
             </form>
-            <div className="mt-3 flex flex-wrap gap-2 items-center text-xs text-muted-foreground">
+            <div className="mt-3 flex flex-wrap justify-center gap-2 items-center text-xs text-muted-foreground">
               <QrCode className="w-3.5 h-3.5" />
               <span>Atau pindai QR Code pada tanda terima Anda.</span>
               <span className="text-muted-foreground/50">·</span>
@@ -114,6 +115,13 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
           </CardContent>
         </Card>
       </section>
+
+      {/* Public transparency stats — only when no active search/result */}
+      {!searched && !result && (
+        <section className="py-2">
+          <PublicStatsBanner />
+        </section>
+      )}
 
       {/* Result */}
       <section className="container mx-auto max-w-5xl px-4 py-8">
@@ -140,7 +148,13 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
         )}
 
         {!loading && !error && !result && !searched && (
-          <EmptyState onLoginClick={onLoginClick} />
+          <>
+            <EmptyState onLoginClick={onLoginClick} />
+            <div className="mt-12 space-y-10">
+              <RequirementsSection />
+              <FAQSection />
+            </div>
+          </>
         )}
 
         {!loading && !error && result && <TrackingResultView result={result} />}
