@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import {
   LayoutDashboard, FileText, PlusCircle, BarChart3, ScrollText,
   Users, FileStack, LogOut, LogIn, Menu, Search, ChevronDown,
-  ShieldCheck, UserCog, Crown, Heart, Keyboard,
+  ShieldCheck, UserCog, Crown, Heart, Keyboard, Settings, Bell,
 } from "lucide-react";
 import type { AppView } from "@/lib/types";
 import { Footer } from "./Footer";
@@ -39,6 +39,8 @@ const NAV_ITEMS: NavItem[] = [
   { view: "jenis-surat", label: "Jenis Surat", icon: FileStack, roles: ["ADMIN"] },
   { view: "users", label: "Pengguna", icon: Users, roles: ["ADMIN"] },
   { view: "audit-log", label: "Audit Log", icon: ScrollText, roles: ["ADMIN"] },
+  { view: "notifikasi-center", label: "Notifikasi", icon: Bell, roles: ["ADMIN", "PETUGAS", "ATASAN"] },
+  { view: "pengaturan", label: "Pengaturan", icon: Settings, roles: ["ADMIN"] },
   { view: "profil", label: "Profil", icon: UserCog, roles: ["ADMIN", "PETUGAS", "ATASAN"] },
 ];
 
@@ -51,10 +53,11 @@ function getSections(role: string): { header: string; items: NavItem[] }[] {
       i.view === "dashboard" ||
       i.view === "permohonan" ||
       i.view === "permohonan-baru" ||
-      i.view === "laporan"
+      i.view === "laporan" ||
+      i.view === "notifikasi-center"
   );
   const manajemen = allowed.filter(
-    (i) => i.view === "jenis-surat" || i.view === "users" || i.view === "audit-log"
+    (i) => i.view === "jenis-surat" || i.view === "users" || i.view === "audit-log" || i.view === "pengaturan"
   );
   const akun = allowed.filter((i) => i.view === "profil");
   const sections: { header: string; items: NavItem[] }[] = [];
@@ -75,6 +78,8 @@ const VIEW_LABELS: Record<AppView, string> = {
   users: "Manajemen Pengguna",
   "jenis-surat": "Jenis Surat",
   notifikasi: "Notifikasi",
+  "notifikasi-center": "Pusat Notifikasi",
+  pengaturan: "Pengaturan Sistem",
   profil: "Pengaturan Akun",
 };
 

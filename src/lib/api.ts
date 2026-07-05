@@ -87,6 +87,10 @@ export const api = {
   notifikasi: () => req<{ items: any[]; unread: number }>("/api/notifikasi"),
   markNotifRead: (id?: string) =>
     req("/api/notifikasi", { method: "PATCH", body: JSON.stringify(id ? { id } : { markAll: true }) }),
+  deleteNotifikasi: (id: string) =>
+    req("/api/notifikasi", { method: "DELETE", body: JSON.stringify({ id }) }),
+  clearAllNotifikasi: () =>
+    req("/api/notifikasi", { method: "DELETE", body: JSON.stringify({ clearAll: true }) }),
 
   // profile
   profile: () => req<{ user: any }>("/api/auth/profile"),
@@ -95,6 +99,8 @@ export const api = {
 
   // settings
   settings: () => req<{ settings: Record<string, string> }>("/api/settings"),
+  updateSettings: (settings: Record<string, string>) =>
+    req<{ settings: Record<string, string> }>("/api/settings", { method: "PUT", body: JSON.stringify({ settings }) }),
 
   // public stats
   publicStats: () => req<{ total: number; selesai: number; diproses: number; ditolak: number; thisMonth: number; completionRate: number }>("/api/public/stats"),

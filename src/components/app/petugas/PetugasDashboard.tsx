@@ -5,7 +5,9 @@ import { api } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 import { SectionHeader } from "@/components/app/StatCard";
 import { SmallBox } from "@/components/app/SmallBox";
+import { AlteInfoBox } from "@/components/app/AlteInfoBox";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import { RecentActivityWidget } from "@/components/app/shared/RecentActivityWidget";
 import type { DashboardStats } from "@/lib/types";
 import {
   Select,
@@ -32,6 +34,8 @@ import {
   History,
   ListChecks,
   Sparkles,
+  Calendar,
+  CalendarRange,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -41,9 +45,18 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from "recharts";
 import { toast } from "sonner";
+
+type RangeKey = "today" | "7d" | "30d" | "year" | "all";
+
+const RANGE_CHIPS: { key: RangeKey; label: string }[] = [
+  { key: "today", label: "Hari Ini" },
+  { key: "7d", label: "7 Hari" },
+  { key: "30d", label: "30 Hari" },
+  { key: "year", label: "Tahun Ini" },
+  { key: "all", label: "Semua" },
+];
 
 function relativeTime(date: string): string {
   const now = Date.now();
@@ -91,13 +104,14 @@ export function PetugasDashboard() {
 
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<number>(currentYear);
+  const [range, setRange] = useState<RangeKey>("year");
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async (y: number) => {
+  const fetchData = useCallback(async (y: number, r: RangeKey) => {
     setLoading(true);
     try {
-      const d = await api.dashboard(y);
+      const d = await api.dashboard(y, r);
       setData(d as DashboardStats);
     } catch (e: any) {
       toast.error("Gagal memuat dashboard", { description: e.message });
@@ -107,8 +121,8 @@ export function PetugasDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchData(year);
-  }, [year, fetchData]);
+    fetchData(year, range);
+  }, [year, range, fetchData]);
 
   const yearOptions = useMemo(() => {
     const arr: number[] = [];
@@ -135,22 +149,90 @@ export function PetugasDashboard() {
         subtitle={`Halo ${user?.name || "Petugas"}, kelola permohonan surat tanah dengan efisien.`}
         icon={ListChecks}
         action={
-          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-            <SelectTrigger className="w-[140px] glass-card border-primary/15">
-              <SelectValue placeholder="Tahun" />
-            </SelectTrigger>
-            <SelectContent>
-              {yearOptions.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  Tahun {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          range !== "all" ? (
+            <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+              <SelectTrigger className="w-[140px] glass-card border-primary/15">
+                <SelectValue placeholder="Tahun" />
+              </SelectTrigger>
+              <SelectContent>
+                {yearOptions.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    Tahun {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : undefined
         }
       />
 
-      {/* Quick actions */}
+      {/* Date-range quick filter chips */}
+      <Card className="glass-card border-primary/15">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-1">
+              <CalendarRange className="w-3.5 h-3.5" />
+              Rentang:
+            </span>
+            {RANGE_CHIPS.map((chip) => {
+              const active = range === chip.key;
+              return (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setRange(chip.key)}
+                  aria-pressed={active}
+                  className={
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all " +
+                    (active
+                      ? "bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] border-transparent shadow-sm"
+                      : "bg-background/60 text-foreground/80 border-border hover:border-primary/40 hover:text-foreground")
+                  }
+                >
+                  <Calendar className="w-3 h-3" />
+                  {chip.label}
+                </button>
+              );
+            })}
+            <span className="ml-auto text-[11px] text-muted-foreground hidden sm:inline-flex items-center gap-1">
+              Menampilkan:
+              <span className="font-semibold text-foreground">
+                {data.rangeLabel || "Tahun Ini"}
+              </span>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick actions — AdminLTE info-box style */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <AlteInfoBox
+          icon={FilePlus2}
+          iconVariant="gold"
+          title="Permohonan Baru"
+          value={counts.PENGAJUAN || 0}
+          progress={stats.total > 0 ? Math.round(((counts.PENGAJUAN || 0) / stats.total) * 100) : 0}
+          progressText="Perlu didaftarkan"
+        />
+        <AlteInfoBox
+          icon={ClipboardCheck}
+          iconVariant="info"
+          title="Cek Administrasi"
+          value={counts.CEK_ADMIN || 0}
+          progress={stats.total > 0 ? Math.round(((counts.CEK_ADMIN || 0) / stats.total) * 100) : 0}
+          progressText="Verifikasi dokumen"
+        />
+        <AlteInfoBox
+          icon={PenTool}
+          iconVariant="warning"
+          title="Menunggu Persetujuan"
+          value={waitingApproval}
+          progress={stats.total > 0 ? Math.round((waitingApproval / stats.total) * 100) : 0}
+          progressText="TTD Lurah/Camat"
+        />
+      </div>
+
+      {/* Quick action buttons */}
       <Card className="glass-card border-primary/15 overflow-hidden">
         <div className="h-0.5 bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f]" />
         <CardContent className="p-5">
@@ -303,11 +385,19 @@ export function PetugasDashboard() {
                     tickLine={false}
                   />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.2 }} />
-                  <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="circle" />
                   <Bar dataKey="total" name="Total Permohonan" fill="#d4af37" radius={[4, 4, 0, 0]} maxBarSize={32} />
                   <Bar dataKey="selesai" name="Selesai" fill="#16a34a" radius={[4, 4, 0, 0]} maxBarSize={32} />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+            {/* Custom legend */}
+            <div className="flex items-center justify-center gap-5 mt-3 pt-3 border-t border-border/40">
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#d4af37" }} /> Total Permohonan
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "#16a34a" }} /> Selesai
+              </span>
             </div>
             <div className="mt-3 grid grid-cols-3 gap-3 pt-3 border-t border-border">
               <div className="text-center">
@@ -326,6 +416,9 @@ export function PetugasDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recent activity timeline widget (full width) */}
+      <RecentActivityWidget limit={5} />
     </div>
   );
 }

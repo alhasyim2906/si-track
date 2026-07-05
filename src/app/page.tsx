@@ -15,7 +15,9 @@ import { Reports } from "@/components/app/shared/Reports";
 import { AuditLogView } from "@/components/app/admin/AuditLogView";
 import { UserManagement } from "@/components/app/admin/UserManagement";
 import { JenisSuratManagement } from "@/components/app/admin/JenisSuratManagement";
+import { SettingsManagement } from "@/components/app/admin/SettingsManagement";
 import { ProfileSettings } from "@/components/app/shared/ProfileSettings";
+import { NotificationCenter } from "@/components/app/shared/NotificationCenter";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
@@ -101,6 +103,10 @@ export default function Home() {
         return user.role === "ADMIN" ? <UserManagement /> : <PublicTracking />;
       case "jenis-surat":
         return user.role === "ADMIN" ? <JenisSuratManagement /> : <PublicTracking />;
+      case "pengaturan":
+        return user.role === "ADMIN" ? <SettingsManagement /> : <PublicTracking />;
+      case "notifikasi-center":
+        return <NotificationCenter />;
       case "profil":
         return <ProfileSettings />;
       default:

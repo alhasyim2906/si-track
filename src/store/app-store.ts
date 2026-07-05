@@ -31,6 +31,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       case "manage_users":
       case "view_audit":
       case "manage_jenis":
+      case "manage_settings":
         return u.role === "ADMIN";
       case "view_laporan":
         return u.role === "ADMIN" || u.role === "ATASAN";
@@ -41,6 +42,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       case "approve":
         return u.role === "ATASAN" || u.role === "ADMIN";
       case "edit_profile":
+      case "view_notifications":
         return true;
       default:
         return true;

@@ -101,4 +101,6 @@ export type AppView =
   | "users"
   | "jenis-surat"
   | "notifikasi"
-  | "profil";
+  | "notifikasi-center"
+  | "profil"
+  | "pengaturan";

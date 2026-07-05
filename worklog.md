@@ -5,9 +5,9 @@ Client: Kelurahan Kuala Pembuang II
 Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4 + shadcn/ui + Prisma (SQLite)
 Theme: Dark navy/blackish blue with gold accents
 
-## Current Project Status (Phase 7 — Visual Polish & New Features)
+## Current Project Status (Phase 8 — AdminLTE 4 Consistency, Settings, Notifications, Bulk Actions)
 
-**Status**: Production-ready with enhanced visual quality and new features. All core flows verified. Lint: 0 errors. Server compiles clean.
+**Status**: Production-ready with AdminLTE 4 consistency across all dashboards, new Settings Management page, Notification Center, bulk permohonan actions, and enhanced CSS styling. All core flows verified. Lint: 0 errors. Server compiles clean.
 
 **VLM Visual Quality Scores**:
 - Public landing page: 8/10 (up from 7/10)
@@ -840,5 +840,320 @@ Files changed:
 4. **Enhanced chart interactivity** — click-to-filter on pie/bar segments
 5. **PWA icon PNGs** (192x192 + 512x512 from logo.svg) for full Android installability
 6. **Hide Aksi Proses card on mobile** since floating bar provides same actions (Task 9 recommendation)
-7. **Date-range chips on Petugas/Atasan dashboards** for parity with Admin dashboard
-8. **Recent Activity Widget on Atasan dashboard** for oversight visibility
+7. ~~**Date-range chips on Petugas/Atasan dashboards** for parity with Admin dashboard~~ ✅ Done (Task 8-a)
+8. ~~**Recent Activity Widget on Atasan dashboard** for oversight visibility~~ ✅ Done (Task 8-a)
+
+---
+Task ID: 8-a
+Agent: full-stack-developer
+Task: Enhance PetugasDashboard & AtasanDashboard with AdminLTE 4 consistency, range chips, custom chart legends, info-boxes, and visual polish
+
+Work Log:
+- **PetugasDashboard.tsx** — enhanced with:
+  - Added `RangeKey` type and `RANGE_CHIPS` array (same pattern as AdminDashboard)
+  - Added `range` state (default "year") and updated `fetchData` to accept `range` parameter → `api.dashboard(y, r)`
+  - Added date-range quick filter chips card with gold gradient active state, CalendarRange/Calendar icons, and `rangeLabel` display
+  - Year select conditionally hidden when range is "all"
+  - Replaced recharts built-in `<Legend>` with custom legend below bar chart (2 colored dots + labels for "Total Permohonan" and "Selesai")
+  - Added `ChartTooltip` component (was already present in file)
+  - Added 3× `AlteInfoBox` widgets above the "Tugas Saya" quick actions card: "Permohonan Baru" (gold), "Cek Administrasi" (info), "Menunggu Persetujuan" (warning) — each with progress bar
+  - Added `<RecentActivityWidget limit={5} />` at the bottom (full width)
+  - New imports: `AlteInfoBox`, `RecentActivityWidget`, `Calendar`, `CalendarRange`; removed `Legend` from recharts imports
+
+- **AtasanDashboard.tsx** — enhanced with:
+  - Added `RangeKey` type and `RANGE_CHIPS` array (same pattern as AdminDashboard)
+  - Added `range` state (default "year") and updated `fetchData` to accept `range` parameter → `api.dashboard(y, r)`
+  - Added date-range quick filter chips card with gold gradient active state and `rangeLabel` display
+  - Year select conditionally hidden when range is "all"
+  - Replaced recharts built-in `<Legend>` with custom legend grid below pie chart (2-column grid with colored dots, status names, values)
+  - Added percentage labels on pie chart slices via `label` prop: `({ value, percent }) => value > 0 ? "XX%" : ""`
+  - Replaced the old "Lama Penyelesaian" card with `AlteInfoBox` (gold variant, progress bar showing avgDays/30)
+  - Added new `AlteInfoBox` for "Tingkat Penyelesaian" (success variant, completion percentage progress)
+  - Kept the existing "Statistik Pelayanan" Card below the new info-boxes for detailed breakdown
+  - Added `<RecentActivityWidget limit={5} />` at the bottom (full width)
+  - New imports: `AlteInfoBox`, `RecentActivityWidget`, `Calendar`, `CalendarRange`; removed `Legend` from recharts imports
+
+- Fixed JSX parsing error in AtasanDashboard: wrapped pie chart + custom legend in `<>...</>` fragment since ternary requires single child
+- Typed the pie label function params: `({ value, percent }: { value: number; percent: number })` to satisfy strict TypeScript
+
+- **Lint**: 0 errors, 0 warnings
+- **Dev server**: Compiles clean (verified via dev.log)
+
+Files Modified:
+- `/src/components/app/petugas/PetugasDashboard.tsx`
+- `/src/components/app/atasan/AtasanDashboard.tsx`
+
+---
+Task ID: 8-b
+Agent: full-stack-developer
+Task: Build Settings Management page for SI-TRACK TANAH admin
+
+Work Log:
+- Enhanced `/src/app/api/settings/route.ts` with PUT handler:
+  - ADMIN-only access control via `getCurrentUser()`
+  - Validates request body for `{ settings: Record<string, string> }`
+  - Upserts each key-value pair using `db.settings.upsert()`
+  - Logs to audit trail via `writeAudit()` with modul="SETTINGS"
+  - Returns updated settings map after save
+
+- Added `updateSettings` method to `/src/lib/api.ts`:
+  - `updateSettings(settings)` → PUT `/api/settings` with JSON body
+
+- Created `/src/components/app/admin/SettingsManagement.tsx`:
+  - Section 1: Informasi Kelurahan — nama, alamat, telepon, email, kode_pos fields
+  - Section 2: Pengaturan Sistem — maintenance_mode (switch), auto_notify (switch), require_pengukuran (switch), require_ttd_camat (switch), max_upload_size_mb (number)
+  - Section 3: Format Nomor Register — register_prefix, register_digit_count with live preview (e.g., "KPII-TNH-2026-000001")
+  - Section 4: Tampilan — app_name, app_subtitle
+  - Each section has its own gold-gradient "Simpan" button for per-section save
+  - Global "Simpan Semua" button in SectionHeader action
+  - Loading skeleton on initial fetch
+  - Toast feedback on save/error
+  - Permission guard via `can("manage_settings")`
+
+- Updated `/src/lib/types.ts`:
+  - Added `"pengaturan"` to AppView union type
+
+- Updated `/src/store/app-store.ts`:
+  - Added `manage_settings` case to `can()` — returns true for ADMIN only
+
+- Updated `/src/app/page.tsx`:
+  - Added import for SettingsManagement component
+  - Added `"pengaturan"` case in `renderView()` — ADMIN only, fallback to PublicTracking
+
+- Updated `/src/components/app/AppShell.tsx`:
+  - Added Settings icon import from lucide-react
+  - Added "Pengaturan" nav item with Settings icon, ADMIN role only
+  - Added "pengaturan" to manajemen section filter
+  - Added "pengaturan" to VIEW_LABELS map
+
+- **Lint**: 0 errors, 0 warnings
+- **Dev server**: Compiles clean
+
+Files Modified:
+- `/src/app/api/settings/route.ts` (enhanced with PUT handler)
+- `/src/lib/api.ts` (added updateSettings method)
+- `/src/components/app/admin/SettingsManagement.tsx` (new file)
+- `/src/lib/types.ts` (added pengaturan to AppView)
+- `/src/store/app-store.ts` (added manage_settings case)
+- `/src/app/page.tsx` (added pengaturan view case)
+- `/src/components/app/AppShell.tsx` (added Pengaturan nav item)
+
+---
+Task ID: 8-c
+Agent: full-stack-developer
+Task: Enhance global CSS styling + add PermohonanList bulk select/export features
+
+Work Log:
+
+### Part 1: Global CSS Enhancements (`/src/app/globals.css`)
+Added 10 new CSS enhancement blocks (A–J) at the end of the file:
+
+- **A. Enhanced glass-card hover** — smooth `box-shadow` + `transform` transitions on `.adminlte .glass-card`
+- **B. Info-box left border** — 4px colored left border matching variant (ib-primary, ib-success, etc.)
+- **C. SmallBox hover enhancement** — `translateY(-2px)` + deeper `box-shadow: 0 6px 20px` on hover with smooth transition
+- **D. Nav link improvements** — added transition for `background-color` + `border-color`; gold tint hover on non-active `.nav-link`
+- **E. Table improvements** — bolder uppercase headers (font-weight 700, uppercase, 0.72rem), zebra striping refinement, gold-tinted hover
+- **F. Button focus ring** — gold `outline: 2px solid #d4af37` on `focus-visible` for admin buttons/links
+- **G. Thin scrollbar** — custom 6px scrollbar for `.adminlte` area (transparent track, subtle gray thumb)
+- **H. Badge pulse animation** — `@keyframes badge-pulse` with scale 1→1.15→1 for notification badges
+- **I. Skeleton shimmer** — `@keyframes skeleton-shimmer` with horizontal gradient sweep for loading states
+- **J. Content area padding** — responsive padding (1rem mobile → 1.5rem desktop) on `.content`
+
+### Part 2: PermohonanList Bulk Actions (`/src/components/app/petugas/PermohonanList.tsx`)
+Major enhancement of the PermohonanList component:
+
+- **A. Bulk Select Mode Toggle**:
+  - "Pilih" button in header enters bulk mode (shows checkboxes)
+  - "Batalkan" button exits bulk mode and clears selection
+  - Selection count badge ("3 dipilih") shown when in bulk mode
+  - Checkboxes only visible when bulkMode is active (both desktop table + mobile cards)
+  - Row click behavior changes: normal mode → view detail, bulk mode → toggle checkbox
+
+- **B. Bulk Actions Bar** (sticky bottom, gold gradient):
+  - Appears when items are selected in bulk mode
+  - "Ubah Status" button → Dialog with status Select + catatan Input → calls `api.changeStatus()` for each selected ID
+  - "Export CSV" button → exports selected items to CSV
+  - "Hapus" button → AlertDialog confirm → calls `api.deletePermohonan()` for each selected ID
+  - "Batalkan" button to clear selection and exit bulk mode
+  - Permission-gated: `canChangeStatus` and `canDelete` control button visibility
+
+- **C. Export Dropdown Button**:
+  - "Export" dropdown in header area (next to "Pilih" button)
+  - Options: "Export CSV (Semua)" fetches all matching records, "Export CSV (Halaman Ini)" exports current page
+  - Uses shared `buildCsv()` and `downloadCsv()` helpers
+
+- **D. Enhanced Filter Bar**:
+  - Added Priority filter Select (NORMAL/TINGGI/MENDESAK) alongside status filter
+  - Added date range quick buttons: "Hari Ini", "7 Hari", "30 Hari" (toggleable chips)
+  - Active filter count badge with `Filter` icon
+  - Priority filter included in filter chips and reset
+  - `prioritas` param passed to API (already supported in `/api/permohonan` route)
+
+- **Other improvements**:
+  - Skeleton loading cards now use `skeleton-shimmer` class
+  - CSV export logic extracted to reusable `buildCsv()` + `downloadCsv()` helpers
+  - Responsive grid updated for 4-column filter layout on large screens
+
+### API Route
+- Verified `/api/permohonan` already supports `prioritas` query param filter — no changes needed.
+
+### Lint & Dev Server
+- **Lint**: 0 errors, 0 warnings
+- **Dev server**: Compiles clean
+
+Files Modified:
+- `/src/app/globals.css` (added 10 CSS enhancement blocks A–J)
+- `/src/components/app/petugas/PermohonanList.tsx` (complete rewrite with bulk mode, export dropdown, priority filter, date range chips)
+
+---
+Task ID: 8-d
+Agent: full-stack-developer
+Task: Build Notification Center page + enhance NotificationsBell
+
+Work Log:
+- Created `/src/components/app/shared/NotificationCenter.tsx` — full-page notification management view with:
+  - SectionHeader "Pusat Notifikasi" with Bell icon + subtitle
+  - Filter bar (glass-card): type filter (INFO/SUCCESS/WARNING/DANGER), read status toggle (Semua/Belum Dibaca/Sudah Dibaca), "Tandai Semua Dibaca" gold gradient button, "Hapus Semua" button
+  - Notification list grouped by day ("Hari Ini", "Kemarin", "7 Hari Terakhir", "Lebih Lama")
+  - Each card shows: type icon with color, judul (bold), pesan, relative time, type Badge, unread indicator (3px left border), delete button on hover
+  - Read notifications slightly faded (opacity-60)
+  - Click → mark as read + navigate to related permohonan
+  - Loading skeleton, empty state with Bell icon
+  - ScrollArea with max-h-[600px]
+
+- Enhanced `/src/components/app/NotificationsBell.tsx`:
+  - Added type icon + color per notification in dropdown
+  - Added unread left border indicator (colored by type)
+  - Added unread dot indicator
+  - Added "Lihat Semua Notifikasi →" link at bottom navigating to notifikasi-center
+  - Better empty state with Bell icon
+  - Click notification → mark as read + navigate to permohonan
+
+- Updated `/src/lib/types.ts`: Added `"notifikasi-center"` to AppView union
+
+- Updated `/src/app/page.tsx`: Added NotificationCenter import and case for `"notifikasi-center"` view
+
+- Updated `/src/components/app/AppShell.tsx`:
+  - Added Bell icon import from lucide-react
+  - Added "Notifikasi" nav item with Bell icon for all roles (ADMIN, PETUGAS, ATASAN) in NAV_ITEMS
+  - Added "notifikasi-center" to Menu section filter in getSections()
+  - Added "notifikasi-center" label to VIEW_LABELS
+
+- Updated `/src/store/app-store.ts`: Added `view_notifications` case to can() (returns true for all logged-in users)
+
+- Updated `/src/app/api/notifikasi/route.ts`:
+  - Increased GET take limit from 30 to 50 for full center view
+  - Verified PATCH already supports `{ markAll: true }` and `{ id }` for single mark-read
+  - Added DELETE handler: supports `{ id }` for single delete (with ownership check) and `{ clearAll: true }` to delete all user notifications
+
+- Updated `/src/lib/api.ts`: Added `deleteNotifikasi(id)` and `clearAllNotifikasi()` API methods
+
+### Lint & Dev Server
+- **Lint**: 0 errors, 0 warnings
+- **Dev server**: Compiles clean, all routes working
+
+Files Created:
+- `/src/components/app/shared/NotificationCenter.tsx`
+
+Files Modified:
+- `/src/components/app/NotificationsBell.tsx`
+- `/src/lib/types.ts`
+- `/src/app/page.tsx`
+- `/src/components/app/AppShell.tsx`
+- `/src/store/app-store.ts`
+- `/src/app/api/notifikasi/route.ts`
+- `/src/lib/api.ts`
+
+---
+Task ID: 8
+Agent: main (cron review round)
+Task: QA assessment, AdminLTE 4 consistency, Settings Management, Notification Center, Bulk Actions, CSS enhancements
+
+## Current Project Status Assessment
+App was production-usable from Phase 7 (all core flows verified, AdminLTE 4 redesign on admin dashboard). This round focused on: (1) comprehensive QA via agent-browser + VLM, (2) AdminLTE 4 consistency for Petugas & Atasan dashboards, (3) new Settings Management page, (4) Notification Center page, (5) PermohonanList bulk actions, (6) CSS styling enhancements, (7) Admin dashboard KPI info-boxes + welcome card.
+
+## QA Results (agent-browser + VLM)
+- All API routes returning 200 (auth, dashboard, permohonan, tracking, settings, notifikasi, users, audit-log, laporan, jenis-surat, public/stats)
+- Public landing page: 8/10 (VLM)
+- Admin dashboard: 8/10 (VLM, up from 7/10)
+- KPI info-boxes: 8/10 (VLM)
+- Lint: 0 errors throughout
+- No runtime errors in dev.log
+
+## Work Completed
+
+### 1. PetugasDashboard Enhancements (Task 8-a)
+- Added date range filter chips (Hari Ini / 7 Hari / 30 Hari / Tahun Ini / Semua)
+- Pass `range` parameter to `api.dashboard(year, range)`
+- Replaced recharts `<Legend>` with custom legend below charts
+- Added AlteInfoBox widgets (Permohonan Baru, Cek Administrasi, Menunggu Persetujuan)
+- Added RecentActivityWidget at bottom
+- Added `rangeLabel` display
+
+### 2. AtasanDashboard Enhancements (Task 8-a)
+- Added date range filter chips (same pattern as AdminDashboard)
+- Pass `range` parameter to `api.dashboard(year, range)`
+- Replaced recharts `<Legend>` with custom 2-column legend grid below pie chart
+- Added percentage labels on pie chart slices
+- Added AlteInfoBox for "Lama Penyelesaian" (gold) and "Tingkat Penyelesaian" (success)
+- Added RecentActivityWidget at bottom
+
+### 3. Settings Management Page (Task 8-b)
+- **Backend**: PUT `/api/settings` with ADMIN-only access, upsert each key-value, audit trail logging
+- **Frontend**: 4-section settings page — Informasi Kelurahan, Pengaturan Sistem (toggles), Format Nomor Register (with live preview), Tampilan
+- Added `"pengaturan"` to AppView union
+- Added `manage_settings` permission (ADMIN only)
+- Added "Pengaturan" nav item in sidebar (under Manajemen section)
+
+### 4. PermohonanList Bulk Actions (Task 8-c)
+- Bulk select mode with checkboxes + "Pilih" / "Batalkan" toggle
+- Sticky bulk actions bar (gold gradient): "Ubah Status", "Export CSV", "Hapus"
+- Export dropdown: "Export CSV (Semua)" and "Export CSV (Halaman Ini)"
+- Priority filter Select (NORMAL/TINGGI/MENDESAK)
+- Date range quick chips (Hari Ini / 7 Hari / 30 Hari)
+- Active filter count badge
+
+### 5. CSS Enhancements (Task 8-c)
+- A. Glass-card hover effects (smooth shadow + transform transitions)
+- B. Info-box 4px colored left borders matching variant
+- C. SmallBox hover with translateY(-2px) + deeper shadow
+- D. Nav link transitions + gold tint hover for non-active links
+- E. Table improvements — bolder uppercase headers, refined zebra striping, gold hover
+- F. Gold focus ring on admin buttons/links
+- G. Thin 6px custom scrollbar for admin area
+- H. Badge pulse animation
+- I. Skeleton shimmer animation
+- J. Responsive content padding
+
+### 6. Notification Center Page (Task 8-d)
+- Full-page notification management with type filter, read status toggle, mark-all-read, clear-all
+- Notifications grouped by day (Hari Ini / Kemarin / 7 Hari Terakhir / Lebih Lama)
+- Each card: type icon + color, title, message, relative time, unread indicator (3px left border), delete on hover
+- Click → mark as read + navigate to related permohonan
+- Enhanced NotificationsBell: type icons + colors, unread indicator, "Lihat Semua Notifikasi →" link
+- Backend: DELETE handler for single/clearAll notifications
+- Added `"notifikasi-center"` AppView + nav item for all roles
+
+### 7. Admin Dashboard Polish
+- Welcome summary card with greeting (Selamat pagi/siang/sore/malam) + user avatar initial + 3 quick stat boxes
+- KPI Info-boxes row: Tingkat Penyelesaian (success), Rata-rata Waktu (gold), Tingkat Penolakan (danger) — each with progress bar + caption
+
+## Verification Results
+- `bun run lint`: 0 errors
+- Dev server: all routes 200, no runtime errors
+- agent-browser: public page, admin dashboard, permohonan list, settings, notification center all render correctly
+- VLM: admin dashboard 8/10, KPI info-boxes 8/10, public page 8/10
+
+## Unresolved Issues / Risks
+- Tanda Terima print output not physically tested (window.print() opens browser print dialog)
+- Reports PDF export uses popup window + window.print() — functional but basic
+- OOM risk in sandbox environment when running Chrome + Next.js simultaneously (4GB RAM)
+
+## Priority Recommendations for Next Round
+1. **Dashboard comparison charts** — year-over-year or month-over-month comparison views
+2. **Real-time notification via WebSocket** — currently poll-based only
+3. **Advanced permohonan search** — full-text search across all fields
+4. **Data export improvements** — proper PDF generation with ReportLab-style formatting
+5. **PWA manifest + service worker** for offline tracking
+6. **WhatsApp/email notification integration** (currently dashboard-only notifications)
+7. **Map integration** — show land location on map for permohonan detail

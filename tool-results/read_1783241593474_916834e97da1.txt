@@ -1,0 +1,1092 @@
+     1→     1→     1→@import "tailwindcss";
+     2→     2→     2→@import "tw-animate-css";
+     3→     3→     3→
+     4→     4→     4→@custom-variant dark (&:is(.dark *));
+     5→     5→     5→
+     6→     6→     6→@theme inline {
+     7→     7→     7→  --color-background: var(--background);
+     8→     8→     8→  --color-foreground: var(--foreground);
+     9→     9→     9→  --font-sans: var(--font-geist-sans);
+    10→    10→    10→  --font-mono: var(--font-geist-mono);
+    11→    11→    11→  --color-sidebar-ring: var(--sidebar-ring);
+    12→    12→    12→  --color-sidebar-border: var(--sidebar-border);
+    13→    13→    13→  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    14→    14→    14→  --color-sidebar-accent: var(--sidebar-accent);
+    15→    15→    15→  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    16→    16→    16→  --color-sidebar-primary: var(--sidebar-primary);
+    17→    17→    17→  --color-sidebar-foreground: var(--sidebar-foreground);
+    18→    18→    18→  --color-sidebar: var(--sidebar);
+    19→    19→    19→  --color-chart-5: var(--chart-5);
+    20→    20→    20→  --color-chart-4: var(--chart-4);
+    21→    21→    21→  --color-chart-3: var(--chart-3);
+    22→    22→    22→  --color-chart-2: var(--chart-2);
+    23→    23→    23→  --color-chart-1: var(--chart-1);
+    24→    24→    24→  --color-ring: var(--ring);
+    25→    25→    25→  --color-input: var(--input);
+    26→    26→    26→  --color-border: var(--border);
+    27→    27→    27→  --color-destructive: var(--destructive);
+    28→    28→    28→  --color-accent-foreground: var(--accent-foreground);
+    29→    29→    29→  --color-accent: var(--accent);
+    30→    30→    30→  --color-muted-foreground: var(--muted-foreground);
+    31→    31→    31→  --color-muted: var(--muted);
+    32→    32→    32→  --color-secondary-foreground: var(--secondary-foreground);
+    33→    33→    33→  --color-secondary: var(--secondary);
+    34→    34→    34→  --color-primary-foreground: var(--primary-foreground);
+    35→    35→    35→  --color-primary: var(--primary);
+    36→    36→    36→  --color-popover-foreground: var(--popover-foreground);
+    37→    37→    37→  --color-popover: var(--popover);
+    38→    38→    38→  --color-card-foreground: var(--card-foreground);
+    39→    39→    39→  --color-card: var(--card);
+    40→    40→    40→  --radius-sm: calc(var(--radius) - 4px);
+    41→    41→    41→  --radius-md: calc(var(--radius) - 2px);
+    42→    42→    42→  --radius-lg: var(--radius);
+    43→    43→    43→  --radius-xl: calc(var(--radius) + 4px);
+    44→    44→    44→}
+    45→    45→    45→
+    46→    46→    46→/* ===== SI-TRACK TANAH: Dark Navy + Gold theme (default, always dark) ===== */
+    47→    47→    47→:root {
+    48→    48→    48→  --radius: 0.625rem;
+    49→    49→    49→
+    50→    50→    50→  /* Deep navy/blackish blue backgrounds */
+    51→    51→    51→  --background: oklch(0.16 0.03 255);          /* near-black navy */
+    52→    52→    52→  --foreground: oklch(0.96 0.01 80);           /* warm off-white */
+    53→    53→    53→
+    54→    54→    54→  --card: oklch(0.21 0.035 255);               /* navy panel */
+    55→    55→    55→  --card-foreground: oklch(0.96 0.01 80);
+    56→    56→    56→
+    57→    57→    57→  --popover: oklch(0.19 0.035 255);
+    58→    58→    58→  --popover-foreground: oklch(0.96 0.01 80);
+    59→    59→    59→
+    60→    60→    60→  /* Gold primary */
+    61→    61→    61→  --primary: oklch(0.80 0.13 85);              /* gold */
+    62→    62→    62→  --primary-foreground: oklch(0.16 0.03 255);  /* navy text on gold */
+    63→    63→    63→
+    64→    64→    64→  --secondary: oklch(0.27 0.04 255);
+    65→    65→    65→  --secondary-foreground: oklch(0.96 0.01 80);
+    66→    66→    66→
+    67→    67→    67→  --muted: oklch(0.26 0.03 255);
+    68→    68→    68→  --muted-foreground: oklch(0.78 0.025 80);
+    69→    69→    69→
+    70→    70→    70→  --accent: oklch(0.32 0.05 255);
+    71→    71→    71→  --accent-foreground: oklch(0.96 0.01 80);
+    72→    72→    72→
+    73→    73→    73→  --destructive: oklch(0.62 0.22 25);
+    74→    74→    74→
+    75→    75→    75→  --border: oklch(0.32 0.03 255 / 60%);
+    76→    76→    76→  --input: oklch(0.28 0.03 255);
+    77→    77→    77→  --ring: oklch(0.80 0.13 85);
+    78→    78→    78→
+    79→    79→    79→  --chart-1: oklch(0.80 0.13 85);   /* gold */
+    80→    80→    80→  --chart-2: oklch(0.62 0.17 250);  /* blue */
+    81→    81→    81→  --chart-3: oklch(0.70 0.15 160);  /* teal/green */
+    82→    82→    82→  --chart-4: oklch(0.72 0.18 40);   /* amber */
+    83→    83→    83→  --chart-5: oklch(0.65 0.22 20);   /* red */
+    84→    84→    84→
+    85→    85→    85→  --sidebar: oklch(0.18 0.035 255);
+    86→    86→    86→  --sidebar-foreground: oklch(0.96 0.01 80);
+    87→    87→    87→  --sidebar-primary: oklch(0.80 0.13 85);
+    88→    88→    88→  --sidebar-primary-foreground: oklch(0.16 0.03 255);
+    89→    89→    89→  --sidebar-accent: oklch(0.26 0.04 255);
+    90→    90→    90→  --sidebar-accent-foreground: oklch(0.96 0.01 80);
+    91→    91→    91→  --sidebar-border: oklch(0.32 0.03 255 / 60%);
+    92→    92→    92→  --sidebar-ring: oklch(0.80 0.13 85);
+    93→    93→    93→}
+    94→    94→    94→
+    95→    95→    95→.dark {
+    96→    96→    96→  /* same as root — app is always dark navy/gold */
+    97→    97→    97→  --background: oklch(0.16 0.03 255);
+    98→    98→    98→  --foreground: oklch(0.96 0.01 80);
+    99→    99→    99→  --card: oklch(0.21 0.035 255);
+   100→   100→   100→  --card-foreground: oklch(0.96 0.01 80);
+   101→   101→   101→  --popover: oklch(0.19 0.035 255);
+   102→   102→   102→  --popover-foreground: oklch(0.96 0.01 80);
+   103→   103→   103→  --primary: oklch(0.80 0.13 85);
+   104→   104→   104→  --primary-foreground: oklch(0.16 0.03 255);
+   105→   105→   105→  --secondary: oklch(0.27 0.04 255);
+   106→   106→   106→  --secondary-foreground: oklch(0.96 0.01 80);
+   107→   107→   107→  --muted: oklch(0.26 0.03 255);
+   108→   108→   108→  --muted-foreground: oklch(0.78 0.025 80);
+   109→   109→   109→  --accent: oklch(0.32 0.05 255);
+   110→   110→   110→  --accent-foreground: oklch(0.96 0.01 80);
+   111→   111→   111→  --destructive: oklch(0.62 0.22 25);
+   112→   112→   112→  --border: oklch(0.32 0.03 255 / 60%);
+   113→   113→   113→  --input: oklch(0.28 0.03 255);
+   114→   114→   114→  --ring: oklch(0.80 0.13 85);
+   115→   115→   115→}
+   116→   116→   116→
+   117→   117→   117→@layer base {
+   118→   118→   118→  * {
+   119→   119→   119→    @apply border-border outline-ring/50;
+   120→   120→   120→  }
+   121→   121→   121→  html, body {
+   122→   122→   122→    @apply bg-background text-foreground;
+   123→   123→   123→  }
+   124→   124→   124→  body {
+   125→   125→   125→    background-color: var(--background);
+   126→   126→   126→    background-image:
+   127→   127→   127→      radial-gradient(circle at 15% 0%, rgba(212, 175, 55, 0.08), transparent 35%),
+   128→   128→   128→      radial-gradient(circle at 85% 100%, rgba(59, 130, 246, 0.08), transparent 40%);
+   129→   129→   129→    background-attachment: fixed;
+   130→   130→   130→  }
+   131→   131→   131→}
+   132→   132→   132→
+   133→   133→   133→/* ===== Custom utility classes ===== */
+   134→   134→   134→@layer components {
+   135→   135→   135→  .gold-text {
+   136→   136→   136→    color: oklch(0.85 0.13 85);
+   137→   137→   137→  }
+   138→   138→   138→  .gold-gradient-text {
+   139→   139→   139→    background: linear-gradient(135deg, #f5d77a 0%, #d4af37 50%, #b8941f 100%);
+   140→   140→   140→    -webkit-background-clip: text;
+   141→   141→   141→    background-clip: text;
+   142→   142→   142→    -webkit-text-fill-color: transparent;
+   143→   143→   143→  }
+   144→   144→   144→  .gold-border {
+   145→   145→   145→    border-color: oklch(0.80 0.13 85 / 50%);
+   146→   146→   146→  }
+   147→   147→   147→  .glass-card {
+   148→   148→   148→    background: linear-gradient(135deg, rgba(33, 51, 90, 0.65) 0%, rgba(16, 28, 54, 0.85) 100%);
+   149→   149→   149→    backdrop-filter: blur(12px);
+   150→   150→   150→    border: 1px solid rgba(212, 175, 55, 0.18);
+   151→   151→   151→  }
+   152→   152→   152→  .navy-glow {
+   153→   153→   153→    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.12), 0 8px 30px rgba(0, 0, 0, 0.4);
+   154→   154→   154→  }
+   155→   155→   155→  .gold-glow {
+   156→   156→   156→    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35), 0 0 25px rgba(212, 175, 55, 0.18);
+   157→   157→   157→  }
+   158→   158→   158→}
+   159→   159→   159→
+   160→   160→   160→/* ===== Custom scrollbar ===== */
+   161→   161→   161→::-webkit-scrollbar {
+   162→   162→   162→  width: 10px;
+   163→   163→   163→  height: 10px;
+   164→   164→   164→}
+   165→   165→   165→::-webkit-scrollbar-track {
+   166→   166→   166→  background: oklch(0.18 0.03 255);
+   167→   167→   167→}
+   168→   168→   168→::-webkit-scrollbar-thumb {
+   169→   169→   169→  background: oklch(0.35 0.04 255);
+   170→   170→   170→  border-radius: 6px;
+   171→   171→   171→  border: 2px solid oklch(0.18 0.03 255);
+   172→   172→   172→}
+   173→   173→   173→::-webkit-scrollbar-thumb:hover {
+   174→   174→   174→  background: oklch(0.80 0.13 85 / 60%);
+   175→   175→   175→}
+   176→   176→   176→
+   177→   177→   177→/* ===== Timeline connector ===== */
+   178→   178→   178→.timeline-line {
+   179→   179→   179→  background: linear-gradient(to bottom, oklch(0.80 0.13 85 / 60%), oklch(0.32 0.03 255 / 40%));
+   180→   180→   180→}
+   181→   181→   181→
+   182→   182→   182→@keyframes pulse-gold {
+   183→   183→   183→  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+   184→   184→   184→  50% { box-shadow: 0 0 0 8px rgba(212, 175, 55, 0); }
+   185→   185→   185→}
+   186→   186→   186→.pulse-gold {
+   187→   187→   187→  animation: pulse-gold 2s infinite;
+   188→   188→   188→}
+   189→   189→   189→
+   190→   190→   190→@keyframes shimmer {
+   191→   191→   191→  0% { background-position: -200% 0; }
+   192→   192→   192→  100% { background-position: 200% 0; }
+   193→   193→   193→}
+   194→   194→   194→.shimmer-gold {
+   195→   195→   195→  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.15), transparent);
+   196→   196→   196→  background-size: 200% 100%;
+   197→   197→   197→  animation: shimmer 2.5s infinite;
+   198→   198→   198→}
+   199→   199→   199→
+   200→   200→   200→/* ===== Table polish (zebra + hover + breathing room) ===== */
+   201→   201→   201→[data-slot="table-body"] > [data-slot="table-row"]:nth-child(even) {
+   202→   202→   202→  background-color: rgba(212, 175, 55, 0.035);
+   203→   203→   203→}
+   204→   204→   204→[data-slot="table-body"] > [data-slot="table-row"]:hover {
+   205→   205→   205→  background-color: rgba(212, 175, 55, 0.08);
+   206→   206→   206→}
+   207→   207→   207→[data-slot="table-cell"], [data-slot="table-head"] {
+   208→   208→   208→  padding-top: 0.7rem;
+   209→   209→   209→  padding-bottom: 0.7rem;
+   210→   210→   210→}
+   211→   211→   211→
+   212→   212→   212→/* ===== Focus-visible gold ring for accessibility ===== */
+   213→   213→   213→*:focus-visible {
+   214→   214→   214→  outline: 2px solid oklch(0.80 0.13 85 / 70%);
+   215→   215→   215→  outline-offset: 2px;
+   216→   216→   216→}
+   217→   217→   217→
+   218→   218→   218→/* ===== Print styles for Tanda Terima & Reports ===== */
+   219→   219→   219→@media print {
+   220→   220→   220→  body {
+   221→   221→   221→    background: #ffffff !important;
+   222→   222→   222→    color: #0a1628 !important;
+   223→   223→   223→    background-image: none !important;
+   224→   224→   224→  }
+   225→   225→   225→  .no-print, header, footer, nav, [role="dialog"], button {
+   226→   226→   226→    display: none !important;
+   227→   227→   227→  }
+   228→   228→   228→  .print-only {
+   229→   229→   229→    display: block !important;
+   230→   230→   230→  }
+   231→   231→   231→  .glass-card, .navy-glow {
+   232→   232→   232→    background: #ffffff !important;
+   233→   233→   233→    border: 1px solid #d4af37 !important;
+   234→   234→   234→    box-shadow: none !important;
+   235→   235→   235→    backdrop-filter: none !important;
+   236→   236→   236→    color: #0a1628 !important;
+   237→   237→   237→  }
+   238→   238→   238→  .glass-card * {
+   239→   239→   239→    color: #0a1628 !important;
+   240→   240→   240→  }
+   241→   241→   241→  .gold-gradient-text {
+   242→   242→   242→    -webkit-text-fill-color: #b8941f !important;
+   243→   243→   243→    color: #b8941f !important;
+   244→   244→   244→  }
+   245→   245→   245→  .gold-text {
+   246→   246→   246→    color: #b8941f !important;
+   247→   247→   247→  }
+   248→   248→   248→  main {
+   249→   249→   249→    padding: 0 !important;
+   250→   250→   250→  }
+   251→   251→   251→  .container {
+   252→   252→   252→    max-width: 100% !important;
+   253→   253→   253→    margin: 0 !important;
+   254→   254→   254→    padding: 0 !important;
+   255→   255→   255→  }
+   256→   256→   256→  @page {
+   257→   257→   257→    margin: 1.5cm;
+   258→   258→   258→  }
+   259→   259→   259→
+   260→   260→   260→  /* ===== Tanda Terima dialog print overrides ===== */
+   261→   261→   261→  /* Override the generic [role=dialog] hide for our printable receipt.
+   262→   262→   262→     NOTE: Lightning CSS strips `max-height: none` / `overflow: visible`
+   263→   263→   263→     because they are initial values, so we use explicit overrides here
+   264→   264→   264→     and also rely on Tailwind `print:` variants on the DialogContent. */
+   265→   265→   265→  [role="dialog"].tanda-terima-printable {
+   266→   266→   266→    display: block !important;
+   267→   267→   267→    position: static !important;
+   268→   268→   268→    transform: none !important;
+   269→   269→   269→    inset: auto !important;
+   270→   270→   270→    margin: 0 !important;
+   271→   271→   271→    padding: 0 !important;
+   272→   272→   272→    max-width: 100% !important;
+   273→   273→   273→    width: 100% !important;
+   274→   274→   274→    max-height: 999999px !important;
+   275→   275→   275→    height: auto !important;
+   276→   276→   276→    overflow: visible !important;
+   277→   277→   277→    background: #ffffff !important;
+   278→   278→   278→    border: none !important;
+   279→   279→   279→    box-shadow: none !important;
+   280→   280→   280→    backdrop-filter: none !important;
+   281→   281→   281→    border-radius: 0 !important;
+   282→   282→   282→  }
+   283→   283→   283→  /* Hide the dialog overlay during print */
+   284→   284→   284→  [data-slot="dialog-overlay"] {
+   285→   285→   285→    display: none !important;
+   286→   286→   286→  }
+   287→   287→   287→  /* Hide all body direct children except the portal that hosts our printable dialog */
+   288→   288→   288→  body > *:not([data-slot="dialog-portal"]) {
+   289→   289→   289→    display: none !important;
+   290→   290→   290→  }
+   291→   291→   291→  /* Inside the portal, hide every sibling except our printable dialog content */
+   292→   292→   292→  [data-slot="dialog-portal"] > *:not([role="dialog"].tanda-terima-printable) {
+   293→   293→   293→    display: none !important;
+   294→   294→   294→  }
+   295→   295→   295→}
+   296→   296→   296→.print-only {
+   297→   297→   297→  display: none;
+   298→   298→   298→}
+   299→   299→   299→
+   300→   300→   300→/* ===== Subtle card hover lift ===== */
+   301→   301→   301→.glass-card.card-hover {
+   302→   302→   302→  transition: transform 0.2s ease, border-color 0.2s ease;
+   303→   303→   303→}
+   304→   304→   304→.glass-card.card-hover:hover {
+   305→   305→   305→  transform: translateY(-2px);
+   306→   306→   306→  border-color: rgba(212, 175, 55, 0.4);
+   307→   307→   307→}
+   308→   308→   308→
+   309→   309→   309→/* ===== Fade-in animation for content ===== */
+   310→   310→   310→@keyframes fade-in-up {
+   311→   311→   311→  from { opacity: 0; transform: translateY(8px); }
+   312→   312→   312→  to { opacity: 1; transform: translateY(0); }
+   313→   313→   313→}
+   314→   314→   314→.animate-fade-in-up {
+   315→   315→   315→  animation: fade-in-up 0.4s ease-out both;
+   316→   316→   316→}
+   317→   317→   317→
+   318→   318→   318→/* ===== Staggered fade-in for list items ===== */
+   319→   319→   319→@keyframes fade-in {
+   320→   320→   320→  from { opacity: 0; }
+   321→   321→   321→  to { opacity: 1; }
+   322→   322→   322→}
+   323→   323→   323→.animate-fade-in {
+   324→   324→   324→  animation: fade-in 0.3s ease-out both;
+   325→   325→   325→}
+   326→   326→   326→
+   327→   327→   327→/* ===== Scale-in animation for modals/dialogs ===== */
+   328→   328→   328→@keyframes scale-in {
+   329→   329→   329→  from { opacity: 0; transform: scale(0.95); }
+   330→   330→   330→  to { opacity: 1; transform: scale(1); }
+   331→   331→   331→}
+   332→   332→   332→.animate-scale-in {
+   333→   333→   333→  animation: scale-in 0.2s ease-out both;
+   334→   334→   334→}
+   335→   335→   335→
+   336→   336→   336→/* ===== Slide-up animation ===== */
+   337→   337→   337→@keyframes slide-up {
+   338→   338→   338→  from { opacity: 0; transform: translateY(16px); }
+   339→   339→   339→  to { opacity: 1; transform: translateY(0); }
+   340→   340→   340→}
+   341→   341→   341→.animate-slide-up {
+   342→   342→   342→  animation: slide-up 0.35s ease-out both;
+   343→   343→   343→}
+   344→   344→   344→
+   345→   345→   345→/* ===== Number tabular for stats ===== */
+   346→   346→   346→.tabular-nums {
+   347→   347→   347→  font-variant-numeric: tabular-nums;
+   348→   348→   348→  font-feature-settings: "tnum";
+   349→   349→   349→}
+   350→   350→   350→
+   351→   351→   351→/* ===== Smooth table row transitions ===== */
+   352→   352→   352→[data-slot="table-row"] {
+   353→   353→   353→  transition: background-color 0.15s ease;
+   354→   354→   354→}
+   355→   355→   355→
+   356→   356→   356→/* ===== Interactive button press effect ===== */
+   357→   357→   357→button:active:not(:disabled) {
+   358→   358→   358→  transform: scale(0.98);
+   359→   359→   359→}
+   360→   360→   360→
+   361→   361→   361→/* ===== Smooth link/button underline animations ===== */
+   362→   362→   362→.hover-underline {
+   363→   363→   363→  position: relative;
+   364→   364→   364→}
+   365→   365→   365→.hover-underline::after {
+   366→   366→   366→  content: "";
+   367→   367→   367→  position: absolute;
+   368→   368→   368→  bottom: 0;
+   369→   369→   369→  left: 0;
+   370→   370→   370→  width: 0;
+   371→   371→   371→  height: 1px;
+   372→   372→   372→  background: oklch(0.80 0.13 85);
+   373→   373→   373→  transition: width 0.2s ease;
+   374→   374→   374→}
+   375→   375→   375→.hover-underline:hover::after {
+   376→   376→   376→  width: 100%;
+   377→   377→   377→}
+   378→   378→   378→
+   379→   379→   379→/* ============================================================
+   380→   380→   380→   AdminLTE 4 — admin area theme (scoped under .adminlte)
+   381→   381→   381→   Public-facing pages keep the dark navy + gold theme.
+   382→   382→   382→   ============================================================ */
+   383→   383→   383→.adminlte {
+   384→   384→   384→  /* shadcn CSS variable overrides → light theme inside admin */
+   385→   385→   385→  --background: #f4f6f9;
+   386→   386→   386→  --foreground: #212529;
+   387→   387→   387→  --card: #ffffff;
+   388→   388→   388→  --card-foreground: #212529;
+   389→   389→   389→  --popover: #ffffff;
+   390→   390→   390→  --popover-foreground: #212529;
+   391→   391→   391→  --primary: #b8941f;          /* gold (slightly darker for contrast on white) */
+   392→   392→   392→  --primary-foreground: #ffffff;
+   393→   393→   393→  --secondary: #e9ecef;
+   394→   394→   394→  --secondary-foreground: #212529;
+   395→   395→   395→  --muted: #e9ecef;
+   396→   396→   396→  --muted-foreground: #6c757d;
+   397→   397→   397→  --accent: #f1f3f5;
+   398→   398→   398→  --accent-foreground: #212529;
+   399→   399→   399→  --destructive: #dc3545;
+   400→   400→   400→  --border: #e3e6ec;
+   401→   401→   401→  --input: #ffffff;
+   402→   402→   402→  --ring: #b8941f;
+   403→   403→   403→  background-color: #f4f6f9;
+   404→   404→   404→  color: #212529;
+   405→   405→   405→  /* AdminLTE 4 typography stack */
+   406→   406→   406→  font-family: 'Source Sans 3', 'Source Sans Pro', -apple-system, BlinkMacSystemFont,
+   407→   407→   407→    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+   408→   408→   408→}
+   409→   409→   409→
+   410→   410→   410→/* Override the dark-theme glass-card to render as a WHITE AdminLTE card */
+   411→   411→   411→.adminlte .glass-card {
+   412→   412→   412→  background: #ffffff !important;
+   413→   413→   413→  border: 1px solid #e3e6ec !important;
+   414→   414→   414→  border-radius: 0.375rem !important;
+   415→   415→   415→  box-shadow: 0 0 1px rgba(0,0,0,.125), 0 1px 3px rgba(0,0,0,.06) !important;
+   416→   416→   416→  backdrop-filter: none !important;
+   417→   417→   417→  color: #212529;
+   418→   418→   418→}
+   419→   419→   419→
+   420→   420→   420→/* Gold utilities re-tuned for light background */
+   421→   421→   421→.adminlte .gold-text {
+   422→   422→   422→  color: #b8941f;
+   423→   423→   423→}
+   424→   424→   424→.adminlte .gold-border {
+   425→   425→   425→  border-color: #d4af37 !important;
+   426→   426→   426→}
+   427→   427→   427→.adminlte .navy-glow {
+   428→   428→   428→  box-shadow: 0 4px 16px rgba(0,0,0,.08) !important;
+   429→   429→   429→}
+   430→   430→   430→
+   431→   431→   431→/* Light scrollbar inside admin area */
+   432→   432→   432→.adminlte ::-webkit-scrollbar-track {
+   433→   433→   433→  background: #f1f3f5;
+   434→   434→   434→}
+   435→   435→   435→.adminlte ::-webkit-scrollbar-thumb {
+   436→   436→   436→  background: #ced4da;
+   437→   437→   437→  border-color: #f1f3f5;
+   438→   438→   438→}
+   439→   439→   439→.adminlte ::-webkit-scrollbar-thumb:hover {
+   440→   440→   440→  background: #b8941f;
+   441→   441→   441→}
+   442→   442→   442→
+   443→   443→   443→/* Table zebra/hover tuned for light bg inside admin */
+   444→   444→   444→.adminlte [data-slot="table-body"] > [data-slot="table-row"]:nth-child(even) {
+   445→   445→   445→  background-color: rgba(212, 175, 55, 0.04);
+   446→   446→   446→}
+   447→   447→   447→.adminlte [data-slot="table-body"] > [data-slot="table-row"]:hover {
+   448→   448→   448→  background-color: #f1f3f5;
+   449→   449→   449→}
+   450→   450→   450→/* AdminLTE table cell border + header bottom border */
+   451→   451→   451→.adminlte [data-slot="table-header"] [data-slot="table-row"],
+   452→   452→   452→.adminlte [data-slot="table-body"] [data-slot="table-row"] {
+   453→   453→   453→  border-bottom: 1px solid #e3e6ec;
+   454→   454→   454→}
+   455→   455→   455→.adminlte [data-slot="table-head"],
+   456→   456→   456→.adminlte [data-slot="table-cell"] {
+   457→   457→   457→  border-bottom: 1px solid #e3e6ec;
+   458→   458→   458→}
+   459→   459→   459→.adminlte [data-slot="table-head"] {
+   460→   460→   460→  font-weight: 600;
+   461→   461→   461→  background: #f8f9fa;
+   462→   462→   462→}
+   463→   463→   463→.adminlte [data-slot="table-body"] [data-slot="table-row"] {
+   464→   464→   464→  transition: background-color 0.12s ease;
+   465→   465→   465→}
+   466→   466→   466→
+   467→   467→   467→/* AdminLTE shadcn Card overrides */
+   468→   468→   468→.adminlte [data-slot="card"] {
+   469→   469→   469→  background: #ffffff !important;
+   470→   470→   470→  border: 1px solid #e3e6ec !important;
+   471→   471→   471→  box-shadow: 0 0 1px rgba(0,0,0,.05), 0 1px 3px rgba(0,0,0,.06) !important;
+   472→   472→   472→  backdrop-filter: none !important;
+   473→   473→   473→  color: #212529;
+   474→   474→   474→}
+   475→   475→   475→.adminlte [data-slot="card-header"],
+   476→   476→   476→.adminlte .card-header {
+   477→   477→   477→  background: #f8f9fa;
+   478→   478→   478→  border-bottom: 1px solid #e3e6ec;
+   479→   479→   479→  padding: 0.75rem 1rem;
+   480→   480→   480→  font-weight: 600;
+   481→   481→   481→}
+   482→   482→   482→
+   483→   483→   483→/* ===== AdminLTE layout ===== */
+   484→   484→   484→.adminlte.wrapper {
+   485→   485→   485→  min-height: 100vh;
+   486→   486→   486→  background: #f4f6f9;
+   487→   487→   487→  display: flex;
+   488→   488→   488→  flex-direction: column;
+   489→   489→   489→}
+   490→   490→   490→.adminlte .main-sidebar {
+   491→   491→   491→  width: 250px;
+   492→   492→   492→  background: #1e2a3a;
+   493→   493→   493→  color: #c2c7d0;
+   494→   494→   494→  position: fixed;
+   495→   495→   495→  top: 0;
+   496→   496→   496→  bottom: 0;
+   497→   497→   497→  left: 0;
+   498→   498→   498→  z-index: 50;
+   499→   499→   499→  display: flex;
+   500→   500→   500→  flex-direction: column;
+   501→   501→   501→  transition: transform 0.3s ease;
+   502→   502→   502→  overflow-y: auto;
+   503→   503→   503→}
+   504→   504→   504→.adminlte .content-wrapper {
+   505→   505→   505→  margin-left: 250px;
+   506→   506→   506→  min-height: 100vh;
+   507→   507→   507→  display: flex;
+   508→   508→   508→  flex-direction: column;
+   509→   509→   509→  background: #f4f6f9;
+   510→   510→   510→}
+   511→   511→   511→.adminlte .main-header {
+   512→   512→   512→  background: #1e2a3a;
+   513→   513→   513→  border-bottom: 1px solid rgba(255,255,255,.08);
+   514→   514→   514→  position: sticky;
+   515→   515→   515→  top: 0;
+   516→   516→   516→  z-index: 40;
+   517→   517→   517→  height: 57px;
+   518→   518→   518→  display: flex;
+   519→   519→   519→  align-items: center;
+   520→   520→   520→  padding: 0 1rem;
+   521→   521→   521→  gap: 0.75rem;
+   522→   522→   522→}
+   523→   523→   523→.adminlte .main-footer {
+   524→   524→   524→  background: #1e2a3a;
+   525→   525→   525→  color: #c2c7d0;
+   526→   526→   526→  border-top: 1px solid rgba(255,255,255,.08);
+   527→   527→   527→  padding: 0.6rem 1.25rem;
+   528→   528→   528→  margin-left: 0;
+   529→   529→   529→  font-size: 0.78rem;
+   530→   530→   530→}
+   531→   531→   531→.adminlte .main-footer .mf-inner {
+   532→   532→   532→  display: flex;
+   533→   533→   533→  align-items: center;
+   534→   534→   534→  justify-content: space-between;
+   535→   535→   535→  gap: 0.5rem;
+   536→   536→   536→  flex-wrap: wrap;
+   537→   537→   537→}
+   538→   538→   538→
+   539→   539→   539→/* Brand link at top of sidebar */
+   540→   540→   540→.adminlte .brand-link {
+   541→   541→   541→  display: flex;
+   542→   542→   542→  align-items: center;
+   543→   543→   543→  gap: 0.6rem;
+   544→   544→   544→  padding: 0.85rem 1rem;
+   545→   545→   545→  border-bottom: 1px solid rgba(255,255,255,.08);
+   546→   546→   546→  color: #fff;
+   547→   547→   547→  text-decoration: none;
+   548→   548→   548→}
+   549→   549→   549→.adminlte .brand-link .brand-sub {
+   550→   550→   550→  font-size: 0.65rem;
+   551→   551→   551→  color: #8a94a6;
+   552→   552→   552→  text-transform: uppercase;
+   553→   553→   553→  letter-spacing: 0.08em;
+   554→   554→   554→  line-height: 1.1;
+   555→   555→   555→}
+   556→   556→   556→
+   557→   557→   557→/* User panel */
+   558→   558→   558→.adminlte .user-panel {
+   559→   559→   559→  display: flex;
+   560→   560→   560→  align-items: center;
+   561→   561→   561→  gap: 0.65rem;
+   562→   562→   562→  padding: 0.9rem 1rem;
+   563→   563→   563→  border-bottom: 1px solid rgba(255,255,255,.06);
+   564→   564→   564→}
+   565→   565→   565→.adminlte .user-panel .up-avatar {
+   566→   566→   566→  width: 36px;
+   567→   567→   567→  height: 36px;
+   568→   568→   568→  border-radius: 50%;
+   569→   569→   569→  background: linear-gradient(135deg, #d4af37, #b8941f);
+   570→   570→   570→  color: #0a1628;
+   571→   571→   571→  display: flex;
+   572→   572→   572→  align-items: center;
+   573→   573→   573→  justify-content: center;
+   574→   574→   574→  font-weight: 700;
+   575→   575→   575→  font-size: 0.9rem;
+   576→   576→   576→  flex-shrink: 0;
+   577→   577→   577→}
+   578→   578→   578→.adminlte .user-panel .up-info {
+   579→   579→   579→  min-width: 0;
+   580→   580→   580→  flex: 1;
+   581→   581→   581→}
+   582→   582→   582→.adminlte .user-panel .up-name {
+   583→   583→   583→  color: #fff;
+   584→   584→   584→  font-size: 0.85rem;
+   585→   585→   585→  font-weight: 600;
+   586→   586→   586→  line-height: 1.2;
+   587→   587→   587→  overflow: hidden;
+   588→   588→   588→  text-overflow: ellipsis;
+   589→   589→   589→  white-space: nowrap;
+   590→   590→   590→}
+   591→   591→   591→.adminlte .user-panel .up-role {
+   592→   592→   592→  color: #8a94a6;
+   593→   593→   593→  font-size: 0.7rem;
+   594→   594→   594→  display: inline-flex;
+   595→   595→   595→  align-items: center;
+   596→   596→   596→  gap: 0.25rem;
+   597→   597→   597→  margin-top: 0.1rem;
+   598→   598→   598→}
+   599→   599→   599→
+   600→   600→   600→/* Sidebar search */
+   601→   601→   601→.adminlte .sidebar-form {
+   602→   602→   602→  padding: 0.6rem 1rem;
+   603→   603→   603→}
+   604→   604→   604→.adminlte .sidebar-search-btn {
+   605→   605→   605→  width: 100%;
+   606→   606→   606→  display: flex;
+   607→   607→   607→  align-items: center;
+   608→   608→   608→  gap: 0.5rem;
+   609→   609→   609→  background: rgba(255,255,255,.06);
+   610→   610→   610→  border: 1px solid rgba(255,255,255,.05);
+   611→   611→   611→  border-radius: 0.375rem;
+   612→   612→   612→  padding: 0.45rem 0.7rem;
+   613→   613→   613→  color: #8a94a6;
+   614→   614→   614→  font-size: 0.8rem;
+   615→   615→   615→  cursor: pointer;
+   616→   616→   616→  transition: all 0.15s;
+   617→   617→   617→}
+   618→   618→   618→.adminlte .sidebar-search-btn:hover {
+   619→   619→   619→  background: rgba(255,255,255,.10);
+   620→   620→   620→  color: #fff;
+   621→   621→   621→}
+   622→   622→   622→.adminlte .sidebar-search-btn .kbd {
+   623→   623→   623→  margin-left: auto;
+   624→   624→   624→  font-family: ui-monospace, monospace;
+   625→   625→   625→  font-size: 0.65rem;
+   626→   626→   626→  background: rgba(0,0,0,.25);
+   627→   627→   627→  color: #c2c7d0;
+   628→   628→   628→  padding: 1px 5px;
+   629→   629→   629→  border-radius: 3px;
+   630→   630→   630→}
+   631→   631→   631→
+   632→   632→   632→/* Sidebar nav */
+   633→   633→   633→.adminlte .nav-sidebar {
+   634→   634→   634→  list-style: none;
+   635→   635→   635→  padding: 0;
+   636→   636→   636→  margin: 0;
+   637→   637→   637→  flex: 1;
+   638→   638→   638→}
+   639→   639→   639→.adminlte .nav-header {
+   640→   640→   640→  color: #8a94a6;
+   641→   641→   641→  font-size: 0.7rem;
+   642→   642→   642→  font-weight: 700;
+   643→   643→   643→  text-transform: uppercase;
+   644→   644→   644→  letter-spacing: 0.08em;
+   645→   645→   645→  padding: 0.9rem 1rem 0.35rem;
+   646→   646→   646→}
+   647→   647→   647→.adminlte .nav-link {
+   648→   648→   648→  display: flex;
+   649→   649→   649→  align-items: center;
+   650→   650→   650→  gap: 0.75rem;
+   651→   651→   651→  padding: 0.6rem 1rem;
+   652→   652→   652→  color: #c2c7d0;
+   653→   653→   653→  font-size: 0.875rem;
+   654→   654→   654→  font-weight: 400;
+   655→   655→   655→  border-left: 3px solid transparent;
+   656→   656→   656→  transition: all 0.15s ease;
+   657→   657→   657→  cursor: pointer;
+   658→   658→   658→  text-decoration: none;
+   659→   659→   659→  background: transparent;
+   660→   660→   660→  border-top: none;
+   661→   661→   661→  border-right: none;
+   662→   662→   662→  border-bottom: none;
+   663→   663→   663→  width: 100%;
+   664→   664→   664→  text-align: left;
+   665→   665→   665→  text-shadow: none;
+   666→   666→   666→}
+   667→   667→   667→.adminlte .nav-link:hover {
+   668→   668→   668→  background: rgba(255,255,255,.06);
+   669→   669→   669→  color: #fff;
+   670→   670→   670→}
+   671→   671→   671→.adminlte .nav-link.active {
+   672→   672→   672→  background: rgba(212,175,55,.12);
+   673→   673→   673→  border-left-color: #d4af37;
+   674→   674→   674→  color: #fff;
+   675→   675→   675→  font-weight: 600;
+   676→   676→   676→}
+   677→   677→   677→.adminlte .nav-link .nav-icon {
+   678→   678→   678→  width: 1.1rem;
+   679→   679→   679→  height: 1.1rem;
+   680→   680→   680→  flex-shrink: 0;
+   681→   681→   681→}
+   682→   682→   682→
+   683→   683→   683→/* ===== Small Box — signature AdminLTE dashboard widget ===== */
+   684→   684→   684→.alte-small-box {
+   685→   685→   685→  position: relative;
+   686→   686→   686→  border-radius: 0.375rem;
+   687→   687→   687→  padding: 1.25rem;
+   688→   688→   688→  color: #fff;
+   689→   689→   689→  overflow: hidden;
+   690→   690→   690→  /* Subtler inner glow (was rgba(255,255,255,.08) inset + heavier shadow) */
+   691→   691→   691→  box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.06);
+   692→   692→   692→  transition: transform 0.2s ease, box-shadow 0.2s ease;
+   693→   693→   693→  cursor: pointer;
+   694→   694→   694→  display: block;
+   695→   695→   695→  text-align: left;
+   696→   696→   696→  border: none;
+   697→   697→   697→  width: 100%;
+   698→   698→   698→}
+   699→   699→   699→.alte-small-box:hover {
+   700→   700→   700→  transform: translateY(-2px);
+   701→   701→   701→  box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 0 1px rgba(0,0,0,.08);
+   702→   702→   702→}
+   703→   703→   703→.alte-small-box .sb-inner {
+   704→   704→   704→  display: flex;
+   705→   705→   705→  justify-content: space-between;
+   706→   706→   706→  align-items: flex-start;
+   707→   707→   707→}
+   708→   708→   708→.alte-small-box .sb-text {
+   709→   709→   709→  z-index: 2;
+   710→   710→   710→  position: relative;
+   711→   711→   711→}
+   712→   712→   712→.alte-small-box .sb-number {
+   713→   713→   713→  font-size: 1.75rem;
+   714→   714→   714→  font-weight: 700;
+   715→   715→   715→  line-height: 1.1;
+   716→   716→   716→}
+   717→   717→   717→.alte-small-box .sb-label {
+   718→   718→   718→  font-size: 0.8rem;
+   719→   719→   719→  text-transform: uppercase;
+   720→   720→   720→  letter-spacing: 0.04em;
+   721→   721→   721→  opacity: 0.92;
+   722→   722→   722→  margin-top: 0.15rem;
+   723→   723→   723→}
+   724→   724→   724→.alte-small-box .sb-icon {
+   725→   725→   725→  font-size: 4.5rem;
+   726→   726→   726→  opacity: 0.25;
+   727→   727→   727→  position: absolute;
+   728→   728→   728→  right: 0.5rem;
+   729→   729→   729→  bottom: -0.5rem;
+   730→   730→   730→  z-index: 1;
+   731→   731→   731→  width: auto;
+   732→   732→   732→  height: auto;
+   733→   733→   733→}
+   734→   734→   734→.alte-small-box .sb-footer {
+   735→   735→   735→  display: block;
+   736→   736→   736→  background: rgba(0,0,0,.18);
+   737→   737→   737→  margin: 1.25rem -1.25rem -1.25rem;
+   738→   738→   738→  padding: 0.55rem 1.25rem;
+   739→   739→   739→  font-size: 0.8rem;
+   740→   740→   740→  color: #fff;
+   741→   741→   741→  text-align: right;
+   742→   742→   742→  position: relative;
+   743→   743→   743→  z-index: 2;
+   744→   744→   744→}
+   745→   745→   745→.alte-small-box .sb-footer .sb-arrow {
+   746→   746→   746→  margin-left: 0.35rem;
+   747→   747→   747→  transition: transform 0.2s ease;
+   748→   748→   748→  display: inline-block;
+   749→   749→   749→}
+   750→   750→   750→.alte-small-box:hover .sb-footer .sb-arrow {
+   751→   751→   751→  transform: translateX(4px);
+   752→   752→   752→}
+   753→   753→   753→.alte-small-box .sb-trend {
+   754→   754→   754→  margin-left: auto;
+   755→   755→   755→  align-self: flex-end;
+   756→   756→   756→  z-index: 2;
+   757→   757→   757→  position: relative;
+   758→   758→   758→  display: inline-flex;
+   759→   759→   759→  align-items: flex-end;
+   760→   760→   760→  line-height: 0;
+   761→   761→   761→  opacity: 0.95;
+   762→   762→   762→}
+   763→   763→   763→.alte-small-box .sb-sparkline {
+   764→   764→   764→  display: block;
+   765→   765→   765→  width: 40px;
+   766→   766→   766→  height: 16px;
+   767→   767→   767→}
+   768→   768→   768→.alte-small-box.sb-primary {
+   769→   769→   769→  background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+   770→   770→   770→}
+   771→   771→   771→.alte-small-box.sb-success {
+   772→   772→   772→  background: linear-gradient(135deg, #198754 0%, #157347 100%);
+   773→   773→   773→}
+   774→   774→   774→.alte-small-box.sb-info {
+   775→   775→   775→  background: linear-gradient(135deg, #0dcaf0 0%, #0bb6d8 100%);
+   776→   776→   776→  color: #0a1628;
+   777→   777→   777→}
+   778→   778→   778→.alte-small-box.sb-info .sb-footer { color: #0a1628; background: rgba(0,0,0,.08); }
+   779→   779→   779→.alte-small-box.sb-warning {
+   780→   780→   780→  background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+   781→   781→   781→  color: #0a1628;
+   782→   782→   782→}
+   783→   783→   783→.alte-small-box.sb-warning .sb-footer { color: #0a1628; background: rgba(0,0,0,.08); }
+   784→   784→   784→.alte-small-box.sb-danger {
+   785→   785→   785→  background: linear-gradient(135deg, #dc3545 0%, #bb2d3b 100%);
+   786→   786→   786→}
+   787→   787→   787→.alte-small-box.sb-gold {
+   788→   788→   788→  background: linear-gradient(135deg, #d4af37, #b8941f); color: #0a1628;
+   789→   789→   789→}
+   790→   790→   790→.alte-small-box.sb-gold .sb-footer { color: #0a1628; background: rgba(0,0,0,.12); }
+   791→   791→   791→
+   792→   792→   792→/* ===== Info Box — 3-column grid (icon | text | progress) ===== */
+   793→   793→   793→.alte-info-box {
+   794→   794→   794→  display: grid;
+   795→   795→   795→  grid-template-columns: 70px 1fr;
+   796→   796→   796→  background: #fff;
+   797→   797→   797→  border: 1px solid #e3e6ec;
+   798→   798→   798→  border-radius: 0.375rem;
+   799→   799→   799→  overflow: hidden;
+   800→   800→   800→  box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 0 1px rgba(0,0,0,.04);
+   801→   801→   801→  transition: box-shadow 0.2s ease, transform 0.2s ease;
+   802→   802→   802→  position: relative;
+   803→   803→   803→}
+   804→   804→   804→.alte-info-box:hover {
+   805→   805→   805→  box-shadow: 0 2px 6px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.05);
+   806→   806→   806→  transform: translateY(-1px);
+   807→   807→   807→}
+   808→   808→   808→.alte-info-box .ib-icon {
+   809→   809→   809→  display: flex;
+   810→   810→   810→  align-items: center;
+   811→   811→   811→  justify-content: center;
+   812→   812→   812→  color: #fff;
+   813→   813→   813→  font-size: 1.75rem;
+   814→   814→   814→  flex-shrink: 0;
+   815→   815→   815→  position: relative;
+   816→   816→   816→  z-index: 1;
+   817→   817→   817→}
+   818→   818→   818→.alte-info-box .ib-body {
+   819→   819→   819→  padding: 0.55rem 0.85rem 0.6rem;
+   820→   820→   820→  display: flex;
+   821→   821→   821→  flex-direction: column;
+   822→   822→   822→  justify-content: center;
+   823→   823→   823→  min-width: 0;
+   824→   824→   824→}
+   825→   825→   825→.alte-info-box .ib-text {
+   826→   826→   826→  font-size: 0.78rem;
+   827→   827→   827→  color: #6c757d;
+   828→   828→   828→  text-transform: uppercase;
+   829→   829→   829→  letter-spacing: 0.04em;
+   830→   830→   830→  font-weight: 600;
+   831→   831→   831→  line-height: 1.2;
+   832→   832→   832→  overflow: hidden;
+   833→   833→   833→  text-overflow: ellipsis;
+   834→   834→   834→  white-space: nowrap;
+   835→   835→   835→}
+   836→   836→   836→.alte-info-box .ib-number {
+   837→   837→   837→  font-size: 1.3rem;
+   838→   838→   838→  font-weight: 700;
+   839→   839→   839→  color: #212529;
+   840→   840→   840→  line-height: 1.2;
+   841→   841→   841→  margin-top: 0.1rem;
+   842→   842→   842→  overflow: hidden;
+   843→   843→   843→  text-overflow: ellipsis;
+   844→   844→   844→  white-space: nowrap;
+   845→   845→   845→}
+   846→   846→   846→.alte-info-box .ib-progress {
+   847→   847→   847→  height: 5px;
+   848→   848→   848→  background: #e9ecef;
+   849→   849→   849→  border-radius: 3px;
+   850→   850→   850→  margin-top: 0.4rem;
+   851→   851→   851→  overflow: hidden;
+   852→   852→   852→}
+   853→   853→   853→.alte-info-box .ib-progress-bar {
+   854→   854→   854→  height: 100%;
+   855→   855→   855→  border-radius: 3px;
+   856→   856→   856→  transition: width 0.4s ease;
+   857→   857→   857→}
+   858→   858→   858→.alte-info-box .ib-progress-text {
+   859→   859→   859→  font-size: 0.66rem;
+   860→   860→   860→  color: #6c757d;
+   861→   861→   861→  margin-top: 0.2rem;
+   862→   862→   862→  font-weight: 500;
+   863→   863→   863→}
+   864→   864→   864→
+   865→   865→   865→/* Info-box icon color variants (left colored area) */
+   866→   866→   866→.alte-info-box.ib-primary .ib-icon { background: linear-gradient(135deg, #0d6efd, #0b5ed7); }
+   867→   867→   867→.alte-info-box.ib-success .ib-icon { background: linear-gradient(135deg, #198754, #157347); }
+   868→   868→   868→.alte-info-box.ib-info    .ib-icon { background: linear-gradient(135deg, #0dcaf0, #0bb6d8); }
+   869→   869→   869→.alte-info-box.ib-warning .ib-icon { background: linear-gradient(135deg, #ffc107, #e0a800); }
+   870→   870→   870→.alte-info-box.ib-danger  .ib-icon { background: linear-gradient(135deg, #dc3545, #bb2d3b); }
+   871→   871→   871→.alte-info-box.ib-gold    .ib-icon { background: linear-gradient(135deg, #d4af37, #b8941f); }
+   872→   872→   872→
+   873→   873→   873→.alte-info-box.ib-primary .ib-progress-bar { background: #0d6efd; }
+   874→   874→   874→.alte-info-box.ib-success .ib-progress-bar { background: #198754; }
+   875→   875→   875→.alte-info-box.ib-info    .ib-progress-bar { background: #0dcaf0; }
+   876→   876→   876→.alte-info-box.ib-warning .ib-progress-bar { background: #ffc107; }
+   877→   877→   877→.alte-info-box.ib-danger  .ib-progress-bar { background: #dc3545; }
+   878→   878→   878→.alte-info-box.ib-gold    .ib-progress-bar { background: #d4af37; }
+   879→   879→   879→
+   880→   880→   880→/* Content padding — AdminLTE 4 standard content padding.
+   881→   881→   881→   The main content section is `<section className="content">` and gets 1rem padding.
+   882→   882→   882→   Direct children spaced with margin-top to avoid cramped stacked cards. */
+   883→   883→   883→.adminlte .content {
+   884→   884→   884→  padding: 1rem 1.25rem;
+   885→   885→   885→  flex: 1;
+   886→   886→   886→  width: 100%;
+   887→   887→   887→}
+   888→   888→   888→.adminlte section.content {
+   889→   889→   889→  padding: 1rem;
+   890→   890→   890→}
+   891→   891→   891→.adminlte .content > * + * {
+   892→   892→   892→  margin-top: 1rem;
+   893→   893→   893→}
+   894→   894→   894→@media (min-width: 768px) {
+   895→   895→   895→  .adminlte .content {
+   896→   896→   896→    padding: 1.25rem 1.5rem;
+   897→   897→   897→  }
+   898→   898→   898→  .adminlte section.content {
+   899→   899→   899→    padding: 1.25rem;
+   900→   900→   900→  }
+   901→   901→   901→}
+   902→   902→   902→
+   903→   903→   903→/* ===== AdminLTE-style button utility classes ===== */
+   904→   904→   904→/* Use these on a shadcn <Button> (no variant) or any <button>. The class
+   905→   905→   905→   overrides background/border/text colors to AdminLTE's standard palette
+   906→   906→   906→   while keeping shadcn's hover/focus/disabled infrastructure. */
+   907→   907→   907→.adminlte .alte-btn-primary {
+   908→   908→   908→  background-color: #0d6efd !important;
+   909→   909→   909→  color: #ffffff !important;
+   910→   910→   910→  border: 1px solid #0d6efd !important;
+   911→   911→   911→}
+   912→   912→   912→.adminlte .alte-btn-primary:hover {
+   913→   913→   913→  background-color: #0b5ed7 !important;
+   914→   914→   914→  border-color: #0a58ca !important;
+   915→   915→   915→}
+   916→   916→   916→.adminlte .alte-btn-success {
+   917→   917→   917→  background-color: #198754 !important;
+   918→   918→   918→  color: #ffffff !important;
+   919→   919→   919→  border: 1px solid #198754 !important;
+   920→   920→   920→}
+   921→   921→   921→.adminlte .alte-btn-success:hover {
+   922→   922→   922→  background-color: #157347 !important;
+   923→   923→   923→  border-color: #146c43 !important;
+   924→   924→   924→}
+   925→   925→   925→.adminlte .alte-btn-warning {
+   926→   926→   926→  background-color: #ffc107 !important;
+   927→   927→   927→  color: #0a1628 !important;
+   928→   928→   928→  border: 1px solid #ffc107 !important;
+   929→   929→   929→}
+   930→   930→   930→.adminlte .alte-btn-warning:hover {
+   931→   931→   931→  background-color: #e0a800 !important;
+   932→   932→   932→  border-color: #d39e00 !important;
+   933→   933→   933→}
+   934→   934→   934→
+   935→   935→   935→/* ===== Page heading typography (AdminLTE 4 uses weight 600, not 700) ===== */
+   936→   936→   936→.adminlte h1 {
+   937→   937→   937→  font-weight: 600;
+   938→   938→   938→}
+   939→   939→   939→.adminlte h2 {
+   940→   940→   940→  font-weight: 600;
+   941→   941→   941→}
+   942→   942→   942→
+   943→   943→   943→/* Breadcrumb in navbar */
+   944→   944→   944→.adminlte .navbar-breadcrumb {
+   945→   945→   945→  display: flex;
+   946→   946→   946→  align-items: center;
+   947→   947→   947→  gap: 0.5rem;
+   948→   948→   948→  color: #c2c7d0;
+   949→   949→   949→  font-size: 0.875rem;
+   950→   950→   950→}
+   951→   951→   951→.adminlte .navbar-breadcrumb .bc-current {
+   952→   952→   952→  color: #fff;
+   953→   953→   953→  font-weight: 600;
+   954→   954→   954→}
+   955→   955→   955→
+   956→   956→   956→/* Navbar right side buttons */
+   957→   957→   957→.adminlte .navbar-btn {
+   958→   958→   958→  color: #c2c7d0;
+   959→   959→   959→  background: transparent;
+   960→   960→   960→  border: none;
+   961→   961→   961→  padding: 0.4rem 0.6rem;
+   962→   962→   962→  border-radius: 0.375rem;
+   963→   963→   963→  cursor: pointer;
+   964→   964→   964→  transition: background 0.15s, color 0.15s;
+   965→   965→   965→  display: inline-flex;
+   966→   966→   966→  align-items: center;
+   967→   967→   967→  gap: 0.4rem;
+   968→   968→   968→  font-size: 0.85rem;
+   969→   969→   969→}
+   970→   970→   970→.adminlte .navbar-btn:hover {
+   971→   971→   971→  background: rgba(255,255,255,.1);
+   972→   972→   972→  color: #fff;
+   973→   973→   973→}
+   974→   974→   974→
+   975→   975→   975→/* AdminLTE top nav right cluster */
+   976→   976→   976→.adminlte .navbar-nav-right {
+   977→   977→   977→  display: flex;
+   978→   978→   978→  align-items: center;
+   979→   979→   979→  gap: 0.25rem;
+   980→   980→   980→  margin-left: auto;
+   981→   981→   981→}
+   982→   982→   982→
+   983→   983→   983→/* User-trigger button on the navbar (right) */
+   984→   984→   984→.adminlte .navbar-user-btn {
+   985→   985→   985→  display: inline-flex;
+   986→   986→   986→  align-items: center;
+   987→   987→   987→  gap: 0.5rem;
+   988→   988→   988→  background: transparent;
+   989→   989→   989→  border: none;
+   990→   990→   990→  color: #c2c7d0;
+   991→   991→   991→  padding: 0.35rem 0.5rem;
+   992→   992→   992→  border-radius: 0.375rem;
+   993→   993→   993→  cursor: pointer;
+   994→   994→   994→  transition: background 0.15s, color 0.15s;
+   995→   995→   995→}
+   996→   996→   996→.adminlte .navbar-user-btn:hover {
+   997→   997→   997→  background: rgba(255,255,255,.1);
+   998→   998→   998→  color: #fff;
+   999→   999→   999→}
+  1000→  1000→  1000→.adminlte .navbar-user-btn .nu-avatar {
+  1001→  1001→  1001→  width: 30px;
+  1002→  1002→  1002→  height: 30px;
+  1003→  1003→  1003→  border-radius: 50%;
+  1004→  1004→  1004→  background: linear-gradient(135deg, #d4af37, #b8941f);
+  1005→  1005→  1005→  color: #0a1628;
+  1006→  1006→  1006→  display: flex;
+  1007→  1007→  1007→  align-items: center;
+  1008→  1008→  1008→  justify-content: center;
+  1009→  1009→  1009→  font-weight: 700;
+  1010→  1010→  1010→  font-size: 0.78rem;
+  1011→  1011→  1011→  flex-shrink: 0;
+  1012→  1012→  1012→}
+  1013→  1013→  1013→.adminlte .navbar-user-btn .nu-meta {
+  1014→  1014→  1014→  display: flex;
+  1015→  1015→  1015→  flex-direction: column;
+  1016→  1016→  1016→  align-items: flex-start;
+  1017→  1017→  1017→  line-height: 1.15;
+  1018→  1018→  1018→}
+  1019→  1019→  1019→.adminlte .navbar-user-btn .nu-name {
+  1020→  1020→  1020→  color: #fff;
+  1021→  1021→  1021→  font-size: 0.78rem;
+  1022→  1022→  1022→  font-weight: 600;
+  1023→  1023→  1023→}
+  1024→  1024→  1024→.adminlte .navbar-user-btn .nu-role {
+  1025→  1025→  1025→  color: #8a94a6;
+  1026→  1026→  1026→  font-size: 0.66rem;
+  1027→  1027→  1027→  display: inline-flex;
+  1028→  1028→  1028→  align-items: center;
+  1029→  1029→  1029→  gap: 0.2rem;
+  1030→  1030→  1030→}
+  1031→  1031→  1031→
+  1032→  1032→  1032→/* Hamburger (mobile only — controlled by lg:hidden in markup) */
+  1033→  1033→  1033→.adminlte .sidebar-toggle {
+  1034→  1034→  1034→  color: #c2c7d0;
+  1035→  1035→  1035→  background: transparent;
+  1036→  1036→  1036→  border: none;
+  1037→  1037→  1037→  padding: 0.4rem 0.55rem;
+  1038→  1038→  1038→  border-radius: 0.375rem;
+  1039→  1039→  1039→  cursor: pointer;
+  1040→  1040→  1040→  display: inline-flex;
+  1041→  1041→  1041→  align-items: center;
+  1042→  1042→  1042→  justify-content: center;
+  1043→  1043→  1043→  transition: background 0.15s, color 0.15s;
+  1044→  1044→  1044→}
+  1045→  1045→  1045→.adminlte .sidebar-toggle:hover {
+  1046→  1046→  1046→  background: rgba(255,255,255,.1);
+  1047→  1047→  1047→  color: #fff;
+  1048→  1048→  1048→}
+  1049→  1049→  1049→
+  1050→  1050→  1050→/* Brand mini link (top-left corner of navbar when sidebar hidden on mobile) */
+  1051→  1051→  1051→.adminlte .navbar-brand-mini {
+  1052→  1052→  1052→  display: none;
+  1053→  1053→  1053→  align-items: center;
+  1054→  1054→  1054→  gap: 0.5rem;
+  1055→  1055→  1055→  color: #fff;
+  1056→  1056→  1056→  font-weight: 700;
+  1057→  1057→  1057→  font-size: 0.9rem;
+  1058→  1058→  1058→}
+  1059→  1059→  1059→@media (max-width: 991.98px) {
+  1060→  1060→  1060→  .adminlte .navbar-brand-mini { display: inline-flex; }
+  1061→  1061→  1061→}
+  1062→  1062→  1062→
+  1063→  1063→  1063→/* ===== Responsive: hide sidebar on mobile, show via drawer/sheet ===== */
+  1064→  1064→  1064→@media (max-width: 991.98px) {
+  1065→  1065→  1065→  .adminlte .main-sidebar {
+  1066→  1066→  1066→    transform: translateX(-100%);
+  1067→  1067→  1067→  }
+  1068→  1068→  1068→  .adminlte .main-sidebar.is-open {
+  1069→  1069→  1069→    transform: translateX(0);
+  1070→  1070→  1070→  }
+  1071→  1071→  1071→  .adminlte .content-wrapper {
+  1072→  1072→  1072→    margin-left: 0;
+  1073→  1073→  1073→  }
+  1074→  1074→  1074→}
+  1075→  1075→  1075→
+  1076→  1076→  1076→/* ===== Print: hide admin chrome ===== */
+  1077→  1077→  1077→@media print {
+  1078→  1078→  1078→  .adminlte .main-sidebar,
+  1079→  1079→  1079→  .adminlte .main-header,
+  1080→  1080→  1080→  .adminlte .main-footer {
+  1081→  1081→  1081→    display: none !important;
+  1082→  1082→  1082→  }
+  1083→  1083→  1083→  .adminlte .content-wrapper {
+  1084→  1084→  1084→    margin-left: 0 !important;
+  1085→  1085→  1085→  }
+  1086→  1086→  1086→  .adminlte .content {
+  1087→  1087→  1087→    padding: 0 !important;
+  1088→  1088→  1088→  }
+  1089→  1089→  1089→}
+  1090→  1090→  1090→/* trigger recompile */
+  1091→  1091→  1091→/* trigger recompile */
+  1092→  1092→  1092→

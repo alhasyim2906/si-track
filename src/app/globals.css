@@ -1087,5 +1087,114 @@ button:active:not(:disabled) {
     padding: 0 !important;
   }
 }
-/* trigger recompile */
+/* ===== Task 8-c: Global CSS Enhancements ===== */
+
+/* A. Enhanced glass-card hover effects */
+.adminlte .glass-card {
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+.adminlte .glass-card:hover {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* B. Better AdminLTE info-box styling — subtle left border + hover lift */
+.alte-info-box {
+  border-left: 4px solid transparent;
+}
+.alte-info-box.ib-primary { border-left-color: #0d6efd; }
+.alte-info-box.ib-success { border-left-color: #198754; }
+.alte-info-box.ib-info    { border-left-color: #0dcaf0; }
+.alte-info-box.ib-warning { border-left-color: #ffc107; }
+.alte-info-box.ib-danger  { border-left-color: #dc3545; }
+.alte-info-box.ib-gold    { border-left-color: #d4af37; }
+
+/* C. Better SmallBox hover (enhanced shadow + lift) */
+.alte-small-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+.alte-small-box {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* D. Nav link improvements — transition + gold tint hover */
+.nav-link {
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.nav-link:not(.active):hover {
+  background-color: rgba(212, 175, 55, 0.08);
+}
+
+/* E. Table improvements — bolder header, uppercase labels, better hover transition */
+.adminlte [data-slot="table-head"] {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: #495057;
+}
+.adminlte [data-slot="table-body"] [data-slot="table-row"] {
+  transition: background-color 0.15s ease;
+}
+.adminlte [data-slot="table-body"] > [data-slot="table-row"]:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+.adminlte [data-slot="table-body"] > [data-slot="table-row"]:hover {
+  background-color: rgba(212, 175, 55, 0.06);
+}
+
+/* F. Button focus ring — gold outline */
+.adminlte button:focus-visible,
+.adminlte a:focus-visible {
+  outline: 2px solid #d4af37;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* G. Scrollbar styling — custom thin scrollbar for admin area */
+.adminlte ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.adminlte ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.adminlte ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+  border-radius: 3px;
+}
+.adminlte ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.25);
+}
+
+/* H. Badge pulse animation for notification count */
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+.badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* I. Skeleton shimmer animation */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.08) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* J. Content area better padding */
+.content {
+  padding: 1rem;
+}
+@media (min-width: 768px) {
+  .content {
+    padding: 1.5rem;
+  }
+}
+
 /* trigger recompile */

@@ -1,0 +1,252 @@
+   400→   400→    - Zustand store update on save (header reflects name changes immediately)
+   401→   401→    - Nav item "Profil" added for all roles + dropdown menu "Pengaturan Akun"
+   402→   402→
+   403→   403→13. **Command Palette** (new `CommandPalette.tsx`):
+   404→   404→    - Cmd+K / Ctrl+K keyboard shortcut
+   405→   405→    - Navigation commands (role-filtered): Dashboard, Permohonan, Daftar Baru, Laporan, etc.
+   406→   406→    - Quick search: debounced search for permohonan by register/name (5 results max)
+   407→   407→    - Quick actions: "Daftar Permohonan Baru" (role-gated), "Keluar" (destructive)
+   408→   408→    - Search trigger button in header with ⌘K badge
+   409→   409→    - Clean state reset via key prop remounting
+   410→   410→
+   411→   411→## Verification Results
+   412→   412→- `bun run lint`: 0 errors
+   413→   413→- Dev server: compiles clean, all routes 200
+   414→   414→- API endpoints verified: Homepage, Public Stats, Tracking, Login, Profile (all 200)
+   415→   415→- VLM re-review: public page 8/10 (up from 7/10), stats section 8/10 (up from 6/10)
+   416→   416→- Note: OOM issues in sandbox environment prevented extended browser testing (Next.js + Chrome memory pressure)
+   417→   417→
+   418→   418→## Unresolved Issues / Risks
+   419→   419→- OOM kills Next.js server when Chrome browser is also running in sandbox (4GB RAM limit). This is an environment constraint, not an application bug.
+   420→   420→- Tanda Terima print output not physically tested (window.print() opens browser print dialog — can't automate).
+   421→   421→- Reports PDF export uses popup window + window.print() — functional but basic.
+   422→   422→
+   423→   423→## Priority Recommendations for Next Round
+   424→   424→1. **Dashboard date-range filter for Petugas/Atasan** (currently only Admin has year filter)
+   425→   425→2. **Permohonan list bulk actions** (bulk status change, bulk export)
+   426→   426→3. **PWA manifest + service worker** for offline tracking (mentioned as optional in original spec)
+   427→   427→4. **WhatsApp/email notification integration** (currently dashboard-only notifications)
+   428→   428→5. **Enhanced chart interactivity** (click-to-filter on pie/bar segments)
+   429→   429→6. **Data export improvements** (proper PDF generation with jsPDF instead of window.print)
+   430→   430→
+   431→   431→---
+   432→   432→Task ID: 7-b
+   433→   433→Agent: frontend-styling-expert (AdminLTE 4 redesign)
+   434→   434→Task: Redesign admin area to AdminLTE 4 layout
+   435→   435→
+   436→   436→Work Log:
+   437→   437→- Read worklog.md, AppShell.tsx, globals.css, AdminDashboard.tsx, StatCard.tsx, Logo.tsx, app-store.ts, constants.ts, NotificationsBell.tsx, Footer.tsx, page.tsx, types.ts to understand the existing structure and constraints.
+   438→   438→- globals.css: Added a scoped `.adminlte` theme block (placed AFTER the dark navy base theme so it overrides only inside admin). Inside `.adminlte`: overrode all shadcn CSS variables (--background → #f4f6f9, --foreground → #212529, --card → #fff, --border → #e3e6ec, --input → #fff, --accent → #f1f3f5, --secondary → #e9ecef, --muted → #e9ecef, --muted-foreground → #6c757d, --primary → #b8941f, --destructive → #dc3545) so EVERY shadcn input/select/table/card/dropdown automatically renders in light theme without touching individual components.
+   439→   439→- globals.css: Overrode `.glass-card` inside `.adminlte` to render as a WHITE AdminLTE card (white bg, #e3e6ec border, subtle shadow, no backdrop-filter). This makes ALL existing dashboards (PetugasDashboard, AtasanDashboard, AdminDashboard, Reports, UserManagement, AuditLogView, JenisSuratManagement, ProfileSettings, PermohonanList, etc.) automatically get white AdminLTE-style cards with zero per-component changes.
+   440→   440→- globals.css: Re-tuned `.gold-text` to #b8941f, `.gold-border` to #d4af37, `.navy-glow` to a lighter shadow, light scrollbar track/thumb, light-theme table zebra/hover, and `.adminlte [data-slot="card"]` / `.adminlte [data-slot="card-header"]` explicit white-card overrides so shadcn Card renders perfectly on light bg.
+   441→   441→- globals.css: Added the full AdminLTE 4 component CSS — `.main-sidebar` (250px dark navy #1a2332 fixed), `.content-wrapper` (margin-left 250px, light gray bg, flex-col), `.main-header` (sticky 57px dark navbar), `.main-footer` (dark navy bar), `.brand-link`, `.user-panel`, `.sidebar-form` + `.sidebar-search-btn`, `.nav-sidebar` + `.nav-header` (uppercase section labels) + `.nav-link` (active = gold left border 3px + gold-tinted bg + white text), `.alte-small-box` (signature widget) with 6 color variants (sb-primary blue, sb-success green, sb-info cyan, sb-warning yellow, sb-danger red, sb-gold gradient), `.alte-info-box`, `.navbar-breadcrumb`, `.navbar-btn`, `.navbar-user-btn`, `.sidebar-toggle`, `.navbar-brand-mini`, responsive `@media (max-width:991.98px)` rules (translateX sidebar + zero-margin content-wrapper), and `@media print` rules to hide admin chrome.
+   442→   442→- AppShell.tsx: Completely rewrote. Split into module-level `SidebarContent` component (shared by desktop `<aside>` + mobile `<Sheet>`) and `AdminFooter` minimal dark bar (replaces the full marketing Footer inside admin to keep AdminLTE look). PUBLIC view (`!user`) preserves the existing dark-navy sticky header (LogoFull + Lacak Surat + Login Petugas gold button) + `<main>` + `<Footer/>` — NO `.adminlte` wrapper. AUTHENTICATED view (`user`) renders the full AdminLTE layout: `<div className="adminlte wrapper">` → desktop `<aside className="main-sidebar">` (hidden < 992px via CSS) + mobile `<Sheet side="left">` (controlled by `mobileOpen` state, with the same SidebarContent + a Keluar button) → `<div className="content-wrapper">` → sticky `<nav className="main-header">` (hamburger toggle on mobile + brand-mini + breadcrumb showing current view label + search button with ⌘K kbd + NotificationsBell + user DropdownMenu with Dashboard/Lacak Surat Publik/Pengaturan Akun/Keluar) → `<section className="content">{children}</section>` → `<AdminFooter/>`. CommandPalette rendered outside layout with `key={cmdKey}` reset pattern preserved. Cmd+K / Ctrl+K listener preserved. All existing wiring kept: useAppStore (user, view, setView, setUser, selectPermohonan), api.logout(), ROLE_LABELS, role icons (ShieldCheck/Crown/UserCog).
+   443→   443→- AppShell.tsx nav grouping: `getSections(role)` returns three sections — "Menu" (Dashboard, Permohonan, Daftar Baru, Laporan), "Manajemen" (Jenis Surat, Pengguna, Audit Log — ADMIN only), "Akun" (Profil) — each rendered with an uppercase `.nav-header` divider. `isActive(view, item)` handles the permohonan ↔ permohonan-detail active state.
+   444→   444→- AdminDashboard.tsx: Added a module-level `SmallBox` component (props: number, label, icon, variant, onClick) that renders the AdminLTE signature small-box widget markup (`.alte-small-box` + `.sb-inner` + `.sb-text` + `.sb-number` + `.sb-label` + `.sb-icon` absolute-positioned large translucent icon + `.sb-footer` "More info ›" link with hover translateX). Replaced the 8 `<StatCard>` calls with 8 `<SmallBox>` calls in a `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3` (Total Permohonan → primary, Diproses → info, Menunggu Pengukuran → warning, Menunggu Lurah → gold, Menunggu Camat → warning, Selesai → success, Ditolak → danger, Rata-rata Penyelesaian → primary). Removed the unused `StatCard` import (kept `SectionHeader` for the year-select header). Changed `text-green-400` → `text-green-600` in the per-petugas table for better contrast on white. Data fetching, year select, chart configs, table, and recent list kept intact. Charts automatically read on white because the chart axis/grid strokes reference `var(--muted-foreground)`, `var(--border)`, `var(--muted)` — all overridden inside `.adminlte`.
+   445→   445→- Verified dev server compiles cleanly (GET / 200 in 9.0s initial compile, GET /api/auth/login 200, GET /api/dashboard?year=2025 200 — all routes return 200 with no errors in dev.log).
+   446→   446→- Verified lint: `bun run lint` returns exit 0 (0 errors).
+   447→   447→- Verified visually via agent-browser: logged in as admin@kpii.go.id, navigated to dashboard. VLM analysis of the screenshot confirmed: (1) dark navy left sidebar with logo/user panel/search/grouped nav, (2) dark navy top navbar, (3) light gray main area with white cards, (4) colored small-box widgets with big numbers + uppercase labels + "More info ›" footers, (5) AdminLTE resemblance rated 9/10.
+   448→   448→
+   449→   449→Stage Summary:
+   450→   450→- Files changed:
+   451→   451→  • /src/app/globals.css — added ~330 lines of AdminLTE 4 scoped CSS (`.adminlte` theme overrides + small-box/info-box/sidebar/navbar/footer component classes + responsive + print rules). Public-facing dark navy theme is UNTOUCHED (only `.adminlte` scope is affected).
+   452→   452→  • /src/components/app/AppShell.tsx — completely rewritten from a single sticky-header layout to a dual-mode layout: dark navy public page (when `!user`) OR full AdminLTE 4 layout (dark fixed sidebar + dark sticky navbar + light gray content + dark footer) when authenticated. Module-level `SidebarContent` + `AdminFooter` helper components. Nav items grouped into MENU / MANAJEMEN / AKUN sections. Mobile sidebar via shadcn Sheet.
+   453→   453→  • /src/components/app/admin/AdminDashboard.tsx — replaced the 8 StatCards in the top stat row with 8 AdminLTE SmallBox widgets (blue/cyan/yellow/gold/green/red color variants). Added module-level `SmallBox` component. Charts and tables untouched (they auto-adapt to light theme via CSS variable overrides). One minimal contrast tweak: `text-green-400` → `text-green-600` in the per-petugas table.
+   454→   454→- Zero changes to: PetugasDashboard, AtasanDashboard, StatCard, PublicTracking, PublicSections, Footer, LoginModal, NotificationsBell, CommandPalette, page.tsx, all API routes, prisma, store, lib, types. PetugasDashboard and AtasanDashboard auto-inherit white AdminLTE cards via the `.adminlte .glass-card` override.
+   455→   455→- Key design decision: instead of editing every dashboard component, the AdminLTE light theme is achieved ENTIRELY via CSS variable overrides scoped to `.adminlte`. Any shadcn component (Card, Input, Select, Table, Dropdown, Badge, Button, etc.) inside the admin wrapper automatically renders in light theme. This minimizes code churn and risk.
+   456→   456→- Key design decision: the full marketing Footer component is replaced inside admin by a minimal `AdminFooter` (single dark bar with copyright + version + "Dibuat dengan ❤" line) to match the AdminLTE convention. The full Footer is still used on the public landing page.
+   457→   457→- Lint: 0 errors. Dev server: compiles clean, all routes 200. VLM visual rating: 9/10 AdminLTE resemblance.
+   458→   458→
+   459→   459→---
+   460→   460→Task ID: 8
+   461→   461→Agent: main (webDevReview round)
+   462→   462→Task: QA + visual consistency (SmallBox across all dashboards) + bulk selection in PermohonanList + keyboard shortcuts help
+   463→   463→
+   464→   464→## Current Project Status Assessment
+   465→   465→App stable from Task 7-b (AdminLTE 4 redesign). Dev server clean, lint 0 errors, all routes 200. This round focused on: (1) visual consistency across all 3 role dashboards, (2) new high-impact bulk-action feature, (3) keyboard UX enhancement.
+   466→   466→
+   467→   467→## Work Completed
+   468→   468→
+   469→   469→### QA Findings (agent-browser)
+   470→   470→- Admin dashboard: 8 SmallBox widgets render correctly on light AdminLTE theme
+   471→   471→- Public page: dark navy theme untouched, no regressions
+   472→   472→- All API routes return 200 (dashboard, permohonan, notifikasi, auth)
+   473→   473→
+   474→   474→### Visual Consistency — SmallBox widgets across all dashboards
+   475→   475→1. **Extracted shared SmallBox component** (`src/components/app/SmallBox.tsx`):
+   476→   476→   - Module-level component with props: number, label, icon, variant (primary/success/info/warning/danger/gold), footerText (default "More info"), onClick
+   477→   477→   - Reused by AdminDashboard, PetugasDashboard, AtasanDashboard — eliminates duplication, ensures visual consistency
+   478→   478→   - AdminDashboard.tsx: removed local SmallBox definition, now imports from shared file
+   479→   479→
+   480→   480→2. **PetugasDashboard** (`PetugasDashboard.tsx`):
+   481→   481→   - Replaced 5 StatCards with 5 SmallBox widgets (Permohonan Baru→primary, Cek Administrasi→info, Pengukuran→warning, Draft Surat→gold, Menunggu Persetujuan→warning)
+   482→   482→   - Each has contextual footerText (e.g. "Perlu didaftarkan", "Verifikasi dokumen")
+   483→   483→   - Responsive grid: 1 col mobile → 2 col sm → 3 col lg → 5 col xl
+   484→   484→   - Fixed light-theme contrast: text-cyan-400→text-cyan-600, text-green-400→text-green-600
+   485→   485→
+   486→   486→3. **AtasanDashboard** (`AtasanDashboard.tsx`):
+   487→   487→   - Replaced 4 StatCards with 4 SmallBox widgets (Menunggu Persetujuan→warning, Surat Selesai→success, Total Diproses→info, Rata-rata Penyelesaian→gold)
+   488→   488→   - Fixed light-theme contrast: text-green-400→text-green-600, text-red-400→text-red-600, CheckCircle2 text-green-400→text-green-600
+   489→   489→
+   490→   490→### New Feature — Bulk Selection + CSV Export in PermohonanList
+   491→   491→4. **PermohonanList** (`PermohonanList.tsx`):
+   492→   492→   - Added Checkbox column to desktop table (select-all header checkbox with indeterminate state) + checkbox on each mobile card
+   493→   493→   - `selectedIds` Set state tracks selection across page; auto-clears on page/filter change
+   494→   494→   - `toggleSelectAll()` / `toggleSelectOne(id)` / `clearSelection()` helpers
+   495→   495→   - **Bulk action bar** (animated fade-in-up, navy-glow): appears when ≥1 item selected, shows count ("N permohonan terpilih") + "Export CSV (N)" gold button + "Batal Pilih" outline button
+   496→   496→   - **CSV export** (`exportSelectedCsv`): generates CSV with BOM (Excel-compatible), columns: Nomor Register, Nama Pemohon, NIK, Jenis Surat, Status, Prioritas, Dibuat, Selesai, Keperluan; proper escaping of quotes/commas; downloads as `permohonan-terpilih-YYYY-MM-DD.csv`
+   497→   497→   - Selected rows get `bg-primary/8` highlight on desktop + `border-primary/40 bg-primary/5` on mobile
+   498→   498→   - Checkbox click uses `e.stopPropagation()` to prevent row navigation when toggling
+   499→   499→
+   500→   500→### New Feature — Keyboard Shortcuts Help Modal
+   501→   501→5. **KeyboardShortcutsHelp** (`src/components/app/shared/KeyboardShortcutsHelp.tsx`):
+   502→   502→   - Dialog with 9 shortcuts grouped into 3 sections (UMUM / NAVIGASI / AKSI CEPAT)
+   503→   503→   - Each shortcut: icon + label + styled kbd keys
+   504→   504→   - Shortcuts: ⌘K (search), ? (help), Esc (close), G+D (dashboard), G+P (permohonan), G+B (baru), G+L (laporan), G+U (users), N (notifications)
+   505→   505→
+   506→   506→6. **AppShell** (`AppShell.tsx`):
+   507→   507→   - Added `?` key listener → opens KeyboardShortcutsHelp dialog (ignored when typing in input/textarea/select)
+   508→   508→   - Added `g`-prefix navigation: press `g` then `d/p/b/l/u` to jump to views (role-filtered)
+   509→   509→   - Added Keyboard icon button in navbar (hidden on mobile) to open help
+   510→   510→   - gPressedRef with 800ms timeout for the g-prefix two-key sequence
+   511→   511→   - All shortcuts ignore when focus is in input/textarea/select/contentEditable
+   512→   512→
+   513→   513→## Verification Results
+   514→   514→- `bun run lint`: **0 errors**
+   515→   515→- Dev server: compiles clean (✓ Compiled in 1276ms), all routes 200
+   516→   516→- agent-browser QA:
+   517→   517→  - Admin dashboard: 8 SmallBox widgets ✓
+   518→   518→  - PetugasDashboard: 5 SmallBox widgets (blue/cyan/yellow/gold) ✓ — VLM 8/10 AdminLTE consistency
+   519→   519→  - AtasanDashboard: 4 SmallBox widgets ✓
+   520→   520→  - PermohonanList bulk selection: checkbox click → bulk bar appears with "Export CSV (1)" ✓ — VLM 8/10 clarity
+   521→   521→  - Keyboard help: `?` key opens dialog with all 9 shortcuts ✓
+   522→   522→- All 3 dashboards now share identical SmallBox widget styling for visual consistency
+   523→   523→
+   524→   524→## Files Changed (6)
+   525→   525→- `src/components/app/SmallBox.tsx` — NEW shared SmallBox component
+   526→   526→- `src/components/app/shared/KeyboardShortcutsHelp.tsx` — NEW keyboard shortcuts help dialog
+   527→   527→- `src/components/app/AppShell.tsx` — added ? / g-prefix keyboard shortcuts + help button + KeyboardShortcutsHelp
+   528→   528→- `src/components/app/admin/AdminDashboard.tsx` — import SmallBox from shared (removed local def)
+   529→   529→- `src/components/app/petugas/PetugasDashboard.tsx` — 5 StatCards → 5 SmallBox + light-theme contrast fixes
+   530→   530→- `src/components/app/atasan/AtasanDashboard.tsx` — 4 StatCards → 4 SmallBox + light-theme contrast fixes
+   531→   531→- `src/components/app/petugas/PermohonanList.tsx` — bulk selection + CSV export + bulk action bar
+   532→   532→
+   533→   533→## Unresolved Issues / Risks
+   534→   534→- Bulk selection is per-page only (resets on page change). Cross-page selection would require a different UX pattern (selected IDs persisted across pages). Current behavior is intentional to avoid confusion.
+   535→   535→- Keyboard `g`-prefix navigation requires two key presses within 800ms — may need user education (covered by the help modal).
+   536→   536→- CSV export is client-side only (no server-side Excel generation). For large datasets, a server-side export endpoint would be better.
+   537→   537→
+   538→   538→## Priority Recommendations for Next Round
+   539→   539→1. **Cross-page bulk selection** — persist selected IDs across pagination using a "select all matching filter" pattern
+   540→   540→2. **Dashboard date-range filter for Petugas/Atasan** ✅ DONE (Task 9-a)
+   541→   541→3. **WhatsApp/email notification integration** (currently dashboard-only notifications)
+   542→   542→4. **PWA manifest + service worker** for offline public tracking ✅ DONE (Task 9-a)
+   543→   543→5. **Enhanced chart interactivity** (click-to-filter on pie/bar segments)
+   544→   544→6. **Server-side PDF report generation** with jsPDF instead of window.print()
+   545→   545→
+   546→   546→---
+   547→   547→Task ID: 9-a
+   548→   548→Agent: full-stack-developer (year filter + PWA)
+   549→   549→Task: Add year filter to Petugas/Atasan dashboards + PWA manifest + service worker
+   550→   550→
+   551→   551→Work Log:
+   552→   552→- Read worklog.md to understand project history and context
+   553→   553→- Read PetugasDashboard.tsx, AtasanDashboard.tsx, AdminDashboard.tsx (reference for year pattern), StatCard.tsx (SectionHeader action prop), layout.tsx, api.ts
+   554→   554→- Updated PetugasDashboard.tsx: added useMemo import, Select component imports, year state (default currentYear), yearOptions computed via useMemo, fetchData now accepts year param calling api.dashboard(y), useEffect depends on [year, fetchData], year Select in SectionHeader action prop
+   555→   555→- Updated AtasanDashboard.tsx: same changes as PetugasDashboard — year state, yearOptions, fetchData(year), year Select in SectionHeader action
+   556→   556→- Created /public/manifest.json — PWA manifest with name, short_name, icons (logo.svg), standalone display, dark navy background, gold theme color, portrait-primary orientation
+   557→   557→- Created /public/sw.js — minimal service worker with cache-first strategy for offline support (install, activate, fetch handlers)
+   558→   558→- Created /src/components/app/ServiceWorkerRegistrar.tsx — client component that registers SW in production only
+   559→   559→- Updated layout.tsx: added ServiceWorkerRegistrar import, <head> with manifest link + theme-color meta, metadataBase + openGraph + appleWebApp in metadata export, <ServiceWorkerRegistrar /> in body after children
+   560→   560→- Ran `bun run lint` — 0 errors
+   561→   561→- Checked dev.log — compiles clean, API requests working (GET /api/dashboard?year=2026 200)
+   562→   562→
+   563→   563→Stage Summary:
+   564→   564→- Year filter added to both PetugasDashboard and AtasanDashboard (matching AdminDashboard pattern)
+   565→   565→- PWA support added: manifest.json, sw.js service worker, ServiceWorkerRegistrar component
+   566→   566→- Layout updated with manifest link, theme-color meta, metadataBase, openGraph, appleWebApp
+   567→   567→- All lint checks pass, dev server compiles cleanly
+   568→   568→- Files changed: PetugasDashboard.tsx, AtasanDashboard.tsx, layout.tsx, manifest.json (new), sw.js (new), ServiceWorkerRegistrar.tsx (new)
+   569→   569→
+   570→   570→---
+   571→   571→Task ID: 9
+   572→   572→Agent: main (webDevReview round)
+   573→   573→Task: Year filter for Petugas/Atasan dashboards + PWA manifest + PermohonanDetail enhancements
+   574→   574→
+   575→   575→## Current Project Status Assessment
+   576→   576→App stable from Task 8. All core flows verified, lint 0 errors, dev server clean. This round focused on: (1) feature parity across dashboards, (2) PWA for mobile installability, (3) PermohonanDetail UX enhancements.
+   577→   577→
+   578→   578→## Work Completed
+   579→   579→
+   580→   580→### 1. Year Filter for Petugas/Atasan Dashboards (Feature Parity)
+   581→   581→- **PetugasDashboard.tsx**: Added `year` state, `yearOptions` (useMemo), `fetchData(y)` with year param, year Select in SectionHeader action (matching AdminDashboard pattern exactly)
+   582→   582→- **AtasanDashboard.tsx**: Same changes — year state, yearOptions, fetchData(year), year Select
+   583→   583→- Both now support filtering dashboard data by year (current year - 4 to current year)
+   584→   584→
+   585→   585→### 2. PWA Support (Mobile Installability)
+   586→   586→- **`public/manifest.json`**: PWA manifest — standalone display, gold theme (#d4af37), navy background (#0a1628), logo.svg icon, "government" category, lang "id"
+   587→   587→- **`public/sw.js`**: Service worker — network-first with cache fallback, offline fallback to `/`, auto-cleanup old caches on activate
+   588→   588→- **`ServiceWorkerRegistrar.tsx`**: Client component registering SW in production only (no SW in dev mode)
+   589→   589→- **`layout.tsx`**: Added `<link rel="manifest">`, `<meta name="theme-color">`, metadataBase, openGraph, appleWebApp metadata, `<ServiceWorkerRegistrar />` in body
+   590→   590→
+   591→   591→### 3. PermohonanDetail Enhancements
+   592→   592→- **Collapsible Data Sections**: Data tab now uses shadcn Collapsible for each card (Data Pemohon, Data Tanah, Keperluan). Each has rotating ChevronDown icon. Default open.
+   593→   593→- **Print Receipt Button**: Added "Cetak Tanda Terima" ghost button in the header card (quick access, only for PETUGAS/ADMIN)
+   594→   594→- **Document Preview Icons**: File-type icons based on extension — FileImage for images, FileType2 for PDF, Files for others. File size formatting (KB/MB).
+   595→   595→- **Light Theme Alert Boxes**: DITOLAK alert → bg-red-50/border-red-200/text-red-800 (was destructive/10 which was dark-theme only). REVISI alert → bg-amber-50/border-amber-200/text-amber-800 (was orange-500/10).
+   596→   596→- **Aksi Proses Card**: Added `border-l-4 border-l-primary` accent for visual distinction on white cards
+   597→   597→- **Floating Quick-Action Bar**: Sticky bottom bar with register number + status badge (left), Tolak button (optional), and primary gold action button (Lanjut/Setujui/Sahkan/Kembalikan — based on current status). Only shows on non-final statuses. VLM rated 9/10 UX clarity.
+   598→   598→
+   599→   599→### Files Changed
+   600→   600→- `src/components/app/petugas/PetugasDashboard.tsx` — year filter
+   601→   601→- `src/components/app/atasan/AtasanDashboard.tsx` — year filter
+   602→   602→- `public/manifest.json` — NEW PWA manifest
+   603→   603→- `public/sw.js` — NEW service worker
+   604→   604→- `src/components/app/ServiceWorkerRegistrar.tsx` — NEW SW registration
+   605→   605→- `src/app/layout.tsx` — PWA head tags + SW registrar
+   606→   606→- `src/components/app/shared/PermohonanDetail.tsx` — collapsible sections + print button + doc icons + light-theme alerts + floating bar
+   607→   607→
+   608→   608→## Verification Results
+   609→   609→- `bun run lint`: **0 errors**
+   610→   610→- Dev server: compiles clean, all routes 200
+   611→   611→- agent-browser QA:
+   612→   612→  - Admin dashboard: 8 SmallBox + 2 charts ✓
+   613→   613→  - Floating quick-action bar on detail page: visible with "KPII-TNH-2026-000006", "Pengajuan Diterima" badge, "Tolak" + "Lanjut ke Tahap Berikutnya" buttons ✓ — VLM 9/10
+   614→   614→  - Collapsible data sections working ✓
+   615→   615→  - Light-theme alert boxes render correctly ✓
+   616→   616→
+   617→   617→## Unresolved Issues / Risks
+   618→   618→- Service worker only registers in production mode (intentional — no caching in dev)
+   619→   619→- PWA manifest uses `/logo.svg` as icon — may need a 192x192 and 512x512 PNG for full PWA compatibility on Android
+   620→   620→- Floating bar overlaps with the Aksi Proses sidebar card on large screens — both show the same actions. Consider hiding the Aksi Proses card on mobile where the floating bar replaces it.
+   621→   621→
+   622→   622→## Priority Recommendations for Next Round
+   623→   623→1. **Generate PWA icon PNGs** (192x192 and 512x512 from logo.svg) for full Android installability
+   624→   624→2. **Hide Aksi Proses card on mobile** since the floating bar provides the same actions
+   625→   625→3. **Dashboard date-range (from-to) filter** for more granular date selection beyond year-only
+   626→   626→4. **WhatsApp/email notification integration** (currently dashboard-only notifications)
+   627→   627→5. **Server-side PDF report generation** with jsPDF instead of window.print()
+   628→   628→6. **Enhanced chart interactivity** (click-to-filter on pie/bar segments)
+   629→   629→
+   630→   630→---
+   631→   631→Task ID: 10-a
+   632→   632→Agent: frontend-styling-expert (AdminLTE 4 visual polish)
+   633→   633→Task: Polish AdminLTE 4 visuals based on VLM QA findings
+   634→   634→
+   635→   635→Work Log:
+   636→   636→- Read worklog.md (Tasks 7-b AdminLTE redesign + Task 8 SmallBox extraction context), globals.css (AdminLTE scoped section), AppShell.tsx, SmallBox.tsx, AdminDashboard.tsx, PermohonanList.tsx, PermohonanDetail.tsx to understand current state.
+   637→   637→- globals.css — SmallBox color saturation: replaced flat backgrounds with refined 135deg gradients on sb-primary (#0d6efd → #0b5ed7), sb-success (#198754 → #157347), sb-info (#0dcaf0 → #0bb6d8), sb-warning (#ffc107 → #e0a800), sb-danger (#dc3545 → #bb2d3b). sb-gold kept as-is (signature brand). Reduced box-shadow from "0 1px 3px rgba(0,0,0,.12)" + hover "0 4px 12px rgba(0,0,0,.18)" to subtler "0 1px 2px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.06)" + hover "0 3px 8px rgba(0,0,0,.12), 0 0 1px rgba(0,0,0,.08)". Lowered sb-info/sb-warning footer overlay opacity from .1 → .08.
+   638→   638→- globals.css — Card-header: added `font-weight: 600` to the existing `.adminlte [data-slot="card-header"], .adminlte .card-header` rule (which already had bg #f8f9fa + 1px solid #e3e6ec border-bottom + padding 0.75rem 1rem).
+   639→   639→- globals.css — Sidebar color refinement: replaced all `#1a2332` occurrences with `#1e2a3a` (slightly lighter, more refined navy) in `.main-sidebar`, `.main-header`, `.main-footer`. Also updated the same color in AppShell.tsx mobile Sheet content bg.
+   640→   640→- globals.css — Nav-link weight: added `font-weight: 400` and `text-shadow: none` to the base `.nav-link` rule. Active link keeps `font-weight: 600` (unchanged). This matches AdminLTE 4 convention of normal-weight nav links.
+   641→   641→- globals.css — Added new `.alte-btn-primary` (blue #0d6efd → hover #0b5ed7), `.alte-btn-success` (green #198754 → hover #157347), `.alte-btn-warning` (yellow #ffc107 → hover #e0a800) button utility classes scoped to `.adminlte`. All use `!important` to override shadcn Button defaults so they work whether the Button has variant="default" or no variant.
+   642→   642→- globals.css — Table styling: added `.adminlte [data-slot="table-head"], [data-slot="table-cell"] { border-bottom: 1px solid #e3e6ec; }`, `.adminlte [data-slot="table-head"] { font-weight: 600; background: #f8f9fa; }`, `.adminlte [data-slot="table-body"] [data-slot="table-row"] { transition: background-color 0.12s ease; }`. Changed the existing tbody row hover bg from `rgba(212, 175, 55, 0.10)` (gold tint) to `#f1f3f5` (AdminLTE standard gray). Also added border-bottom 1px solid #e3e6ec on table-row inside table-header and table-body.
+   643→   643→- globals.css — Typography: added `font-family: 'Source Sans 3', 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;` to the `.adminlte` scope. Added `.adminlte h1 { font-weight: 600; }` and `.adminlte h2 { font-weight: 600; }` rules (these override Tailwind's `.font-bold`/`.font-extrabold` utilities because they're outside any @layer with higher specificity).
+   644→   644→- globals.css — AlteInfoBox widget polish: rewrote `.alte-info-box` as `display: grid; grid-template-columns: 70px 1fr;` (icon | body), added hover lift effect (translateY -1px + subtle shadow), added `.ib-progress-text` style for the progress caption, added 6 color variant classes (`.ib-primary` / `.ib-success` / `.ib-info` / `.ib-warning` / `.ib-danger` / `.ib-gold`) that style BOTH the `.ib-icon` background AND the `.ib-progress-bar` color. Body now uses flex column with title (uppercase 600), value (1.3rem 700), progress bar (5px height, animated width), and progress text (0.66rem).
+   645→   645→- globals.css — Content padding: added `.adminlte section.content { padding: 1rem; }`, `.adminlte .content > * + * { margin-top: 1rem; }` (proper spacing between stacked cards). Updated the existing `.adminlte .content` rule to also keep its responsive `@media (min-width: 768px)` padding (1.25rem 1.5rem). Added section.content responsive padding (1.25rem at md).
+   646→   646→- Created `/home/z/my-project/src/components/app/AlteInfoBox.tsx` — new shared component. Props: `icon: LucideIcon`, `iconVariant: 'primary'|'success'|'info'|'warning'|'danger'|'gold'`, `title: string`, `value: string|number`, `progress?: number` (auto-clamped 0-100), `progressText?: string`. Renders the `.alte-info-box` markup with `.ib-icon` (Lucide icon, w-7 h-7) + `.ib-body` containing `.ib-text` (title), `.ib-number` (value), optional `.ib-progress` + `.ib-progress-bar` (width set via inline style), optional `.ib-progress-text`.
+   647→   647→- PermohonanDetail.tsx — imported AlteInfoBox, added derived values `stageProgress` (Math.round((safeCurrentIndex+1)/stages.length*100)) and `daysSinceDibuat` (days from createdAt to today, or to tanggalSelesai if final). Inserted 3 AlteInfoBox widgets at top of page (between back button and header card) in a `grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6`: (1) "Tahap Saat Ini" with primary variant, value=current stage name, progress=stageProgress, progressText="Tahap X dari Y"; (2) "Dokumen" with info variant, value="N file", progressText="Total dokumen terunggah"; (3) "Hari Berjalan" with warning variant, value="N hari", progressText="Didaftar <date>".
+   648→   648→- PermohonanList.tsx — changed the top "Daftar Baru" button (in SectionHeader action) from gold gradient `bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f]` to `alte-btn-primary font-semibold` (AdminLTE blue). Other gold buttons (empty-state "Daftar Permohonan Baru" CTA, bulk-action "Export CSV" bar) kept as gold since the task only specified the "Daftar Baru" header button.
+   649→   649→- PermohonanDetail.tsx — changed "Minta Perbaikan (Revisi)" button in the Aksi Proses card from outline orange (`border-orange-500/40 text-orange-400 hover:bg-orange-500/10`) to `alte-btn-warning font-semibold` (AdminLTE yellow #ffc107 with dark text). The signature gold "Lanjut ke Tahap Berikutnya" buttons (in Aksi Proses card AND floating bar) are UNTOUCHED. The "Tolak Permohonan" outline destructive button also kept as-is.
+
+[showing lines 400-649 of 845; use offset=650 with limit to continue reading]

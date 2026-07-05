@@ -5,7 +5,9 @@ import { api } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 import { SectionHeader } from "@/components/app/StatCard";
 import { SmallBox } from "@/components/app/SmallBox";
+import { AlteInfoBox } from "@/components/app/AlteInfoBox";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import { RecentActivityWidget } from "@/components/app/shared/RecentActivityWidget";
 import { STATUS_BY_KODE } from "@/lib/constants";
 import type { DashboardStats } from "@/lib/types";
 import {
@@ -33,6 +35,8 @@ import {
   ShieldCheck,
   CalendarClock,
   User,
+  Calendar,
+  CalendarRange,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -40,9 +44,18 @@ import {
   Pie,
   Cell,
   Tooltip,
-  Legend,
 } from "recharts";
 import { toast } from "sonner";
+
+type RangeKey = "today" | "7d" | "30d" | "year" | "all";
+
+const RANGE_CHIPS: { key: RangeKey; label: string }[] = [
+  { key: "today", label: "Hari Ini" },
+  { key: "7d", label: "7 Hari" },
+  { key: "30d", label: "30 Hari" },
+  { key: "year", label: "Tahun Ini" },
+  { key: "all", label: "Semua" },
+];
 
 function formatDate(date: string): string {
   return new Date(date).toLocaleDateString("id-ID", {
@@ -93,13 +106,14 @@ export function AtasanDashboard() {
 
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<number>(currentYear);
+  const [range, setRange] = useState<RangeKey>("year");
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async (y: number) => {
+  const fetchData = useCallback(async (y: number, r: RangeKey) => {
     setLoading(true);
     try {
-      const d = await api.dashboard(y);
+      const d = await api.dashboard(y, r);
       setData(d as DashboardStats);
     } catch (e: any) {
       toast.error("Gagal memuat dashboard", { description: e.message });
@@ -109,8 +123,8 @@ export function AtasanDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchData(year);
-  }, [year, fetchData]);
+    fetchData(year, range);
+  }, [year, range, fetchData]);
 
   const yearOptions = useMemo(() => {
     const arr: number[] = [];
@@ -144,20 +158,60 @@ export function AtasanDashboard() {
         subtitle="Pantau dan persetujuan permohonan surat tanah"
         icon={ShieldCheck}
         action={
-          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-            <SelectTrigger className="w-[140px] glass-card border-primary/15">
-              <SelectValue placeholder="Tahun" />
-            </SelectTrigger>
-            <SelectContent>
-              {yearOptions.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  Tahun {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          range !== "all" ? (
+            <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+              <SelectTrigger className="w-[140px] glass-card border-primary/15">
+                <SelectValue placeholder="Tahun" />
+              </SelectTrigger>
+              <SelectContent>
+                {yearOptions.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    Tahun {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : undefined
         }
       />
+
+      {/* Date-range quick filter chips */}
+      <Card className="glass-card border-primary/15">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-1">
+              <CalendarRange className="w-3.5 h-3.5" />
+              Rentang:
+            </span>
+            {RANGE_CHIPS.map((chip) => {
+              const active = range === chip.key;
+              return (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setRange(chip.key)}
+                  aria-pressed={active}
+                  className={
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all " +
+                    (active
+                      ? "bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] border-transparent shadow-sm"
+                      : "bg-background/60 text-foreground/80 border-border hover:border-primary/40 hover:text-foreground")
+                  }
+                >
+                  <Calendar className="w-3 h-3" />
+                  {chip.label}
+                </button>
+              );
+            })}
+            <span className="ml-auto text-[11px] text-muted-foreground hidden sm:inline-flex items-center gap-1">
+              Menampilkan:
+              <span className="font-semibold text-foreground">
+                {data.rangeLabel || "Tahun Ini"}
+              </span>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stat Small Box widgets (AdminLTE 4 style) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -294,55 +348,66 @@ export function AtasanDashboard() {
                 Belum ada data
               </div>
             ) : (
-              <div className="h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      dataKey="value"
-                      nameKey="nama"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={85}
-                      paddingAngle={2}
-                      stroke="var(--background)"
-                      strokeWidth={2}
-                    >
-                      {pieData.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip content={<ChartTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              <>
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        dataKey="value"
+                        nameKey="nama"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={2}
+                        stroke="var(--background)"
+                        strokeWidth={2}
+                        label={({ value, percent }: { value: number; percent: number }) => value > 0 ? `${(percent * 100).toFixed(0)}%` : ""}
+                      >
+                        {pieData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<ChartTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                {/* Custom legend grid */}
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-3 pt-3 border-t border-border/40">
+                  {pieData.map((entry, i) => (
+                    <span key={i} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+                      <span className="truncate">{entry.nama}</span>
+                      <span className="font-semibold text-foreground ml-auto pl-1">{entry.value}</span>
+                    </span>
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         <div className="space-y-4 sm:space-y-6">
-          <Card className="glass-card border-primary/15 overflow-hidden">
-            <div className="h-0.5 bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f]" />
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="w-4 h-4 text-primary" />
-                Lama Penyelesaian
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="text-center py-2">
-                <p className="text-5xl font-extrabold gold-gradient-text leading-none">
-                  {stats.avgDays}
-                </p>
-                <p className="text-sm font-semibold text-muted-foreground mt-2">hari rata-rata</p>
-                <p className="text-[11px] text-muted-foreground/80 mt-1">
-                  Dari pengajuan hingga surat selesai
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Lama Penyelesaian — AdminLTE info-box style */}
+          <AlteInfoBox
+            icon={Clock}
+            iconVariant="gold"
+            title="Lama Penyelesaian"
+            value={`${stats.avgDays} hari`}
+            progress={stats.avgDays > 0 ? Math.min(100, Math.round((stats.avgDays / 30) * 100)) : 0}
+            progressText="Dari pengajuan hingga surat selesai"
+          />
+
+          {/* Statistik Pelayanan — AdminLTE info-box style */}
+          <AlteInfoBox
+            icon={ShieldCheck}
+            iconVariant="success"
+            title="Tingkat Penyelesaian"
+            value={stats.total > 0 ? `${Math.round((stats.selesai / stats.total) * 100)}%` : "0%"}
+            progress={stats.total > 0 ? Math.round((stats.selesai / stats.total) * 100) : 0}
+            progressText={`${stats.selesai} dari ${stats.total} permohonan selesai`}
+          />
 
           <Card className="glass-card border-primary/15">
             <CardHeader className="pb-2">
@@ -372,6 +437,9 @@ export function AtasanDashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Recent activity timeline widget (full width) */}
+      <RecentActivityWidget limit={5} />
     </div>
   );
 }

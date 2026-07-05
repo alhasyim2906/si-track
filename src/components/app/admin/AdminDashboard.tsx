@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 import { SectionHeader } from "@/components/app/StatCard";
 import { SmallBox } from "@/components/app/SmallBox";
+import { AlteInfoBox } from "@/components/app/AlteInfoBox";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { RecentActivityWidget } from "@/components/app/shared/RecentActivityWidget";
 import { STATUS_BY_KODE } from "@/lib/constants";
@@ -153,6 +154,14 @@ export function AdminDashboard() {
 
   const { stats, monthly, statusDist, perPetugas, recent } = data;
 
+  function getGreeting(): string {
+    const h = new Date().getHours();
+    if (h < 11) return "Selamat pagi";
+    if (h < 15) return "Selamat siang";
+    if (h < 18) return "Selamat sore";
+    return "Selamat malam";
+  }
+
   const pieData = statusDist
     .filter((s) => s.value > 0)
     .map((s) => ({
@@ -227,6 +236,44 @@ export function AdminDashboard() {
         </CardContent>
       </Card>
 
+      {/* Welcome summary card */}
+      <Card className="glass-card border-primary/15 overflow-hidden">
+        <div className="h-0.5 bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f]" />
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#f5d77a] via-[#d4af37] to-[#b8941f] flex items-center justify-center shrink-0 shadow-md">
+                <span className="text-xl font-extrabold text-[#0a1628]">
+                  {user?.name?.charAt(0).toUpperCase() || "A"}
+                </span>
+              </div>
+              <div>
+                <p className="font-semibold text-sm">
+                  Selamat datang, <span className="gold-text">{user?.name || "Admin"}</span>!
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {getGreeting()} — Berikut ringkasan operasional kelurahan Anda hari ini.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <div className="text-center px-3 py-1.5 rounded-lg bg-primary/8 border border-primary/15">
+                <p className="text-lg font-bold gold-text">{stats.diproses}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Perlu Tindakan</p>
+              </div>
+              <div className="text-center px-3 py-1.5 rounded-lg bg-green-500/8 border border-green-500/15">
+                <p className="text-lg font-bold text-green-600">{stats.selesai}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Selesai</p>
+              </div>
+              <div className="text-center px-3 py-1.5 rounded-lg bg-amber-500/8 border border-amber-500/15">
+                <p className="text-lg font-bold text-amber-600">{stats.menungguLurah + stats.menungguCamat}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Menunggu TTD</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stat widgets — AdminLTE 4 small-box style */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <SmallBox
@@ -285,6 +332,34 @@ export function AdminDashboard() {
           label="Rata-rata Penyelesaian"
           icon={Clock}
           variant="primary"
+        />
+      </div>
+
+      {/* KPI Info-boxes row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <AlteInfoBox
+          icon={CheckCircle2}
+          iconVariant="success"
+          title="Tingkat Penyelesaian"
+          value={stats.total > 0 ? `${Math.round((stats.selesai / stats.total) * 100)}%` : "0%"}
+          progress={stats.total > 0 ? Math.round((stats.selesai / stats.total) * 100) : 0}
+          progressText={`${stats.selesai} dari ${stats.total} permohonan`}
+        />
+        <AlteInfoBox
+          icon={Clock}
+          iconVariant="gold"
+          title="Rata-rata Waktu"
+          value={`${stats.avgDays} hari`}
+          progress={Math.min(100, Math.round((stats.avgDays / 30) * 100))}
+          progressText="Target: 30 hari maksimal"
+        />
+        <AlteInfoBox
+          icon={XCircle}
+          iconVariant="danger"
+          title="Tingkat Penolakan"
+          value={stats.total > 0 ? `${Math.round((stats.ditolak / stats.total) * 100)}%` : "0%"}
+          progress={stats.total > 0 ? Math.round((stats.ditolak / stats.total) * 100) : 0}
+          progressText={`${stats.ditolak} permohonan ditolak`}
         />
       </div>
 

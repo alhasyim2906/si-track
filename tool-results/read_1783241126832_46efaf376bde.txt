@@ -1,0 +1,1092 @@
+     1→@import "tailwindcss";
+     2→@import "tw-animate-css";
+     3→
+     4→@custom-variant dark (&:is(.dark *));
+     5→
+     6→@theme inline {
+     7→  --color-background: var(--background);
+     8→  --color-foreground: var(--foreground);
+     9→  --font-sans: var(--font-geist-sans);
+    10→  --font-mono: var(--font-geist-mono);
+    11→  --color-sidebar-ring: var(--sidebar-ring);
+    12→  --color-sidebar-border: var(--sidebar-border);
+    13→  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    14→  --color-sidebar-accent: var(--sidebar-accent);
+    15→  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    16→  --color-sidebar-primary: var(--sidebar-primary);
+    17→  --color-sidebar-foreground: var(--sidebar-foreground);
+    18→  --color-sidebar: var(--sidebar);
+    19→  --color-chart-5: var(--chart-5);
+    20→  --color-chart-4: var(--chart-4);
+    21→  --color-chart-3: var(--chart-3);
+    22→  --color-chart-2: var(--chart-2);
+    23→  --color-chart-1: var(--chart-1);
+    24→  --color-ring: var(--ring);
+    25→  --color-input: var(--input);
+    26→  --color-border: var(--border);
+    27→  --color-destructive: var(--destructive);
+    28→  --color-accent-foreground: var(--accent-foreground);
+    29→  --color-accent: var(--accent);
+    30→  --color-muted-foreground: var(--muted-foreground);
+    31→  --color-muted: var(--muted);
+    32→  --color-secondary-foreground: var(--secondary-foreground);
+    33→  --color-secondary: var(--secondary);
+    34→  --color-primary-foreground: var(--primary-foreground);
+    35→  --color-primary: var(--primary);
+    36→  --color-popover-foreground: var(--popover-foreground);
+    37→  --color-popover: var(--popover);
+    38→  --color-card-foreground: var(--card-foreground);
+    39→  --color-card: var(--card);
+    40→  --radius-sm: calc(var(--radius) - 4px);
+    41→  --radius-md: calc(var(--radius) - 2px);
+    42→  --radius-lg: var(--radius);
+    43→  --radius-xl: calc(var(--radius) + 4px);
+    44→}
+    45→
+    46→/* ===== SI-TRACK TANAH: Dark Navy + Gold theme (default, always dark) ===== */
+    47→:root {
+    48→  --radius: 0.625rem;
+    49→
+    50→  /* Deep navy/blackish blue backgrounds */
+    51→  --background: oklch(0.16 0.03 255);          /* near-black navy */
+    52→  --foreground: oklch(0.96 0.01 80);           /* warm off-white */
+    53→
+    54→  --card: oklch(0.21 0.035 255);               /* navy panel */
+    55→  --card-foreground: oklch(0.96 0.01 80);
+    56→
+    57→  --popover: oklch(0.19 0.035 255);
+    58→  --popover-foreground: oklch(0.96 0.01 80);
+    59→
+    60→  /* Gold primary */
+    61→  --primary: oklch(0.80 0.13 85);              /* gold */
+    62→  --primary-foreground: oklch(0.16 0.03 255);  /* navy text on gold */
+    63→
+    64→  --secondary: oklch(0.27 0.04 255);
+    65→  --secondary-foreground: oklch(0.96 0.01 80);
+    66→
+    67→  --muted: oklch(0.26 0.03 255);
+    68→  --muted-foreground: oklch(0.78 0.025 80);
+    69→
+    70→  --accent: oklch(0.32 0.05 255);
+    71→  --accent-foreground: oklch(0.96 0.01 80);
+    72→
+    73→  --destructive: oklch(0.62 0.22 25);
+    74→
+    75→  --border: oklch(0.32 0.03 255 / 60%);
+    76→  --input: oklch(0.28 0.03 255);
+    77→  --ring: oklch(0.80 0.13 85);
+    78→
+    79→  --chart-1: oklch(0.80 0.13 85);   /* gold */
+    80→  --chart-2: oklch(0.62 0.17 250);  /* blue */
+    81→  --chart-3: oklch(0.70 0.15 160);  /* teal/green */
+    82→  --chart-4: oklch(0.72 0.18 40);   /* amber */
+    83→  --chart-5: oklch(0.65 0.22 20);   /* red */
+    84→
+    85→  --sidebar: oklch(0.18 0.035 255);
+    86→  --sidebar-foreground: oklch(0.96 0.01 80);
+    87→  --sidebar-primary: oklch(0.80 0.13 85);
+    88→  --sidebar-primary-foreground: oklch(0.16 0.03 255);
+    89→  --sidebar-accent: oklch(0.26 0.04 255);
+    90→  --sidebar-accent-foreground: oklch(0.96 0.01 80);
+    91→  --sidebar-border: oklch(0.32 0.03 255 / 60%);
+    92→  --sidebar-ring: oklch(0.80 0.13 85);
+    93→}
+    94→
+    95→.dark {
+    96→  /* same as root — app is always dark navy/gold */
+    97→  --background: oklch(0.16 0.03 255);
+    98→  --foreground: oklch(0.96 0.01 80);
+    99→  --card: oklch(0.21 0.035 255);
+   100→  --card-foreground: oklch(0.96 0.01 80);
+   101→  --popover: oklch(0.19 0.035 255);
+   102→  --popover-foreground: oklch(0.96 0.01 80);
+   103→  --primary: oklch(0.80 0.13 85);
+   104→  --primary-foreground: oklch(0.16 0.03 255);
+   105→  --secondary: oklch(0.27 0.04 255);
+   106→  --secondary-foreground: oklch(0.96 0.01 80);
+   107→  --muted: oklch(0.26 0.03 255);
+   108→  --muted-foreground: oklch(0.78 0.025 80);
+   109→  --accent: oklch(0.32 0.05 255);
+   110→  --accent-foreground: oklch(0.96 0.01 80);
+   111→  --destructive: oklch(0.62 0.22 25);
+   112→  --border: oklch(0.32 0.03 255 / 60%);
+   113→  --input: oklch(0.28 0.03 255);
+   114→  --ring: oklch(0.80 0.13 85);
+   115→}
+   116→
+   117→@layer base {
+   118→  * {
+   119→    @apply border-border outline-ring/50;
+   120→  }
+   121→  html, body {
+   122→    @apply bg-background text-foreground;
+   123→  }
+   124→  body {
+   125→    background-color: var(--background);
+   126→    background-image:
+   127→      radial-gradient(circle at 15% 0%, rgba(212, 175, 55, 0.08), transparent 35%),
+   128→      radial-gradient(circle at 85% 100%, rgba(59, 130, 246, 0.08), transparent 40%);
+   129→    background-attachment: fixed;
+   130→  }
+   131→}
+   132→
+   133→/* ===== Custom utility classes ===== */
+   134→@layer components {
+   135→  .gold-text {
+   136→    color: oklch(0.85 0.13 85);
+   137→  }
+   138→  .gold-gradient-text {
+   139→    background: linear-gradient(135deg, #f5d77a 0%, #d4af37 50%, #b8941f 100%);
+   140→    -webkit-background-clip: text;
+   141→    background-clip: text;
+   142→    -webkit-text-fill-color: transparent;
+   143→  }
+   144→  .gold-border {
+   145→    border-color: oklch(0.80 0.13 85 / 50%);
+   146→  }
+   147→  .glass-card {
+   148→    background: linear-gradient(135deg, rgba(33, 51, 90, 0.65) 0%, rgba(16, 28, 54, 0.85) 100%);
+   149→    backdrop-filter: blur(12px);
+   150→    border: 1px solid rgba(212, 175, 55, 0.18);
+   151→  }
+   152→  .navy-glow {
+   153→    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.12), 0 8px 30px rgba(0, 0, 0, 0.4);
+   154→  }
+   155→  .gold-glow {
+   156→    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35), 0 0 25px rgba(212, 175, 55, 0.18);
+   157→  }
+   158→}
+   159→
+   160→/* ===== Custom scrollbar ===== */
+   161→::-webkit-scrollbar {
+   162→  width: 10px;
+   163→  height: 10px;
+   164→}
+   165→::-webkit-scrollbar-track {
+   166→  background: oklch(0.18 0.03 255);
+   167→}
+   168→::-webkit-scrollbar-thumb {
+   169→  background: oklch(0.35 0.04 255);
+   170→  border-radius: 6px;
+   171→  border: 2px solid oklch(0.18 0.03 255);
+   172→}
+   173→::-webkit-scrollbar-thumb:hover {
+   174→  background: oklch(0.80 0.13 85 / 60%);
+   175→}
+   176→
+   177→/* ===== Timeline connector ===== */
+   178→.timeline-line {
+   179→  background: linear-gradient(to bottom, oklch(0.80 0.13 85 / 60%), oklch(0.32 0.03 255 / 40%));
+   180→}
+   181→
+   182→@keyframes pulse-gold {
+   183→  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+   184→  50% { box-shadow: 0 0 0 8px rgba(212, 175, 55, 0); }
+   185→}
+   186→.pulse-gold {
+   187→  animation: pulse-gold 2s infinite;
+   188→}
+   189→
+   190→@keyframes shimmer {
+   191→  0% { background-position: -200% 0; }
+   192→  100% { background-position: 200% 0; }
+   193→}
+   194→.shimmer-gold {
+   195→  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.15), transparent);
+   196→  background-size: 200% 100%;
+   197→  animation: shimmer 2.5s infinite;
+   198→}
+   199→
+   200→/* ===== Table polish (zebra + hover + breathing room) ===== */
+   201→[data-slot="table-body"] > [data-slot="table-row"]:nth-child(even) {
+   202→  background-color: rgba(212, 175, 55, 0.035);
+   203→}
+   204→[data-slot="table-body"] > [data-slot="table-row"]:hover {
+   205→  background-color: rgba(212, 175, 55, 0.08);
+   206→}
+   207→[data-slot="table-cell"], [data-slot="table-head"] {
+   208→  padding-top: 0.7rem;
+   209→  padding-bottom: 0.7rem;
+   210→}
+   211→
+   212→/* ===== Focus-visible gold ring for accessibility ===== */
+   213→*:focus-visible {
+   214→  outline: 2px solid oklch(0.80 0.13 85 / 70%);
+   215→  outline-offset: 2px;
+   216→}
+   217→
+   218→/* ===== Print styles for Tanda Terima & Reports ===== */
+   219→@media print {
+   220→  body {
+   221→    background: #ffffff !important;
+   222→    color: #0a1628 !important;
+   223→    background-image: none !important;
+   224→  }
+   225→  .no-print, header, footer, nav, [role="dialog"], button {
+   226→    display: none !important;
+   227→  }
+   228→  .print-only {
+   229→    display: block !important;
+   230→  }
+   231→  .glass-card, .navy-glow {
+   232→    background: #ffffff !important;
+   233→    border: 1px solid #d4af37 !important;
+   234→    box-shadow: none !important;
+   235→    backdrop-filter: none !important;
+   236→    color: #0a1628 !important;
+   237→  }
+   238→  .glass-card * {
+   239→    color: #0a1628 !important;
+   240→  }
+   241→  .gold-gradient-text {
+   242→    -webkit-text-fill-color: #b8941f !important;
+   243→    color: #b8941f !important;
+   244→  }
+   245→  .gold-text {
+   246→    color: #b8941f !important;
+   247→  }
+   248→  main {
+   249→    padding: 0 !important;
+   250→  }
+   251→  .container {
+   252→    max-width: 100% !important;
+   253→    margin: 0 !important;
+   254→    padding: 0 !important;
+   255→  }
+   256→  @page {
+   257→    margin: 1.5cm;
+   258→  }
+   259→
+   260→  /* ===== Tanda Terima dialog print overrides ===== */
+   261→  /* Override the generic [role=dialog] hide for our printable receipt.
+   262→     NOTE: Lightning CSS strips `max-height: none` / `overflow: visible`
+   263→     because they are initial values, so we use explicit overrides here
+   264→     and also rely on Tailwind `print:` variants on the DialogContent. */
+   265→  [role="dialog"].tanda-terima-printable {
+   266→    display: block !important;
+   267→    position: static !important;
+   268→    transform: none !important;
+   269→    inset: auto !important;
+   270→    margin: 0 !important;
+   271→    padding: 0 !important;
+   272→    max-width: 100% !important;
+   273→    width: 100% !important;
+   274→    max-height: 999999px !important;
+   275→    height: auto !important;
+   276→    overflow: visible !important;
+   277→    background: #ffffff !important;
+   278→    border: none !important;
+   279→    box-shadow: none !important;
+   280→    backdrop-filter: none !important;
+   281→    border-radius: 0 !important;
+   282→  }
+   283→  /* Hide the dialog overlay during print */
+   284→  [data-slot="dialog-overlay"] {
+   285→    display: none !important;
+   286→  }
+   287→  /* Hide all body direct children except the portal that hosts our printable dialog */
+   288→  body > *:not([data-slot="dialog-portal"]) {
+   289→    display: none !important;
+   290→  }
+   291→  /* Inside the portal, hide every sibling except our printable dialog content */
+   292→  [data-slot="dialog-portal"] > *:not([role="dialog"].tanda-terima-printable) {
+   293→    display: none !important;
+   294→  }
+   295→}
+   296→.print-only {
+   297→  display: none;
+   298→}
+   299→
+   300→/* ===== Subtle card hover lift ===== */
+   301→.glass-card.card-hover {
+   302→  transition: transform 0.2s ease, border-color 0.2s ease;
+   303→}
+   304→.glass-card.card-hover:hover {
+   305→  transform: translateY(-2px);
+   306→  border-color: rgba(212, 175, 55, 0.4);
+   307→}
+   308→
+   309→/* ===== Fade-in animation for content ===== */
+   310→@keyframes fade-in-up {
+   311→  from { opacity: 0; transform: translateY(8px); }
+   312→  to { opacity: 1; transform: translateY(0); }
+   313→}
+   314→.animate-fade-in-up {
+   315→  animation: fade-in-up 0.4s ease-out both;
+   316→}
+   317→
+   318→/* ===== Staggered fade-in for list items ===== */
+   319→@keyframes fade-in {
+   320→  from { opacity: 0; }
+   321→  to { opacity: 1; }
+   322→}
+   323→.animate-fade-in {
+   324→  animation: fade-in 0.3s ease-out both;
+   325→}
+   326→
+   327→/* ===== Scale-in animation for modals/dialogs ===== */
+   328→@keyframes scale-in {
+   329→  from { opacity: 0; transform: scale(0.95); }
+   330→  to { opacity: 1; transform: scale(1); }
+   331→}
+   332→.animate-scale-in {
+   333→  animation: scale-in 0.2s ease-out both;
+   334→}
+   335→
+   336→/* ===== Slide-up animation ===== */
+   337→@keyframes slide-up {
+   338→  from { opacity: 0; transform: translateY(16px); }
+   339→  to { opacity: 1; transform: translateY(0); }
+   340→}
+   341→.animate-slide-up {
+   342→  animation: slide-up 0.35s ease-out both;
+   343→}
+   344→
+   345→/* ===== Number tabular for stats ===== */
+   346→.tabular-nums {
+   347→  font-variant-numeric: tabular-nums;
+   348→  font-feature-settings: "tnum";
+   349→}
+   350→
+   351→/* ===== Smooth table row transitions ===== */
+   352→[data-slot="table-row"] {
+   353→  transition: background-color 0.15s ease;
+   354→}
+   355→
+   356→/* ===== Interactive button press effect ===== */
+   357→button:active:not(:disabled) {
+   358→  transform: scale(0.98);
+   359→}
+   360→
+   361→/* ===== Smooth link/button underline animations ===== */
+   362→.hover-underline {
+   363→  position: relative;
+   364→}
+   365→.hover-underline::after {
+   366→  content: "";
+   367→  position: absolute;
+   368→  bottom: 0;
+   369→  left: 0;
+   370→  width: 0;
+   371→  height: 1px;
+   372→  background: oklch(0.80 0.13 85);
+   373→  transition: width 0.2s ease;
+   374→}
+   375→.hover-underline:hover::after {
+   376→  width: 100%;
+   377→}
+   378→
+   379→/* ============================================================
+   380→   AdminLTE 4 — admin area theme (scoped under .adminlte)
+   381→   Public-facing pages keep the dark navy + gold theme.
+   382→   ============================================================ */
+   383→.adminlte {
+   384→  /* shadcn CSS variable overrides → light theme inside admin */
+   385→  --background: #f4f6f9;
+   386→  --foreground: #212529;
+   387→  --card: #ffffff;
+   388→  --card-foreground: #212529;
+   389→  --popover: #ffffff;
+   390→  --popover-foreground: #212529;
+   391→  --primary: #b8941f;          /* gold (slightly darker for contrast on white) */
+   392→  --primary-foreground: #ffffff;
+   393→  --secondary: #e9ecef;
+   394→  --secondary-foreground: #212529;
+   395→  --muted: #e9ecef;
+   396→  --muted-foreground: #6c757d;
+   397→  --accent: #f1f3f5;
+   398→  --accent-foreground: #212529;
+   399→  --destructive: #dc3545;
+   400→  --border: #e3e6ec;
+   401→  --input: #ffffff;
+   402→  --ring: #b8941f;
+   403→  background-color: #f4f6f9;
+   404→  color: #212529;
+   405→  /* AdminLTE 4 typography stack */
+   406→  font-family: 'Source Sans 3', 'Source Sans Pro', -apple-system, BlinkMacSystemFont,
+   407→    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+   408→}
+   409→
+   410→/* Override the dark-theme glass-card to render as a WHITE AdminLTE card */
+   411→.adminlte .glass-card {
+   412→  background: #ffffff !important;
+   413→  border: 1px solid #e3e6ec !important;
+   414→  border-radius: 0.375rem !important;
+   415→  box-shadow: 0 0 1px rgba(0,0,0,.125), 0 1px 3px rgba(0,0,0,.06) !important;
+   416→  backdrop-filter: none !important;
+   417→  color: #212529;
+   418→}
+   419→
+   420→/* Gold utilities re-tuned for light background */
+   421→.adminlte .gold-text {
+   422→  color: #b8941f;
+   423→}
+   424→.adminlte .gold-border {
+   425→  border-color: #d4af37 !important;
+   426→}
+   427→.adminlte .navy-glow {
+   428→  box-shadow: 0 4px 16px rgba(0,0,0,.08) !important;
+   429→}
+   430→
+   431→/* Light scrollbar inside admin area */
+   432→.adminlte ::-webkit-scrollbar-track {
+   433→  background: #f1f3f5;
+   434→}
+   435→.adminlte ::-webkit-scrollbar-thumb {
+   436→  background: #ced4da;
+   437→  border-color: #f1f3f5;
+   438→}
+   439→.adminlte ::-webkit-scrollbar-thumb:hover {
+   440→  background: #b8941f;
+   441→}
+   442→
+   443→/* Table zebra/hover tuned for light bg inside admin */
+   444→.adminlte [data-slot="table-body"] > [data-slot="table-row"]:nth-child(even) {
+   445→  background-color: rgba(212, 175, 55, 0.04);
+   446→}
+   447→.adminlte [data-slot="table-body"] > [data-slot="table-row"]:hover {
+   448→  background-color: #f1f3f5;
+   449→}
+   450→/* AdminLTE table cell border + header bottom border */
+   451→.adminlte [data-slot="table-header"] [data-slot="table-row"],
+   452→.adminlte [data-slot="table-body"] [data-slot="table-row"] {
+   453→  border-bottom: 1px solid #e3e6ec;
+   454→}
+   455→.adminlte [data-slot="table-head"],
+   456→.adminlte [data-slot="table-cell"] {
+   457→  border-bottom: 1px solid #e3e6ec;
+   458→}
+   459→.adminlte [data-slot="table-head"] {
+   460→  font-weight: 600;
+   461→  background: #f8f9fa;
+   462→}
+   463→.adminlte [data-slot="table-body"] [data-slot="table-row"] {
+   464→  transition: background-color 0.12s ease;
+   465→}
+   466→
+   467→/* AdminLTE shadcn Card overrides */
+   468→.adminlte [data-slot="card"] {
+   469→  background: #ffffff !important;
+   470→  border: 1px solid #e3e6ec !important;
+   471→  box-shadow: 0 0 1px rgba(0,0,0,.05), 0 1px 3px rgba(0,0,0,.06) !important;
+   472→  backdrop-filter: none !important;
+   473→  color: #212529;
+   474→}
+   475→.adminlte [data-slot="card-header"],
+   476→.adminlte .card-header {
+   477→  background: #f8f9fa;
+   478→  border-bottom: 1px solid #e3e6ec;
+   479→  padding: 0.75rem 1rem;
+   480→  font-weight: 600;
+   481→}
+   482→
+   483→/* ===== AdminLTE layout ===== */
+   484→.adminlte.wrapper {
+   485→  min-height: 100vh;
+   486→  background: #f4f6f9;
+   487→  display: flex;
+   488→  flex-direction: column;
+   489→}
+   490→.adminlte .main-sidebar {
+   491→  width: 250px;
+   492→  background: #1e2a3a;
+   493→  color: #c2c7d0;
+   494→  position: fixed;
+   495→  top: 0;
+   496→  bottom: 0;
+   497→  left: 0;
+   498→  z-index: 50;
+   499→  display: flex;
+   500→  flex-direction: column;
+   501→  transition: transform 0.3s ease;
+   502→  overflow-y: auto;
+   503→}
+   504→.adminlte .content-wrapper {
+   505→  margin-left: 250px;
+   506→  min-height: 100vh;
+   507→  display: flex;
+   508→  flex-direction: column;
+   509→  background: #f4f6f9;
+   510→}
+   511→.adminlte .main-header {
+   512→  background: #1e2a3a;
+   513→  border-bottom: 1px solid rgba(255,255,255,.08);
+   514→  position: sticky;
+   515→  top: 0;
+   516→  z-index: 40;
+   517→  height: 57px;
+   518→  display: flex;
+   519→  align-items: center;
+   520→  padding: 0 1rem;
+   521→  gap: 0.75rem;
+   522→}
+   523→.adminlte .main-footer {
+   524→  background: #1e2a3a;
+   525→  color: #c2c7d0;
+   526→  border-top: 1px solid rgba(255,255,255,.08);
+   527→  padding: 0.6rem 1.25rem;
+   528→  margin-left: 0;
+   529→  font-size: 0.78rem;
+   530→}
+   531→.adminlte .main-footer .mf-inner {
+   532→  display: flex;
+   533→  align-items: center;
+   534→  justify-content: space-between;
+   535→  gap: 0.5rem;
+   536→  flex-wrap: wrap;
+   537→}
+   538→
+   539→/* Brand link at top of sidebar */
+   540→.adminlte .brand-link {
+   541→  display: flex;
+   542→  align-items: center;
+   543→  gap: 0.6rem;
+   544→  padding: 0.85rem 1rem;
+   545→  border-bottom: 1px solid rgba(255,255,255,.08);
+   546→  color: #fff;
+   547→  text-decoration: none;
+   548→}
+   549→.adminlte .brand-link .brand-sub {
+   550→  font-size: 0.65rem;
+   551→  color: #8a94a6;
+   552→  text-transform: uppercase;
+   553→  letter-spacing: 0.08em;
+   554→  line-height: 1.1;
+   555→}
+   556→
+   557→/* User panel */
+   558→.adminlte .user-panel {
+   559→  display: flex;
+   560→  align-items: center;
+   561→  gap: 0.65rem;
+   562→  padding: 0.9rem 1rem;
+   563→  border-bottom: 1px solid rgba(255,255,255,.06);
+   564→}
+   565→.adminlte .user-panel .up-avatar {
+   566→  width: 36px;
+   567→  height: 36px;
+   568→  border-radius: 50%;
+   569→  background: linear-gradient(135deg, #d4af37, #b8941f);
+   570→  color: #0a1628;
+   571→  display: flex;
+   572→  align-items: center;
+   573→  justify-content: center;
+   574→  font-weight: 700;
+   575→  font-size: 0.9rem;
+   576→  flex-shrink: 0;
+   577→}
+   578→.adminlte .user-panel .up-info {
+   579→  min-width: 0;
+   580→  flex: 1;
+   581→}
+   582→.adminlte .user-panel .up-name {
+   583→  color: #fff;
+   584→  font-size: 0.85rem;
+   585→  font-weight: 600;
+   586→  line-height: 1.2;
+   587→  overflow: hidden;
+   588→  text-overflow: ellipsis;
+   589→  white-space: nowrap;
+   590→}
+   591→.adminlte .user-panel .up-role {
+   592→  color: #8a94a6;
+   593→  font-size: 0.7rem;
+   594→  display: inline-flex;
+   595→  align-items: center;
+   596→  gap: 0.25rem;
+   597→  margin-top: 0.1rem;
+   598→}
+   599→
+   600→/* Sidebar search */
+   601→.adminlte .sidebar-form {
+   602→  padding: 0.6rem 1rem;
+   603→}
+   604→.adminlte .sidebar-search-btn {
+   605→  width: 100%;
+   606→  display: flex;
+   607→  align-items: center;
+   608→  gap: 0.5rem;
+   609→  background: rgba(255,255,255,.06);
+   610→  border: 1px solid rgba(255,255,255,.05);
+   611→  border-radius: 0.375rem;
+   612→  padding: 0.45rem 0.7rem;
+   613→  color: #8a94a6;
+   614→  font-size: 0.8rem;
+   615→  cursor: pointer;
+   616→  transition: all 0.15s;
+   617→}
+   618→.adminlte .sidebar-search-btn:hover {
+   619→  background: rgba(255,255,255,.10);
+   620→  color: #fff;
+   621→}
+   622→.adminlte .sidebar-search-btn .kbd {
+   623→  margin-left: auto;
+   624→  font-family: ui-monospace, monospace;
+   625→  font-size: 0.65rem;
+   626→  background: rgba(0,0,0,.25);
+   627→  color: #c2c7d0;
+   628→  padding: 1px 5px;
+   629→  border-radius: 3px;
+   630→}
+   631→
+   632→/* Sidebar nav */
+   633→.adminlte .nav-sidebar {
+   634→  list-style: none;
+   635→  padding: 0;
+   636→  margin: 0;
+   637→  flex: 1;
+   638→}
+   639→.adminlte .nav-header {
+   640→  color: #8a94a6;
+   641→  font-size: 0.7rem;
+   642→  font-weight: 700;
+   643→  text-transform: uppercase;
+   644→  letter-spacing: 0.08em;
+   645→  padding: 0.9rem 1rem 0.35rem;
+   646→}
+   647→.adminlte .nav-link {
+   648→  display: flex;
+   649→  align-items: center;
+   650→  gap: 0.75rem;
+   651→  padding: 0.6rem 1rem;
+   652→  color: #c2c7d0;
+   653→  font-size: 0.875rem;
+   654→  font-weight: 400;
+   655→  border-left: 3px solid transparent;
+   656→  transition: all 0.15s ease;
+   657→  cursor: pointer;
+   658→  text-decoration: none;
+   659→  background: transparent;
+   660→  border-top: none;
+   661→  border-right: none;
+   662→  border-bottom: none;
+   663→  width: 100%;
+   664→  text-align: left;
+   665→  text-shadow: none;
+   666→}
+   667→.adminlte .nav-link:hover {
+   668→  background: rgba(255,255,255,.06);
+   669→  color: #fff;
+   670→}
+   671→.adminlte .nav-link.active {
+   672→  background: rgba(212,175,55,.12);
+   673→  border-left-color: #d4af37;
+   674→  color: #fff;
+   675→  font-weight: 600;
+   676→}
+   677→.adminlte .nav-link .nav-icon {
+   678→  width: 1.1rem;
+   679→  height: 1.1rem;
+   680→  flex-shrink: 0;
+   681→}
+   682→
+   683→/* ===== Small Box — signature AdminLTE dashboard widget ===== */
+   684→.alte-small-box {
+   685→  position: relative;
+   686→  border-radius: 0.375rem;
+   687→  padding: 1.25rem;
+   688→  color: #fff;
+   689→  overflow: hidden;
+   690→  /* Subtler inner glow (was rgba(255,255,255,.08) inset + heavier shadow) */
+   691→  box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.06);
+   692→  transition: transform 0.2s ease, box-shadow 0.2s ease;
+   693→  cursor: pointer;
+   694→  display: block;
+   695→  text-align: left;
+   696→  border: none;
+   697→  width: 100%;
+   698→}
+   699→.alte-small-box:hover {
+   700→  transform: translateY(-2px);
+   701→  box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 0 1px rgba(0,0,0,.08);
+   702→}
+   703→.alte-small-box .sb-inner {
+   704→  display: flex;
+   705→  justify-content: space-between;
+   706→  align-items: flex-start;
+   707→}
+   708→.alte-small-box .sb-text {
+   709→  z-index: 2;
+   710→  position: relative;
+   711→}
+   712→.alte-small-box .sb-number {
+   713→  font-size: 1.75rem;
+   714→  font-weight: 700;
+   715→  line-height: 1.1;
+   716→}
+   717→.alte-small-box .sb-label {
+   718→  font-size: 0.8rem;
+   719→  text-transform: uppercase;
+   720→  letter-spacing: 0.04em;
+   721→  opacity: 0.92;
+   722→  margin-top: 0.15rem;
+   723→}
+   724→.alte-small-box .sb-icon {
+   725→  font-size: 4.5rem;
+   726→  opacity: 0.25;
+   727→  position: absolute;
+   728→  right: 0.5rem;
+   729→  bottom: -0.5rem;
+   730→  z-index: 1;
+   731→  width: auto;
+   732→  height: auto;
+   733→}
+   734→.alte-small-box .sb-footer {
+   735→  display: block;
+   736→  background: rgba(0,0,0,.18);
+   737→  margin: 1.25rem -1.25rem -1.25rem;
+   738→  padding: 0.55rem 1.25rem;
+   739→  font-size: 0.8rem;
+   740→  color: #fff;
+   741→  text-align: right;
+   742→  position: relative;
+   743→  z-index: 2;
+   744→}
+   745→.alte-small-box .sb-footer .sb-arrow {
+   746→  margin-left: 0.35rem;
+   747→  transition: transform 0.2s ease;
+   748→  display: inline-block;
+   749→}
+   750→.alte-small-box:hover .sb-footer .sb-arrow {
+   751→  transform: translateX(4px);
+   752→}
+   753→.alte-small-box .sb-trend {
+   754→  margin-left: auto;
+   755→  align-self: flex-end;
+   756→  z-index: 2;
+   757→  position: relative;
+   758→  display: inline-flex;
+   759→  align-items: flex-end;
+   760→  line-height: 0;
+   761→  opacity: 0.95;
+   762→}
+   763→.alte-small-box .sb-sparkline {
+   764→  display: block;
+   765→  width: 40px;
+   766→  height: 16px;
+   767→}
+   768→.alte-small-box.sb-primary {
+   769→  background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+   770→}
+   771→.alte-small-box.sb-success {
+   772→  background: linear-gradient(135deg, #198754 0%, #157347 100%);
+   773→}
+   774→.alte-small-box.sb-info {
+   775→  background: linear-gradient(135deg, #0dcaf0 0%, #0bb6d8 100%);
+   776→  color: #0a1628;
+   777→}
+   778→.alte-small-box.sb-info .sb-footer { color: #0a1628; background: rgba(0,0,0,.08); }
+   779→.alte-small-box.sb-warning {
+   780→  background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+   781→  color: #0a1628;
+   782→}
+   783→.alte-small-box.sb-warning .sb-footer { color: #0a1628; background: rgba(0,0,0,.08); }
+   784→.alte-small-box.sb-danger {
+   785→  background: linear-gradient(135deg, #dc3545 0%, #bb2d3b 100%);
+   786→}
+   787→.alte-small-box.sb-gold {
+   788→  background: linear-gradient(135deg, #d4af37, #b8941f); color: #0a1628;
+   789→}
+   790→.alte-small-box.sb-gold .sb-footer { color: #0a1628; background: rgba(0,0,0,.12); }
+   791→
+   792→/* ===== Info Box — 3-column grid (icon | text | progress) ===== */
+   793→.alte-info-box {
+   794→  display: grid;
+   795→  grid-template-columns: 70px 1fr;
+   796→  background: #fff;
+   797→  border: 1px solid #e3e6ec;
+   798→  border-radius: 0.375rem;
+   799→  overflow: hidden;
+   800→  box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 0 1px rgba(0,0,0,.04);
+   801→  transition: box-shadow 0.2s ease, transform 0.2s ease;
+   802→  position: relative;
+   803→}
+   804→.alte-info-box:hover {
+   805→  box-shadow: 0 2px 6px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.05);
+   806→  transform: translateY(-1px);
+   807→}
+   808→.alte-info-box .ib-icon {
+   809→  display: flex;
+   810→  align-items: center;
+   811→  justify-content: center;
+   812→  color: #fff;
+   813→  font-size: 1.75rem;
+   814→  flex-shrink: 0;
+   815→  position: relative;
+   816→  z-index: 1;
+   817→}
+   818→.alte-info-box .ib-body {
+   819→  padding: 0.55rem 0.85rem 0.6rem;
+   820→  display: flex;
+   821→  flex-direction: column;
+   822→  justify-content: center;
+   823→  min-width: 0;
+   824→}
+   825→.alte-info-box .ib-text {
+   826→  font-size: 0.78rem;
+   827→  color: #6c757d;
+   828→  text-transform: uppercase;
+   829→  letter-spacing: 0.04em;
+   830→  font-weight: 600;
+   831→  line-height: 1.2;
+   832→  overflow: hidden;
+   833→  text-overflow: ellipsis;
+   834→  white-space: nowrap;
+   835→}
+   836→.alte-info-box .ib-number {
+   837→  font-size: 1.3rem;
+   838→  font-weight: 700;
+   839→  color: #212529;
+   840→  line-height: 1.2;
+   841→  margin-top: 0.1rem;
+   842→  overflow: hidden;
+   843→  text-overflow: ellipsis;
+   844→  white-space: nowrap;
+   845→}
+   846→.alte-info-box .ib-progress {
+   847→  height: 5px;
+   848→  background: #e9ecef;
+   849→  border-radius: 3px;
+   850→  margin-top: 0.4rem;
+   851→  overflow: hidden;
+   852→}
+   853→.alte-info-box .ib-progress-bar {
+   854→  height: 100%;
+   855→  border-radius: 3px;
+   856→  transition: width 0.4s ease;
+   857→}
+   858→.alte-info-box .ib-progress-text {
+   859→  font-size: 0.66rem;
+   860→  color: #6c757d;
+   861→  margin-top: 0.2rem;
+   862→  font-weight: 500;
+   863→}
+   864→
+   865→/* Info-box icon color variants (left colored area) */
+   866→.alte-info-box.ib-primary .ib-icon { background: linear-gradient(135deg, #0d6efd, #0b5ed7); }
+   867→.alte-info-box.ib-success .ib-icon { background: linear-gradient(135deg, #198754, #157347); }
+   868→.alte-info-box.ib-info    .ib-icon { background: linear-gradient(135deg, #0dcaf0, #0bb6d8); }
+   869→.alte-info-box.ib-warning .ib-icon { background: linear-gradient(135deg, #ffc107, #e0a800); }
+   870→.alte-info-box.ib-danger  .ib-icon { background: linear-gradient(135deg, #dc3545, #bb2d3b); }
+   871→.alte-info-box.ib-gold    .ib-icon { background: linear-gradient(135deg, #d4af37, #b8941f); }
+   872→
+   873→.alte-info-box.ib-primary .ib-progress-bar { background: #0d6efd; }
+   874→.alte-info-box.ib-success .ib-progress-bar { background: #198754; }
+   875→.alte-info-box.ib-info    .ib-progress-bar { background: #0dcaf0; }
+   876→.alte-info-box.ib-warning .ib-progress-bar { background: #ffc107; }
+   877→.alte-info-box.ib-danger  .ib-progress-bar { background: #dc3545; }
+   878→.alte-info-box.ib-gold    .ib-progress-bar { background: #d4af37; }
+   879→
+   880→/* Content padding — AdminLTE 4 standard content padding.
+   881→   The main content section is `<section className="content">` and gets 1rem padding.
+   882→   Direct children spaced with margin-top to avoid cramped stacked cards. */
+   883→.adminlte .content {
+   884→  padding: 1rem 1.25rem;
+   885→  flex: 1;
+   886→  width: 100%;
+   887→}
+   888→.adminlte section.content {
+   889→  padding: 1rem;
+   890→}
+   891→.adminlte .content > * + * {
+   892→  margin-top: 1rem;
+   893→}
+   894→@media (min-width: 768px) {
+   895→  .adminlte .content {
+   896→    padding: 1.25rem 1.5rem;
+   897→  }
+   898→  .adminlte section.content {
+   899→    padding: 1.25rem;
+   900→  }
+   901→}
+   902→
+   903→/* ===== AdminLTE-style button utility classes ===== */
+   904→/* Use these on a shadcn <Button> (no variant) or any <button>. The class
+   905→   overrides background/border/text colors to AdminLTE's standard palette
+   906→   while keeping shadcn's hover/focus/disabled infrastructure. */
+   907→.adminlte .alte-btn-primary {
+   908→  background-color: #0d6efd !important;
+   909→  color: #ffffff !important;
+   910→  border: 1px solid #0d6efd !important;
+   911→}
+   912→.adminlte .alte-btn-primary:hover {
+   913→  background-color: #0b5ed7 !important;
+   914→  border-color: #0a58ca !important;
+   915→}
+   916→.adminlte .alte-btn-success {
+   917→  background-color: #198754 !important;
+   918→  color: #ffffff !important;
+   919→  border: 1px solid #198754 !important;
+   920→}
+   921→.adminlte .alte-btn-success:hover {
+   922→  background-color: #157347 !important;
+   923→  border-color: #146c43 !important;
+   924→}
+   925→.adminlte .alte-btn-warning {
+   926→  background-color: #ffc107 !important;
+   927→  color: #0a1628 !important;
+   928→  border: 1px solid #ffc107 !important;
+   929→}
+   930→.adminlte .alte-btn-warning:hover {
+   931→  background-color: #e0a800 !important;
+   932→  border-color: #d39e00 !important;
+   933→}
+   934→
+   935→/* ===== Page heading typography (AdminLTE 4 uses weight 600, not 700) ===== */
+   936→.adminlte h1 {
+   937→  font-weight: 600;
+   938→}
+   939→.adminlte h2 {
+   940→  font-weight: 600;
+   941→}
+   942→
+   943→/* Breadcrumb in navbar */
+   944→.adminlte .navbar-breadcrumb {
+   945→  display: flex;
+   946→  align-items: center;
+   947→  gap: 0.5rem;
+   948→  color: #c2c7d0;
+   949→  font-size: 0.875rem;
+   950→}
+   951→.adminlte .navbar-breadcrumb .bc-current {
+   952→  color: #fff;
+   953→  font-weight: 600;
+   954→}
+   955→
+   956→/* Navbar right side buttons */
+   957→.adminlte .navbar-btn {
+   958→  color: #c2c7d0;
+   959→  background: transparent;
+   960→  border: none;
+   961→  padding: 0.4rem 0.6rem;
+   962→  border-radius: 0.375rem;
+   963→  cursor: pointer;
+   964→  transition: background 0.15s, color 0.15s;
+   965→  display: inline-flex;
+   966→  align-items: center;
+   967→  gap: 0.4rem;
+   968→  font-size: 0.85rem;
+   969→}
+   970→.adminlte .navbar-btn:hover {
+   971→  background: rgba(255,255,255,.1);
+   972→  color: #fff;
+   973→}
+   974→
+   975→/* AdminLTE top nav right cluster */
+   976→.adminlte .navbar-nav-right {
+   977→  display: flex;
+   978→  align-items: center;
+   979→  gap: 0.25rem;
+   980→  margin-left: auto;
+   981→}
+   982→
+   983→/* User-trigger button on the navbar (right) */
+   984→.adminlte .navbar-user-btn {
+   985→  display: inline-flex;
+   986→  align-items: center;
+   987→  gap: 0.5rem;
+   988→  background: transparent;
+   989→  border: none;
+   990→  color: #c2c7d0;
+   991→  padding: 0.35rem 0.5rem;
+   992→  border-radius: 0.375rem;
+   993→  cursor: pointer;
+   994→  transition: background 0.15s, color 0.15s;
+   995→}
+   996→.adminlte .navbar-user-btn:hover {
+   997→  background: rgba(255,255,255,.1);
+   998→  color: #fff;
+   999→}
+  1000→.adminlte .navbar-user-btn .nu-avatar {
+  1001→  width: 30px;
+  1002→  height: 30px;
+  1003→  border-radius: 50%;
+  1004→  background: linear-gradient(135deg, #d4af37, #b8941f);
+  1005→  color: #0a1628;
+  1006→  display: flex;
+  1007→  align-items: center;
+  1008→  justify-content: center;
+  1009→  font-weight: 700;
+  1010→  font-size: 0.78rem;
+  1011→  flex-shrink: 0;
+  1012→}
+  1013→.adminlte .navbar-user-btn .nu-meta {
+  1014→  display: flex;
+  1015→  flex-direction: column;
+  1016→  align-items: flex-start;
+  1017→  line-height: 1.15;
+  1018→}
+  1019→.adminlte .navbar-user-btn .nu-name {
+  1020→  color: #fff;
+  1021→  font-size: 0.78rem;
+  1022→  font-weight: 600;
+  1023→}
+  1024→.adminlte .navbar-user-btn .nu-role {
+  1025→  color: #8a94a6;
+  1026→  font-size: 0.66rem;
+  1027→  display: inline-flex;
+  1028→  align-items: center;
+  1029→  gap: 0.2rem;
+  1030→}
+  1031→
+  1032→/* Hamburger (mobile only — controlled by lg:hidden in markup) */
+  1033→.adminlte .sidebar-toggle {
+  1034→  color: #c2c7d0;
+  1035→  background: transparent;
+  1036→  border: none;
+  1037→  padding: 0.4rem 0.55rem;
+  1038→  border-radius: 0.375rem;
+  1039→  cursor: pointer;
+  1040→  display: inline-flex;
+  1041→  align-items: center;
+  1042→  justify-content: center;
+  1043→  transition: background 0.15s, color 0.15s;
+  1044→}
+  1045→.adminlte .sidebar-toggle:hover {
+  1046→  background: rgba(255,255,255,.1);
+  1047→  color: #fff;
+  1048→}
+  1049→
+  1050→/* Brand mini link (top-left corner of navbar when sidebar hidden on mobile) */
+  1051→.adminlte .navbar-brand-mini {
+  1052→  display: none;
+  1053→  align-items: center;
+  1054→  gap: 0.5rem;
+  1055→  color: #fff;
+  1056→  font-weight: 700;
+  1057→  font-size: 0.9rem;
+  1058→}
+  1059→@media (max-width: 991.98px) {
+  1060→  .adminlte .navbar-brand-mini { display: inline-flex; }
+  1061→}
+  1062→
+  1063→/* ===== Responsive: hide sidebar on mobile, show via drawer/sheet ===== */
+  1064→@media (max-width: 991.98px) {
+  1065→  .adminlte .main-sidebar {
+  1066→    transform: translateX(-100%);
+  1067→  }
+  1068→  .adminlte .main-sidebar.is-open {
+  1069→    transform: translateX(0);
+  1070→  }
+  1071→  .adminlte .content-wrapper {
+  1072→    margin-left: 0;
+  1073→  }
+  1074→}
+  1075→
+  1076→/* ===== Print: hide admin chrome ===== */
+  1077→@media print {
+  1078→  .adminlte .main-sidebar,
+  1079→  .adminlte .main-header,
+  1080→  .adminlte .main-footer {
+  1081→    display: none !important;
+  1082→  }
+  1083→  .adminlte .content-wrapper {
+  1084→    margin-left: 0 !important;
+  1085→  }
+  1086→  .adminlte .content {
+  1087→    padding: 0 !important;
+  1088→  }
+  1089→}
+  1090→/* trigger recompile */
+  1091→/* trigger recompile */
+  1092→
