@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { iconMimeFromUrl, withIconCacheBust } from "@/lib/icon-mime";
 
 /* ============================================================
    Dynamic PWA manifest
@@ -24,8 +25,10 @@ export async function GET() {
   const shortName = appName.length > 12 ? appName.slice(0, 12) : appName;
   const description = `${appName} — ${s.app_subtitle || "Kelurahan Kuala Pembuang II"}`;
 
-  const icon192 = s.branding_app_icon_192_url || "/logo.svg";
-  const icon512 = s.branding_app_icon_512_url || "/logo.svg";
+  const icon192 = withIconCacheBust(s.branding_app_icon_192_url || "/logo.svg");
+  const icon512 = withIconCacheBust(s.branding_app_icon_512_url || "/logo.svg");
+  const icon192Mime = iconMimeFromUrl(s.branding_app_icon_192_url || "/logo.svg");
+  const icon512Mime = iconMimeFromUrl(s.branding_app_icon_512_url || "/logo.svg");
 
   const manifest = {
     name: appName,
@@ -37,9 +40,9 @@ export async function GET() {
     theme_color: "#d4af37",
     orientation: "portrait-primary",
     icons: [
-      { src: icon192, sizes: "192x192", type: icon192.endsWith(".svg") ? "image/svg+xml" : "image/png", purpose: "any" },
-      { src: icon512, sizes: "512x512", type: icon512.endsWith(".svg") ? "image/svg+xml" : "image/png", purpose: "any" },
-      { src: icon512, sizes: "512x512", type: icon512.endsWith(".svg") ? "image/svg+xml" : "image/png", purpose: "maskable" },
+      { src: icon192, sizes: "192x192", type: icon192Mime, purpose: "any" },
+      { src: icon512, sizes: "512x512", type: icon512Mime, purpose: "any" },
+      { src: icon512, sizes: "512x512", type: icon512Mime, purpose: "maskable" },
       { src: "/logo.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
     ],
     categories: ["government", "utilities"],

@@ -1067,13 +1067,14 @@ export function SettingsManagement() {
           </div>
 
           {/* Favicon note */}
-          <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+          <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
             <div className="flex items-start gap-2">
-              <Star className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <Star className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
               <div className="text-[11px] leading-snug text-muted-foreground">
-                <span className="font-semibold text-foreground">Catatan Favicon:</span> Setelah mengunggah
-                favicon, refresh halaman (Ctrl+R) agar browser memuat ikon baru. Cache browser mungkin
-                menyimpan favicon lama selama beberapa jam.
+                <span className="font-semibold text-foreground">Favicon otomatis diperbarui:</span> Setiap
+                unggahan baru membawa token cache-busting (<code className="px-1 py-0.5 rounded bg-muted/60 text-[10px]">?v=…</code>)
+                dan tipe MIME yang tepat (JPEG/PNG/ICO/SVG), sehingga browser langsung memuat ikon terbaru tanpa
+                perlu hard-refresh. Jika tab browser masih menampilkan ikon lama, tutup tab lalu buka kembali.
               </div>
             </div>
           </div>

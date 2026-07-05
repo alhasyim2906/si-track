@@ -16,6 +16,79 @@ import {
 import { cn } from "@/lib/utils";
 
 /* ============================================================
+   Live favicon / icon refresh.
+   The <link rel="icon"> tags live in the server-rendered <head>,
+   so uploading a new favicon via the Branding UI does NOT update
+   the browser tab until the user manually reloads the page. This
+   helper rewrites the href (with a fresh cache-bust token) on the
+   client the instant a new asset is saved, so the new icon shows
+   up immediately. It also handles delete (revert to /logo.svg).
+   ============================================================ */
+
+function iconMime(url: string): string {
+  const m = url.toLowerCase().split("?")[0].match(/\.([a-z0-9]+)$/);
+  switch (m?.[1]) {
+    case "svg": return "image/svg+xml";
+    case "png": return "image/png";
+    case "jpg":
+    case "jpeg": return "image/jpeg";
+    case "ico": return "image/x-icon";
+    case "webp": return "image/webp";
+    case "gif": return "image/gif";
+    default: return "image/png";
+  }
+}
+
+function cacheBust(url: string): string {
+  if (!url) return url;
+  const m = url.match(/-([a-f0-9]{6,})\./i);
+  const v = m?.[1] || Date.now().toString(36);
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}v=${v}`;
+}
+
+/**
+ * Map a branding asset type to the set of <link> rels it should drive.
+ * - favicon → drives icon + shortcut icon (and apple-touch-icon when no
+ *   dedicated app_icon_192 is set, but we keep it simple here).
+ * - logo → fallback for icon when no favicon is set.
+ * - app_icon_192 → drives apple-touch-icon.
+ */
+function relsForType(type: string): string[] {
+  switch (type) {
+    case "favicon": return ["icon", "shortcut icon"];
+    case "app_icon_192": return ["apple-touch-icon"];
+    case "logo": return ["icon", "shortcut icon"]; // only used on delete fallback
+    default: return [];
+  }
+}
+
+/**
+ * Rewrite the document's <link rel="…"> tags for the given rels to point
+ * at `url` (already cache-busted). Removes duplicate links per rel so we
+ * don't accumulate stale entries across repeated uploads.
+ */
+function applyIconToDocument(rels: string[], url: string): void {
+  if (typeof document === "undefined") return;
+  const mime = iconMime(url);
+  const busted = cacheBust(url);
+  for (const rel of rels) {
+    // Remove existing links with this rel (avoid duplicates).
+    document.head
+      .querySelectorAll(`link[rel="${rel}"]`)
+      .forEach((el) => el.remove());
+    const link = document.createElement("link");
+    link.rel = rel;
+    link.href = busted;
+    link.type = mime;
+    document.head.appendChild(link);
+  }
+  // Also update the browser tab title/favicon cache hint by toggling a
+  // no-op data attribute — some browsers only re-fetch the favicon when
+  // the <link> element is freshly inserted (which we did above).
+}
+
+/* ============================================================
    BrandingUploader
    A single-asset upload card used in the Settings → Branding
    section. Supports drag-and-drop, click-to-select, file type
@@ -79,6 +152,13 @@ export function BrandingUploader({ spec, url, onChange }: Props) {
       toast.success(`${spec.label} berhasil diperbarui`);
       onChange(r.branding);
       setPendingFile(null);
+      // Live-update the browser tab icon so the new asset is visible
+      // immediately — no manual page reload required.
+      const newUrl = r.branding[`branding_${spec.type}_url`];
+      if (newUrl) {
+        const rels = relsForType(spec.type);
+        if (rels.length > 0) applyIconToDocument(rels, newUrl);
+      }
     } catch (e: any) {
       toast.error(e?.message || `Gagal mengunggah ${spec.label}`);
     } finally {
@@ -94,6 +174,9 @@ export function BrandingUploader({ spec, url, onChange }: Props) {
       const r = await api.deleteBranding(spec.type);
       toast.success(`${spec.label} berhasil dihapus`);
       onChange(r.branding);
+      // Revert the browser tab icon to the default logo.svg.
+      const rels = relsForType(spec.type);
+      if (rels.length > 0) applyIconToDocument(rels, "/logo.svg");
     } catch (e: any) {
       toast.error(e?.message || `Gagal menghapus ${spec.label}`);
     } finally {

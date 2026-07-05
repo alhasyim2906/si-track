@@ -6,6 +6,15 @@ import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegistrar } from "@/components/app/ServiceWorkerRegistrar";
 import { db } from "@/lib/db";
 import { resolvePublicBaseUrl } from "@/lib/public-url";
+import { iconMimeFromUrl, withIconCacheBust } from "@/lib/icon-mime";
+
+/**
+ * Branding metadata (favicon, app name, etc.) must reflect the latest DB
+ * settings on every request — otherwise an admin who uploads a new favicon
+ * would see the old one until the page cache expires. Force dynamic render.
+ */
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,10 +60,26 @@ export async function generateMetadata(): Promise<Metadata> {
   const description =
     "Sistem Informasi Tracking Pendaftaran Surat Tanah. Pantau status surat tanah Anda secara real-time melalui Nomor Register atau QR Code.";
 
-  const favicon = s.branding_favicon_url || s.branding_logo_url || "/logo.svg";
-  const icon192 = s.branding_app_icon_192_url || "/logo.svg";
-  const icon512 = s.branding_app_icon_512_url || "/logo.svg";
-  const appleIcon = s.branding_app_icon_192_url || s.branding_logo_url || "/logo.svg";
+  // Resolve icon URLs, then attach a cache-busting query so browsers always
+  // fetch the latest bytes when an admin uploads a new asset (the filename
+  // hash already changes per upload; the `?v=` token makes it unambiguous
+  // even to aggressive favicon caches).
+  const faviconRaw = s.branding_favicon_url || s.branding_logo_url || "/logo.svg";
+  const icon192Raw = s.branding_app_icon_192_url || "/logo.svg";
+  const icon512Raw = s.branding_app_icon_512_url || "/logo.svg";
+  const appleIconRaw = s.branding_app_icon_192_url || s.branding_logo_url || "/logo.svg";
+
+  const favicon = withIconCacheBust(faviconRaw);
+  const icon192 = withIconCacheBust(icon192Raw);
+  const icon512 = withIconCacheBust(icon512Raw);
+  const appleIcon = withIconCacheBust(appleIconRaw);
+
+  // Correct MIME per extension — declaring image/png for a JPEG favicon makes
+  // browsers reject the icon. Derive precisely from the file extension.
+  const faviconMime = iconMimeFromUrl(faviconRaw);
+  const icon192Mime = iconMimeFromUrl(icon192Raw);
+  const icon512Mime = iconMimeFromUrl(icon512Raw);
+  const appleMime = iconMimeFromUrl(appleIconRaw);
 
   // Resolve the public base URL (from DB setting → env → fallback).
   // Used as metadataBase so OpenGraph / Twitter card / canonical URLs resolve
@@ -72,12 +97,12 @@ export async function generateMetadata(): Promise<Metadata> {
     authors: [{ name: "Kelurahan Kuala Pembuang II" }],
     icons: {
       icon: [
-        { url: favicon, type: favicon.endsWith(".svg") ? "image/svg+xml" : "image/png" },
+        { url: favicon, type: faviconMime },
         { url: "/logo.svg", type: "image/svg+xml" },
       ],
-      shortcut: [favicon],
+      shortcut: [{ url: favicon, type: faviconMime }],
       apple: [
-        { url: appleIcon, type: appleIcon.endsWith(".svg") ? "image/svg+xml" : "image/png" },
+        { url: appleIcon, type: appleMime },
       ],
     },
     manifest: "/api/manifest",
@@ -116,16 +141,24 @@ export default async function RootLayout({
 }>) {
   const s = await getBrandingMeta();
   const appName = s.app_name || "SI-TRACK TANAH";
-  // Preload favicon link in <head> for browsers that don't honor metadata.icons on dynamic routes
-  const faviconUrl = s.branding_favicon_url || s.branding_logo_url || "/logo.svg";
+  // Preload favicon link in <head> for browsers that don't honor metadata.icons on dynamic routes.
+  // Cache-busted + correct MIME so a freshly uploaded JPEG/WEBP favicon is
+  // rendered instead of rejected as a wrong-type asset.
+  const faviconRaw = s.branding_favicon_url || s.branding_logo_url || "/logo.svg";
+  const faviconUrl = withIconCacheBust(faviconRaw);
+  const faviconMime = iconMimeFromUrl(faviconRaw);
+  const appleRaw = s.branding_app_icon_192_url || s.branding_logo_url || "/logo.svg";
+  const appleUrl = withIconCacheBust(appleRaw);
+  const appleMime = iconMimeFromUrl(appleRaw);
 
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/api/manifest" />
         <meta name="theme-color" content="#d4af37" />
-        <link rel="icon" href={faviconUrl} type={faviconUrl.endsWith(".svg") ? "image/svg+xml" : "image/png"} />
-        <link rel="apple-touch-icon" href={s.branding_app_icon_192_url || s.branding_logo_url || "/logo.svg"} />
+        <link rel="icon" href={faviconUrl} type={faviconMime} />
+        <link rel="shortcut icon" href={faviconUrl} type={faviconMime} />
+        <link rel="apple-touch-icon" href={appleUrl} type={appleMime} />
         <meta name="application-name" content={appName} />
       </head>
       <body

@@ -2751,3 +2751,96 @@ Error ini menyebabkan:
 2. **Numeric validation**: tambah regex validation `^\d+(\.\d{1,2})?$` di form (max 2 decimal places) + server-side validation di POST/PUT route.
 3. **Display formatting**: saat ini luas tanah ditampilkan sebagai `${luasTanah} m²`. Tambah formatribuan (e.g., "1,250.5 m²") via `Intl.NumberFormat('id-ID')`.
 4. **Schema review**: audit field lain yang mungkin punya type mismatch serupa (e.g., `tanahRt`, `tanahRw` yang seharusnya numerik tapi disimpan sebagai String).
+
+---
+Task ID: 27
+Agent: main
+Task: Fix "favicon tidak berubah" — favicon tidak update setelah upload branding baru.
+
+## Root Cause (3 layer)
+
+### Layer 1: MIME type mismatch (PRIMARY BUG)
+File favicon yang diupload adalah JPEG (`favicon-556a771eba4d.jpeg`), tetapi `layout.tsx` mendeklarasikan `type="image/png"` untuk semua icon non-SVG:
+```ts
+// BEFORE (bug):
+{ url: favicon, type: favicon.endsWith(".svg") ? "image/svg+xml" : "image/png" }
+```
+Browser menolak render JPEG yang dideklarasikan sebagai PNG → tab browser jatuh ke icon default (globe/blank). Ini sebabnya user lihat "favicon tidak berubah" padahal file sudah ter-upload.
+
+### Layer 2: Tidak ada cache-busting
+Browser cache favicon SANGAT agresif (bahkan key by domain, bukan by href). Walau filename hash berubah per upload (`favicon-XXXX.jpeg`), beberapa browser tetap pakai cached bytes. Tidak ada `?v=` query token untuk force re-fetch.
+
+### Layer 3: `<link>` tag server-rendered, tidak update live
+`<link rel="icon">` di-render di `<head>` via `generateMetadata()` (server-side). Setelah admin upload favicon baru via Branding UI, DB ter-update, tapi `<link>` href di document TIDAK berubah sampai user manual reload halaman. UX buruk — user pikir upload gagal.
+
+## Work Completed
+
+### 1. New helper: `src/lib/icon-mime.ts`
+Dua fungsi:
+- `iconMimeFromUrl(url)` — deteksi MIME tepat dari ekstensi: svg→`image/svg+xml`, png→`image/png`, jpg/jpeg→`image/jpeg`, ico→`image/x-icon`, webp→`image/webp`, gif→`image/gif`, bmp→`image/bmp`. Unknown→`image/png` (fallback aman).
+- `withIconCacheBust(url)` — append `?v=<hash>` query. Hanya untuk URL `/branding/` (asset yang bisa diubah admin). Hash diambil dari filename (`-([a-f0-9]{6,})\.`) sehingga stabil per file tapi berbeda per upload. `/logo.svg` (default) tidak di-bust.
+
+### 2. `src/app/layout.tsx` — fix MIME + cache-bust + force-dynamic
+- Tambah `export const dynamic = "force-dynamic"` + `revalidate = 0` → metadata selalu fresh dari DB per request (admin upload langsung reflect di HTML response berikutnya).
+- `generateMetadata()`: pakai `iconMimeFromUrl()` + `withIconCacheBust()` untuk semua icon (favicon, apple, icon192, icon512). Hapus hardcoded `image/png` fallback.
+- `<head>` manual link: juga pakai MIME helper + cache-bust. Tambah `<link rel="shortcut icon">` eksplisit.
+
+### 3. `src/app/api/manifest/route.ts` — fix MIME di PWA manifest
+- Icon 192 & 512 di manifest juga pakai `iconMimeFromUrl()` (sebelumnya hardcoded `image/png` untuk non-SVG — bug serupa).
+- Tambah `withIconCacheBust()` pada src icon.
+
+### 4. `src/components/app/shared/BrandingUploader.tsx` — live DOM favicon update
+Ini fix **Layer 3** (UX issue: link tidak update tanpa reload). Tambah:
+- `iconMime(url)` + `cacheBust(url)` helper (client-side mirror dari server helper).
+- `relsForType(type)` — map asset type ke `<link>` rels: `favicon`→`["icon","shortcut icon"]`, `app_icon_192`→`["apple-touch-icon"]`, `logo`→`["icon","shortcut icon"]` (fallback).
+- `applyIconToDocument(rels, url)` — hapus existing `<link>` dengan rel tersebut, lalu insert `<link>` baru dengan href (cache-busted) + type (MIME tepat). Inject ke `document.head`.
+- `handleUpload` success: baca `r.branding["branding_<type>_url"]`, panggil `applyIconToDocument(relsForType(spec.type), newUrl)`. Favicon langsung update di tab browser tanpa reload.
+- `handleDelete` success: `applyIconToDocument(rels, "/logo.svg")` — revert ke default.
+
+### 5. `src/components/app/admin/SettingsManagement.tsx` — update catatan favicon
+- Sebelumnya: "refresh halaman (Ctrl+R) agar browser memuat ikon baru. Cache browser mungkin menyimpan favicon lama selama beberapa jam." (warning amber)
+- Sesudah: "Favicon otomatis diperbarui: Setiap unggahan baru membawa token cache-busting (?v=…) dan tipe MIME yang tepat (JPEG/PNG/ICO/SVG), sehingga browser langsung memuat ikon terbaru tanpa perlu hard-refresh." (info emerald — positif, bukan warning)
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile (webpack mode), no runtime errors.
+- **curl HTML inspection** (before fix):
+  ```
+  <link rel="icon" href="/branding/favicon-556a771eba4d.jpeg" type="image/png"/>  ← WRONG MIME
+  ```
+- **curl HTML inspection** (after fix):
+  ```
+  <link rel="icon" href="/branding/favicon-556a771eba4d.jpeg?v=556a771eba4d" type="image/jpeg"/>  ← CORRECT MIME + cache-bust
+  <link rel="shortcut icon" href="/branding/favicon-556a771eba4d.jpeg?v=556a771eba4d" type="image/jpeg"/>
+  <link rel="apple-touch-icon" href="/logo.svg" type="image/svg+xml"/>
+  ```
+- **Favicon file HTTP**: `GET /branding/favicon-556a771eba4d.jpeg?v=...` → 200 OK, `Content-Type: image/jpeg` ✓
+- **Live DOM update simulation** (via agent-browser eval): `applyIconToDocument` logic correctly removes old `<link>` and inserts new one with right href+type. ✓
+- **Agent-browser E2E**: server OOM-killed saat Chrome launch (4GB RAM environment limitation — bukan code issue). Favicon fix verified via curl + DOM eval simulation.
+
+## Files Changed (summary)
+- New: `src/lib/icon-mime.ts` (62 lines — MIME detection + cache-bust helper)
+- Updated: `src/app/layout.tsx` (force-dynamic, MIME fix, cache-bust, head link cleanup)
+- Updated: `src/app/api/manifest/route.ts` (MIME fix + cache-bust for PWA icons)
+- Updated: `src/components/app/shared/BrandingUploader.tsx` (+92 lines — live DOM favicon update on upload/delete)
+- Updated: `src/components/app/admin/SettingsManagement.tsx` (update favicon note to positive emerald info)
+
+## Stage Summary
+- **Root cause fixed**: MIME type sekarang tepat per ekstensi file (JPEG→`image/jpeg`, bukan `image/png`). Browser tidak lagi menolak favicon.
+- **Cache-busting**: token `?v=<hash>` memaksa browser fetch bytes baru setiap upload. Kombinasi dengan filename hash yang berubah = double guarantee.
+- **Live update UX**: admin upload favicon baru → `<link>` di document head langsung di-rewrite client-side → tab browser update instan tanpa reload. Delete juga revert ke `/logo.svg` live.
+- **force-dynamic metadata**: `generateMetadata()` selalu baca DB fresh, tidak cache. Admin ubah favicon → request berikutnya dapat href baru.
+- **PWA manifest juga diperbaiki**: icon 192/512 di manifest dapat MIME + cache-bust yang sama.
+- Lint: 0 errors. Dev server: no runtime errors. Favicon fix verified via curl + DOM simulation.
+
+## Unresolved Issues / Risks
+- **Dev server OOM pada environment 4GB**: Next.js 16 Turbopack dev server (~2GB RSS) + Chrome agent-browser (~1.5GB) melebihi 4GB RAM → kernel OOM killer kill `next-server`. Mitigasi sementara: jalankan dev server dengan `--webpack` flag (lebih hemat RAM dari Turbopack). Kill Chrome saat tidak dipakai untuk QA. Untuk produksi (container dengan RAM lebih besar) tidak ada masalah.
+- **Favicon cache browser sangat persisten**: walau `?v=` token + fresh `<link>` insert sudah memaksa re-fetch di mayoritas browser, beberapa browser lama (IE, old Safari) mungkin tetap cache by domain. User instruction: "Jika tab browser masih menampilkan ikon lama, tutup tab lalu buka kembali."
+- **`force-dynamic` di root layout**: membuat SEMUA page dynamic (no static optimization). Untuk app government dengan auth+DB di setiap page, ini acceptable (page sudah dynamic anyway). Tapi ada minor perf cost.
+
+## Priority Recommendations for Next Round
+1. **Tingkatkan RAM environment / aktifkan swap**: jika OOM terus terjadi saat QA dengan agent-browser, pertimbangkan tambah swap file (butuh root) atau upgrade container RAM ke 8GB.
+2. **Dev script default ke webpack**: ubah `package.json` `"dev"` dari `next dev -p 3000` (Turbopack default di Next 16) ke `next dev -p 3000 --webpack` untuk stabilitas di environment low-RAM. Atau set env `NEXT_USE_WEBPACK=1`.
+3. **Favicon upload: auto-generate multi-size**: saat admin upload 1 favicon, auto-generate 16x16, 32x32, 48x48, 180x180 (apple-touch) variants via sharp/jimp, deklarasikan via `<link sizes="16x16">` dst. Sekarang hanya 1 size dipakai untuk semua.
+4. **ICO format support**: untuk kompatibilitas browser lama (IE/old Edge), convert favicon upload ke .ico format juga (multi-resolution .ico).
+5. **Audit MIME bug di tempat lain**: cek apakah ada hardcoded `image/png`/`image/jpeg` fallback di komponen lain yang menampilkan image branding (e.g., login background, hero banner, logo di header).
