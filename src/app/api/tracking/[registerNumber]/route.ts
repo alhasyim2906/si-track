@@ -70,5 +70,22 @@ export async function GET(
       namaFile: d.namaFile,
       createdAt: d.createdAt,
     })),
+    // Revision docs uploaded by pemohon (via public tracking page)
+    revisiDokumen: permohonan.dokumen
+      .filter((d) => d.isRevisionUpload)
+      .map((d) => ({
+        id: d.id,
+        jenisDokumen: d.jenisDokumen,
+        namaFile: d.namaFile,
+        filePath: d.filePath,
+        ukuran: d.ukuran,
+        mimeType: d.mimeType,
+        uploadedBy: d.uploadedBy,
+        isRevisionUpload: d.isRevisionUpload,
+        catatanPemohon: d.catatanPemohon,
+        createdAt: d.createdAt,
+      })),
+    revisiDokumenCount: permohonan.dokumen.filter((d) => d.isRevisionUpload).length,
+    revisiUploadEnabled: permohonan.statusSaatIni === "REVISI",
   });
 }

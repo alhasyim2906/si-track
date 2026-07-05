@@ -1,0 +1,500 @@
+
+---
+Task ID: 8-c
+Agent: full-stack-developer
+Task: Enhance global CSS styling + add PermohonanList bulk select/export features
+
+Work Log:
+
+### Part 1: Global CSS Enhancements (`/src/app/globals.css`)
+Added 10 new CSS enhancement blocks (A–J) at the end of the file:
+
+- **A. Enhanced glass-card hover** — smooth `box-shadow` + `transform` transitions on `.adminlte .glass-card`
+- **B. Info-box left border** — 4px colored left border matching variant (ib-primary, ib-success, etc.)
+- **C. SmallBox hover enhancement** — `translateY(-2px)` + deeper `box-shadow: 0 6px 20px` on hover with smooth transition
+- **D. Nav link improvements** — added transition for `background-color` + `border-color`; gold tint hover on non-active `.nav-link`
+- **E. Table improvements** — bolder uppercase headers (font-weight 700, uppercase, 0.72rem), zebra striping refinement, gold-tinted hover
+- **F. Button focus ring** — gold `outline: 2px solid #d4af37` on `focus-visible` for admin buttons/links
+- **G. Thin scrollbar** — custom 6px scrollbar for `.adminlte` area (transparent track, subtle gray thumb)
+- **H. Badge pulse animation** — `@keyframes badge-pulse` with scale 1→1.15→1 for notification badges
+- **I. Skeleton shimmer** — `@keyframes skeleton-shimmer` with horizontal gradient sweep for loading states
+- **J. Content area padding** — responsive padding (1rem mobile → 1.5rem desktop) on `.content`
+
+### Part 2: PermohonanList Bulk Actions (`/src/components/app/petugas/PermohonanList.tsx`)
+Major enhancement of the PermohonanList component:
+
+- **A. Bulk Select Mode Toggle**:
+  - "Pilih" button in header enters bulk mode (shows checkboxes)
+  - "Batalkan" button exits bulk mode and clears selection
+  - Selection count badge ("3 dipilih") shown when in bulk mode
+  - Checkboxes only visible when bulkMode is active (both desktop table + mobile cards)
+  - Row click behavior changes: normal mode → view detail, bulk mode → toggle checkbox
+
+- **B. Bulk Actions Bar** (sticky bottom, gold gradient):
+  - Appears when items are selected in bulk mode
+  - "Ubah Status" button → Dialog with status Select + catatan Input → calls `api.changeStatus()` for each selected ID
+  - "Export CSV" button → exports selected items to CSV
+  - "Hapus" button → AlertDialog confirm → calls `api.deletePermohonan()` for each selected ID
+  - "Batalkan" button to clear selection and exit bulk mode
+  - Permission-gated: `canChangeStatus` and `canDelete` control button visibility
+
+- **C. Export Dropdown Button**:
+  - "Export" dropdown in header area (next to "Pilih" button)
+  - Options: "Export CSV (Semua)" fetches all matching records, "Export CSV (Halaman Ini)" exports current page
+  - Uses shared `buildCsv()` and `downloadCsv()` helpers
+
+- **D. Enhanced Filter Bar**:
+  - Added Priority filter Select (NORMAL/TINGGI/MENDESAK) alongside status filter
+  - Added date range quick buttons: "Hari Ini", "7 Hari", "30 Hari" (toggleable chips)
+  - Active filter count badge with `Filter` icon
+  - Priority filter included in filter chips and reset
+  - `prioritas` param passed to API (already supported in `/api/permohonan` route)
+
+- **Other improvements**:
+  - Skeleton loading cards now use `skeleton-shimmer` class
+  - CSV export logic extracted to reusable `buildCsv()` + `downloadCsv()` helpers
+  - Responsive grid updated for 4-column filter layout on large screens
+
+### API Route
+- Verified `/api/permohonan` already supports `prioritas` query param filter — no changes needed.
+
+### Lint & Dev Server
+- **Lint**: 0 errors, 0 warnings
+- **Dev server**: Compiles clean
+
+Files Modified:
+- `/src/app/globals.css` (added 10 CSS enhancement blocks A–J)
+- `/src/components/app/petugas/PermohonanList.tsx` (complete rewrite with bulk mode, export dropdown, priority filter, date range chips)
+
+---
+Task ID: 8-d
+Agent: full-stack-developer
+Task: Build Notification Center page + enhance NotificationsBell
+
+Work Log:
+- Created `/src/components/app/shared/NotificationCenter.tsx` — full-page notification management view with:
+  - SectionHeader "Pusat Notifikasi" with Bell icon + subtitle
+  - Filter bar (glass-card): type filter (INFO/SUCCESS/WARNING/DANGER), read status toggle (Semua/Belum Dibaca/Sudah Dibaca), "Tandai Semua Dibaca" gold gradient button, "Hapus Semua" button
+  - Notification list grouped by day ("Hari Ini", "Kemarin", "7 Hari Terakhir", "Lebih Lama")
+  - Each card shows: type icon with color, judul (bold), pesan, relative time, type Badge, unread indicator (3px left border), delete button on hover
+  - Read notifications slightly faded (opacity-60)
+  - Click → mark as read + navigate to related permohonan
+  - Loading skeleton, empty state with Bell icon
+  - ScrollArea with max-h-[600px]
+
+- Enhanced `/src/components/app/NotificationsBell.tsx`:
+  - Added type icon + color per notification in dropdown
+  - Added unread left border indicator (colored by type)
+  - Added unread dot indicator
+  - Added "Lihat Semua Notifikasi →" link at bottom navigating to notifikasi-center
+  - Better empty state with Bell icon
+  - Click notification → mark as read + navigate to permohonan
+
+- Updated `/src/lib/types.ts`: Added `"notifikasi-center"` to AppView union
+
+- Updated `/src/app/page.tsx`: Added NotificationCenter import and case for `"notifikasi-center"` view
+
+- Updated `/src/components/app/AppShell.tsx`:
+  - Added Bell icon import from lucide-react
+  - Added "Notifikasi" nav item with Bell icon for all roles (ADMIN, PETUGAS, ATASAN) in NAV_ITEMS
+  - Added "notifikasi-center" to Menu section filter in getSections()
+  - Added "notifikasi-center" label to VIEW_LABELS
+
+- Updated `/src/store/app-store.ts`: Added `view_notifications` case to can() (returns true for all logged-in users)
+
+- Updated `/src/app/api/notifikasi/route.ts`:
+  - Increased GET take limit from 30 to 50 for full center view
+  - Verified PATCH already supports `{ markAll: true }` and `{ id }` for single mark-read
+  - Added DELETE handler: supports `{ id }` for single delete (with ownership check) and `{ clearAll: true }` to delete all user notifications
+
+- Updated `/src/lib/api.ts`: Added `deleteNotifikasi(id)` and `clearAllNotifikasi()` API methods
+
+### Lint & Dev Server
+- **Lint**: 0 errors, 0 warnings
+- **Dev server**: Compiles clean, all routes working
+
+Files Created:
+- `/src/components/app/shared/NotificationCenter.tsx`
+
+Files Modified:
+- `/src/components/app/NotificationsBell.tsx`
+- `/src/lib/types.ts`
+- `/src/app/page.tsx`
+- `/src/components/app/AppShell.tsx`
+- `/src/store/app-store.ts`
+- `/src/app/api/notifikasi/route.ts`
+- `/src/lib/api.ts`
+
+---
+Task ID: 8
+Agent: main (cron review round)
+Task: QA assessment, AdminLTE 4 consistency, Settings Management, Notification Center, Bulk Actions, CSS enhancements
+
+## Current Project Status Assessment
+App was production-usable from Phase 7 (all core flows verified, AdminLTE 4 redesign on admin dashboard). This round focused on: (1) comprehensive QA via agent-browser + VLM, (2) AdminLTE 4 consistency for Petugas & Atasan dashboards, (3) new Settings Management page, (4) Notification Center page, (5) PermohonanList bulk actions, (6) CSS styling enhancements, (7) Admin dashboard KPI info-boxes + welcome card.
+
+## QA Results (agent-browser + VLM)
+- All API routes returning 200 (auth, dashboard, permohonan, tracking, settings, notifikasi, users, audit-log, laporan, jenis-surat, public/stats)
+- Public landing page: 8/10 (VLM)
+- Admin dashboard: 8/10 (VLM, up from 7/10)
+- KPI info-boxes: 8/10 (VLM)
+- Lint: 0 errors throughout
+- No runtime errors in dev.log
+
+## Work Completed
+
+### 1. PetugasDashboard Enhancements (Task 8-a)
+- Added date range filter chips (Hari Ini / 7 Hari / 30 Hari / Tahun Ini / Semua)
+- Pass `range` parameter to `api.dashboard(year, range)`
+- Replaced recharts `<Legend>` with custom legend below charts
+- Added AlteInfoBox widgets (Permohonan Baru, Cek Administrasi, Menunggu Persetujuan)
+- Added RecentActivityWidget at bottom
+- Added `rangeLabel` display
+
+### 2. AtasanDashboard Enhancements (Task 8-a)
+- Added date range filter chips (same pattern as AdminDashboard)
+- Pass `range` parameter to `api.dashboard(year, range)`
+- Replaced recharts `<Legend>` with custom 2-column legend grid below pie chart
+- Added percentage labels on pie chart slices
+- Added AlteInfoBox for "Lama Penyelesaian" (gold) and "Tingkat Penyelesaian" (success)
+- Added RecentActivityWidget at bottom
+
+### 3. Settings Management Page (Task 8-b)
+- **Backend**: PUT `/api/settings` with ADMIN-only access, upsert each key-value, audit trail logging
+- **Frontend**: 4-section settings page — Informasi Kelurahan, Pengaturan Sistem (toggles), Format Nomor Register (with live preview), Tampilan
+- Added `"pengaturan"` to AppView union
+- Added `manage_settings` permission (ADMIN only)
+- Added "Pengaturan" nav item in sidebar (under Manajemen section)
+
+### 4. PermohonanList Bulk Actions (Task 8-c)
+- Bulk select mode with checkboxes + "Pilih" / "Batalkan" toggle
+- Sticky bulk actions bar (gold gradient): "Ubah Status", "Export CSV", "Hapus"
+- Export dropdown: "Export CSV (Semua)" and "Export CSV (Halaman Ini)"
+- Priority filter Select (NORMAL/TINGGI/MENDESAK)
+- Date range quick chips (Hari Ini / 7 Hari / 30 Hari)
+- Active filter count badge
+
+### 5. CSS Enhancements (Task 8-c)
+- A. Glass-card hover effects (smooth shadow + transform transitions)
+- B. Info-box 4px colored left borders matching variant
+- C. SmallBox hover with translateY(-2px) + deeper shadow
+- D. Nav link transitions + gold tint hover for non-active links
+- E. Table improvements — bolder uppercase headers, refined zebra striping, gold hover
+- F. Gold focus ring on admin buttons/links
+- G. Thin 6px custom scrollbar for admin area
+- H. Badge pulse animation
+- I. Skeleton shimmer animation
+- J. Responsive content padding
+
+### 6. Notification Center Page (Task 8-d)
+- Full-page notification management with type filter, read status toggle, mark-all-read, clear-all
+- Notifications grouped by day (Hari Ini / Kemarin / 7 Hari Terakhir / Lebih Lama)
+- Each card: type icon + color, title, message, relative time, unread indicator (3px left border), delete on hover
+- Click → mark as read + navigate to related permohonan
+- Enhanced NotificationsBell: type icons + colors, unread indicator, "Lihat Semua Notifikasi →" link
+- Backend: DELETE handler for single/clearAll notifications
+- Added `"notifikasi-center"` AppView + nav item for all roles
+
+### 7. Admin Dashboard Polish
+- Welcome summary card with greeting (Selamat pagi/siang/sore/malam) + user avatar initial + 3 quick stat boxes
+- KPI Info-boxes row: Tingkat Penyelesaian (success), Rata-rata Waktu (gold), Tingkat Penolakan (danger) — each with progress bar + caption
+
+## Verification Results
+- `bun run lint`: 0 errors
+- Dev server: all routes 200, no runtime errors
+- agent-browser: public page, admin dashboard, permohonan list, settings, notification center all render correctly
+- VLM: admin dashboard 8/10, KPI info-boxes 8/10, public page 8/10
+
+## Unresolved Issues / Risks
+- Tanda Terima print output not physically tested (window.print() opens browser print dialog)
+- Reports PDF export uses popup window + window.print() — functional but basic
+- OOM risk in sandbox environment when running Chrome + Next.js simultaneously (4GB RAM)
+
+## Priority Recommendations for Next Round
+1. **Dashboard comparison charts** — year-over-year or month-over-month comparison views
+2. **Real-time notification via WebSocket** — currently poll-based only
+3. **Advanced permohonan search** — full-text search across all fields
+4. **Data export improvements** — proper PDF generation with ReportLab-style formatting
+5. **PWA manifest + service worker** for offline tracking
+6. **WhatsApp/email notification integration** (currently dashboard-only notifications)
+7. **Map integration** — show land location on map for permohonan detail
+
+---
+Task ID: 11
+Agent: main
+Task: Add random (unguessable) registration number format so nomor register cannot be easily enumerated by unauthorized parties.
+
+## Current Project Status Assessment
+Project is production-stable (Phase 8 complete: AdminLTE 4 consistency, Settings, Notifications, Bulk Actions). This round adds a security/privacy enhancement requested by the user: the registration number format was sequential (`KPII-TNH-2026-000001`) which allowed trivial enumeration — an attacker could increment the serial to scrape every applicant's data via the public tracking endpoint. Replaced with a random alphanumeric token drawn from a 30-character alphabet that excludes visually-ambiguous characters.
+
+## Work Completed
+
+### 1. Random Register Generator (`src/lib/auth.ts`)
+- Rewrote `generateNomorRegister()` to support two modes controlled by the new `register_use_random` setting:
+  - **Random mode (default, ON)**: `{PREFIX}-{YEAR}-{TOKEN}` where TOKEN is `N` random chars from a 30-char Crockford-style alphabet `ABCDEFGHJKMNPQRSTVWXYZ23456789` (excludes I, L, O, U, 0, 1). With 8 chars → keyspace ≈ 6.6 × 10¹¹ — infeasible to enumerate.
+  - **Sequential mode (legacy)**: zero-padded counter, kept for backward compat / admin choice.
+- Added `randomToken(length)` using `crypto.randomBytes` (server-side CSPRNG).
+- Added `readSettingsMap()` server-side settings reader so the generator honors admin-configured `register_prefix`, `register_digit_count`, `register_use_random`.
+- Uniqueness guaranteed via DB `findUnique` check with 12-retry loop; fallback extends token by 2 chars on (astronomically unlikely) collision.
+- Added exported `previewNomorRegister()` helper for non-DB preview contexts.
+- Token length clamped to 4–16 to prevent misconfiguration.
+
+### 2. Settings UI (`src/components/app/admin/SettingsManagement.tsx`)
+- New `register_use_random` setting (default `"true"`) added to DEFAULTS + REGISTER_FIELDS as a switch labeled "Mode Acak (Anti-Tebak)".
+- Updated `register_digit_count` default `6 → 8`, description clarified (now "Panjang Token / Serial", explains it controls token length in random mode / serial digits in sequential mode).
+- Added `ShieldCheck` + `Shuffle` icons.
+- Preview now generates a live random sample (client-side `Math.random` over the same 30-char alphabet) when random mode is on; shows sequential `00000001` when off.
+- Added mode badge in preview: green "Mode Acak Aktif" (ShieldCheck) vs amber "Mode Berurutan" (Shuffle).
+- Format label dynamically switches between `{PREFIX}-TAHUN-TOKEN_ACAK` (with anti-tebak note) and `{PREFIX}-TAHUN-SERIAL` (with privacy warning).
+- Wrapped preview in `useMemo` for performance.
+
+### 3. Seed Script (`scripts/seed.ts`)
+- Replaced 5 sequential sample registers (`000001`–`000005`) with random-format equivalents: `XK7M2P9Q`, `RB4F8NKW`, `QH3JY6MT`, `WP9XK2D7`, `TV5GR4HN`.
+- Added seed entries for `register_prefix`, `register_digit_count=8`, `register_use_random=true` (upsert with `update: {}` so existing values are preserved).
+- Re-ran seed → 5 new random-format permohonan added to DB alongside the existing 6 sequential ones (now 11 total, both formats coexist for backward compatibility).
+
+### 4. Public-Facing Copy Updates
+- `PublicTracking.tsx`: placeholder updated `KPII-TNH-2026-000001` → `KPII-TNH-2026-XK7M2P9Q`; "Coba:" example chips updated to the 3 new random-format registers.
+- `PublicSections.tsx` FAQ: tracking answer now shows random-format example + added privacy note: "Nomor register menggunakan format acak agar tidak dapat ditebak orang lain — jaga kerahasiaan nomor register Anda."
+
+## Verification Results
+- `bun run lint`: **0 errors**
+- Dev server: all routes 200, no runtime errors in `dev.log`
+- **Generator unit test** (direct call, 8 samples): all match `^KPII-TNH-2026-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{8}$`, all unique, no ambiguous chars (0/1/I/L/O/U) present ✓
+- **agent-browser QA**:
+  - Settings page: "Mode Acak (Anti-Tebak)" toggle visible, "Mode Acak Aktif" green badge shown, preview sample `KPII-TNH-2026-J4CNPP6C` (8-char, no ambiguous) ✓
+  - Permohonan list: 5 random-format + 5 sequential records both visible ✓
+  - Public tracking API `GET /api/tracking/KPII-TNH-2026-XK7M2P9Q` → 200, returns correct pemohon (Suparman, PENGUKURAN, 7 stages, 3 riwayat) ✓
+  - Anti-enumeration: `GET /api/tracking/KPII-TNH-2026-000007` (wrong guess) → 404 ✓
+- Backward compatibility: existing sequential registers (000001–000006) still track correctly — no data migration needed.
+
+## Unresolved Issues / Risks
+- The 6 legacy sequential records (000001–000006) remain in the DB. They are still guessable. If full anti-enumeration is required for historical data, an admin could manually re-register them (or a future migration could reassign). New registrations are all random.
+- The `register_digit_count` setting's stored DB value may still be `"6"` if it was set previously; the generator clamps to min 4 and the Settings UI shows the effective value. Admin should bump to 8 via the Settings page for stronger keyspace.
+- Public tracking still allows unlimited 404 probes (no rate-limiting). An attacker gains nothing (404 = no data leak), but a future hardening step could add rate-limiting on `/api/tracking/[registerNumber]` to deter brute-force probing.
+
+## Priority Recommendations for Next Round
+1. **Rate-limit the public tracking endpoint** (e.g., 20 requests/min/IP) to further deter brute-force token guessing.
+2. **Add a "Regenerate preview" shuffle button** in Settings so admins can see multiple random samples before saving.
+3. **Optional: migrate legacy sequential registers** to random format with a redirect/alias table (low priority — only if historical privacy is a concern).
+4. **Add register-format validator** on the public tracking input (regex hint) to give immediate user feedback before submit.
+5. Continue with previously-queued features: dashboard comparison charts, WebSocket notifications, advanced search, PDF export polish, PWA, WhatsApp/email integration, map integration.
+
+---
+Task ID: 12
+Agent: main
+Task: Add multi-upload feature for KTP/KK photos (pemohon) and all land boundary photos (batas tanah). Replace single-file upload with categorized multi-file upload zones.
+
+## Current Project Status Assessment
+Project was stable after Task 11 (random register format). User requested multi-upload for: (1) Foto KTP and KK for pemohon, (2) photos for all 4 land boundaries (Utara, Selatan, Timur, Barat). The old upload UI was single-file only with a dropdown for jenis dokumen. Replaced with a modern categorized multi-upload system featuring drag-and-drop, image thumbnails, per-file upload progress, and batch API.
+
+## Work Completed
+
+### 1. New Document Types & Categories (`src/lib/constants.ts`)
+- Added 4 new jenis dokumen for boundary photos: `FOTO_BATAS_UTARA`, `FOTO_BATAS_SELATAN`, `FOTO_BATAS_TIMUR`, `FOTO_BATAS_BARAT`
+- Extended `JENIS_DOKUMEN` with `kategori` (PEMOHON | TANAH | BATAS | LAINNYA), `multi` (bool), `accept` (HTML accept attr) fields
+- Added `DOKUMEN_BY_KATEGORI` helper map and `KATEGORI_DOKUMEN` metadata array (label, deskripsi, warna) for UI grouping
+- Total jenis: 11 (3 Pemohon, 3 Tanah, 4 Batas, 1 Lainnya)
+
+### 2. Batch Upload API (`src/app/api/permohonan/[id]/dokumen/route.ts`)
+- Updated POST handler to accept both single (`file`) and multiple (`files[]`) files — backward compatible
+- Per-file 10MB validation, unique filename with random suffix to prevent collision
+- Returns `{ dokumen, count, total, errors? }` for batch; `{ dokumen }` (single object) for single-file backward compat
+- Single audit log entry for entire batch
+- Errors collected per-file (doesn't abort entire batch)
+
+### 3. API Client Method (`src/lib/api.ts`)
+- Added `uploadDokumenBatch(id, files[], jenisDokumen)` — builds FormData with multiple `files` entries
+
+### 4. Reusable MultiUploadZone Component (`src/components/app/shared/MultiUploadZone.tsx`)
+- Drag-and-drop zone with click-to-select fallback
+- File queue with per-item status (pending → uploading → done/error)
+- Image thumbnail previews (using `URL.createObjectURL`)
+- "Unggah N File" button triggers batch upload
+- Uploaded files displayed as responsive thumbnail grid with hover-to-delete
+- Per-zone accent color theming
+- Object URL cleanup on unmount
+- File size validation (10MB) with toast error
+- Success/error toast notifications
+
+### 5. PermohonanDetail Dokumen Tab Redesign (`src/components/app/shared/PermohonanDetail.tsx`)
+- Replaced single-file upload UI with 4 categorized cards (Pemohon/Tanah/Batas/Lainnya)
+- Summary bar at top: total count, foto count, PDF count, per-category badges
+- Each category card contains a 2-column grid of MultiUploadZone instances per jenis dokumen
+- Category icons: IdCard (Pemohon), Home (Tanah), Compass (Batas), Paperclip (Lainnya)
+- Each jenis shows label, "(multi)" tag, file count badge
+- Removed unused upload state (`uploadJenis`, `uploadFile`, `uploading`, `fileInputRef`) and handlers (`handleUpload`, `handleDeleteDok`) — MultiUploadZone manages its own state
+- Added `mimeType` to DokumenItem interface
+- Added imports: `DOKUMEN_BY_KATEGORI`, `KATEGORI_DOKUMEN`, `MultiUploadZone`, new lucide icons
+
+### 6. PermohonanForm Info Banner (`src/components/app/petugas/PermohonanForm.tsx`)
+- Added informational card "Unggah Dokumen Setelah Pendaftaran" with Multi-Upload badge
+- 3 colored info boxes explaining what can be uploaded post-creation:
+  - Dokumen Pemohon (KTP + KK multi, Surat Pernyataan)
+  - Dokumen Tanah (SPPT PBB, Bukti Penguasaan, Foto Lokasi)
+  - Foto Batas Tanah (multi per batas: Utara, Selatan, Timur, Barat)
+- Added `Upload`, `Info` icons
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: running clean, no runtime errors
+- **agent-browser QA**:
+  - PermohonanDetail Dokumen tab: all 4 categories render ✓
+  - All 11 multi-upload zones present (3+3+4+1) ✓
+  - 11 `input[type=file]ultiple]` elements ✓
+  - Summary bar shows "Total Dokumen Terunggah" with category breakdowns ✓
+  - All 4 batas foto zones (Utara/Selatan/Timur/Barat) visible ✓
+  - KTP and KK zones in Pemohon category ✓
+  - Drag-and-drop zones with "Tarik & lepas" hint ✓
+  - PermohonanForm info banner with all 3 category boxes ✓
+- **Batch upload API test**: uploaded `ktp-test.png` → POST returned **201**, file saved to DB with correct `jenisDokumen=KTP`, `mimeType=image/png`, `ukuran=70` ✓ (test files cleaned up after verification)
+- Backward compatibility: existing single-file `uploadDokumen` API still works (same endpoint, different field name)
+
+## Unresolved Issues / Risks
+- File previews use `URL.createObjectURL` which holds memory until revoked — cleaned up on unmount and after upload, but large multi-file selections could spike memory briefly
+- No file-type validation on the client side (only accept attr hint); server validates size but not MIME type — a future hardening step could validate actual MIME via file magic bytes
+- Upload directory is `public/uploads/permohonan/{id}/` — files are publicly accessible via URL; for sensitive docs (KTP/KK) consider moving to a non-public path with a streaming download endpoint
+- No total-permohonan size quota — an attacker with upload access could fill disk; consider a per-permohonan size limit
+
+## Priority Recommendations for Next Round
+1. **Server-side MIME validation** — validate actual file type via magic bytes, not just extension
+2. **Move uploads out of public/** — serve via authenticated streaming endpoint for privacy
+3. **Per-permohonan storage quota** — e.g., 100MB max total
+4. **Image resize/compress on upload** — large photos from phones could be 5-10MB each
+5. **Document viewer modal** — lightbox to preview images/PDFs without leaving the page
+6. **Bulk download as ZIP** — download all documents for a permohonan in one click
+7. Continue with previously-queued features from Task 11 recommendations
+
+---
+Task ID: 13
+Agent: main
+Task: Add logo, favicon, and other branding media upload feature. Admin can upload custom logo, favicon, PWA icons (192 & 512), login background, and hero banner — all configurable from the Settings page.
+
+## Current Project Status Assessment
+Project was stable after Task 12 (multi-upload KTP/KK and boundary photos). User requested a new branding/media upload feature. Previously, the logo was hardcoded as inline SVG, the favicon pointed to a static `/logo.svg`, and the PWA manifest was a static JSON file. This round adds a full branding asset management system: dedicated upload API, dynamic PWA manifest, reactive Zustand store, a reusable uploader component, and a new "Branding & Media" section in Settings with 6 categorized upload cards.
+
+## Work Completed
+
+### 1. Branding Upload API (`src/app/api/settings/branding/route.ts`)
+- **GET**: returns current branding settings + spec for each asset type
+- **POST** (`multipart/form-data` with `type` + `file`): saves file to `/public/branding/<type>-<8char-hash>.<ext>`, deletes previous file, upserts settings key, writes audit log, returns updated branding map
+- **DELETE** (`?type=...`): removes file from disk, clears settings key, writes audit log
+- 6 asset types defined with type-specific MIME whitelist and size limits:
+  - `logo` (SVG/PNG/JPG/WebP/GIF, 2MB) → `branding_logo_url`
+  - `favicon` (ICO/PNG/SVG/etc, 1MB) → `branding_favicon_url`
+  - `app_icon_192` (PNG/JPG/WebP, 1MB) → `branding_app_icon_192_url`
+  - `app_icon_512` (PNG/JPG/WebP, 2MB) → `branding_app_icon_512_url`
+  - `login_bg` (PNG/JPG/WebP, 5MB) → `branding_login_bg_url`
+  - `hero_banner` (PNG/JPG/WebP, 5MB) → `branding_hero_banner_url`
+- Auth: ADMIN-only for POST/DELETE; GET is public (so client can preload branding)
+- File names use `crypto.randomBytes(6)` for hash, ext derived from MIME or original filename
+- Previous file auto-deleted on re-upload (no orphaned files)
+
+### 2. Dynamic PWA Manifest Endpoint (`src/app/api/manifest/route.ts`)
+- Replaces static `/manifest.json` reference in `layout.tsx`
+- Returns manifest JSON with `name`, `short_name`, `description` driven by `app_name`/`app_subtitle` settings
+- Icons array uses `branding_app_icon_192_url` / `branding_app_icon_512_url` if set, else falls back to `/logo.svg`
+- Includes `any` + `maskable` purpose entries for proper Android adaptive icon support
+- Sends `Cache-Control: no-cache, no-store, must-revalidate` so changes show immediately
+
+### 3. Dynamic Metadata in `src/app/layout.tsx`
+- Converted to `async` server component using `generateMetadata()` for dynamic title/description/icons/manifest
+- Reads branding settings from Prisma on each request (server-side, no client flash)
+- `<head>` now injects:
+  - `<link rel="manifest" href="/api/manifest">` (dynamic)
+  - `<link rel="icon" href="{favicon or logo or /logo.svg}">` (dynamic)
+  - `<link rel="apple-touch-icon" href="{app_icon_192 or logo}">` (dynamic)
+  - `<meta name="application-name" content="{appName}">` (dynamic)
+  - `<meta name="theme-color" content="#d4af37">` (static)
+- Also exports `viewport` export with `themeColor` (Next.js 16 best practice)
+- `openGraph.images` and `twitter.images` use `app_icon_512_url` when available
+
+### 4. Reusable BrandingUploader Component (`src/components/app/shared/BrandingUploader.tsx`)
+- Drag-and-drop zone with click-to-select fallback
+- Live preview thumbnail of currently uploaded asset
+- Per-card states: idle, drag-over, uploading (with spinner + filename), has-asset (with "Ganti" hover overlay)
+- File type & size validation on client (matches server specs) with toast error
+- Upload button + delete button (with confirm dialog)
+- Recommended specs hint shown below preview (recommendation, max size, accepted MIME)
+- "Aktif" green badge when an asset is set
+- Color-coded placeholder icon backgrounds per asset type (gold/amber/blue/emerald/purple/rose)
+- Keyboard accessible (Enter/Space triggers file picker)
+- Calls `onChange(updatedBranding)` prop so parent (SettingsManagement) syncs to global Zustand store
+
+### 5. Settings UI: New "Branding & Media" Section (`SettingsManagement.tsx`)
+- New Section 5 at bottom of Settings page, after "Tampilan" section
+- Section header with `Palette` icon, descriptive subtitle, and a "Muat Ulang" (reload) button
+- **Live preview header**: shows current logo + app name + app subtitle rendered exactly as it appears in the sidebar; green "Logo kustom aktif" badge when logo uploaded, amber "Menggunakan logo default" otherwise
+- **Asset grid** (1 col mobile / 2 col sm / 3 col lg): all 6 `BrandingUploader` cards in responsive grid
+- **PWA manifest info box** (blue) explaining `/api/manifest` is dynamic and PWA icons auto-applied
+- **Favicon info box** (amber) advising user to refresh browser (Ctrl+R) after favicon upload due to browser cache
+- Loads branding via `api.getBranding()` in parallel with `api.settings()` on mount
+- `handleBrandingChange` callback updates both local state and global Zustand `setBranding()` so all Logo usages (sidebar, navbar, footer, login modal, public page) update reactively without page reload
+- `setAppName()` also synced to store on save
+
+### 6. Reactive Branding in Zustand Store (`src/store/app-store.ts`)
+- Added `branding: Record<string, string>`, `appName: string`, `appSubtitle: string` to store state
+- Added `setBranding(b)`, `setAppName(name, subtitle?)` actions
+- Defaults: `appName = "SI-TRACK TANAH"`, `appSubtitle = "Kelurahan Kuala Pembuang II"`
+
+### 7. Logo Component (`src/components/app/Logo.tsx`)
+- `Logo` now accepts optional `src` prop — renders `<img>` when set, falls back to inline SVG brand mark
+- `LogoFull` accepts `src`, `appName`, `appSubtitle` props
+- Image uses `object-contain` to preserve aspect ratio at any size
+- Alt text defaults to "Logo" or the provided `alt`
+
+### 8. AppShell Updates (`src/components/app/AppShell.tsx`)
+- Pulls `branding`, `appName`, `appSubtitle` from `useAppStore`
+- `SidebarContent` accepts `logoUrl`, `appName`, `appSubtitle` props — renders dynamic logo + name in brand-link
+- `AdminFooter` accepts `appName` prop — uses dynamic app name in copyright
+- Public header (when not logged in) uses `<LogoFull src={branding.branding_logo_url} appName={appName} appSubtitle={appSubtitle} />`
+- Mobile mini-brand in top navbar uses dynamic logo + name
+- All three Logo usages (sidebar, mobile sidebar, navbar-mini) now pass `src={branding.branding_logo_url}`
+
+### 9. PublicTracking (`src/components/app/PublicTracking.tsx`)
+- Pulls `branding` + `appName` from store
+- **New: optional hero banner section** — when `branding_hero_banner_url` is set, renders a beautiful banner between the hero text and search card with:
+  - Responsive heights (180/260/320px on mobile/sm/md)
+  - Gradient overlay (navy → transparent) for text legibility
+  - Overlay text with app name + tagline ("Pelayanan Publik Transparan & Akuntabel")
+  - Rounded corners + gold border + shadow
+- Falls back to no banner when not uploaded (current default state)
+
+### 10. LoginModal (`src/components/app/LoginModal.tsx`)
+- Pulls branding + appName + appSubtitle from store
+- Logo in dialog header uses dynamic `src`
+- Dialog title uses `Login {appName}` (e.g., "Login SI-TRACK TANAH")
+- App subtitle shown as muted caption under description
+- **Optional login background image**: when `branding_login_bg_url` is set, renders an absolutely-positioned `<div>` with `background-image` at 25% opacity behind the form (subtle branding touch)
+
+### 11. Footer (`src/components/app/Footer.tsx`)
+- Pulls branding + appName from store
+- Logo in footer uses dynamic `src`
+- Bottom copyright uses dynamic appName instead of hardcoded "SI-TRACK TANAH"
+
+### 12. API Client (`src/lib/api.ts`)
+- `getBranding()` → GET `/api/settings/branding`
+- `uploadBranding(type, file)` → POST `/api/settings/branding` with FormData
+- `deleteBranding(type)` → DELETE `/api/settings/branding?type=...`
+- All return the updated branding map for immediate store sync
+
+### 13. Page Bootstrapping (`src/app/page.tsx`)
+- On mount, fires `api.me()`, `api.settings()`, `api.getBranding()` in parallel (using `Promise.all` with `.catch` on branding so a failure doesn't block app load)
+- Sets user, app name, and branding into the global store before first paint
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile, no runtime errors
+- **API endpoint tests** (curl):
+  - `GET /api/manifest` → 200, returns valid manifest JSON with default `/logo.svg` icons
+  - `GET /api/settings/branding` → 200, returns empty branding map + spec definitions
+  - `POST /api/settings/branding` (admin, valid SVG) → 200, file saved as `/branding/logo-68f714b18da1.svg`, settings key set, audit log written
+  - `POST /api/settings/branding` (admin, 3MB PNG to logo[2MB max]) → 400, "Ukuran file melebihi batas 2MB (ukuran: 3.00MB)"
+  - `POST /api/settings/branding` (admin, PDF to logo[image-only]) → 400, "Tipe file tidak didukung untuk logo. Diterima: image/svg+xml,image/png,..."
+  - `POST /api/settings/branding` (no auth) → 403, "Akses ditolak. Hanya ADMIN..."
+  - `POST /api/settings/branding` (petugas role) → 403, "Akses ditolak. Hanya ADMIN..."
+  - `DELETE /api/settings/branding?type=logo` (admin) → 200, file removed from disk, settings cleared
+- **agent-browser QA**:
+  - Public page renders with default inline SVG logo ✓
+  - Login modal: title "Login SI-TRACK TANAH", subtitle "Kelurahan Kuala Pembuang II" ✓
+  - After admin login: sidebar shows "SI-TRACK TANAH" + "KELURAHAN KUALA PEMBUANG II" ✓

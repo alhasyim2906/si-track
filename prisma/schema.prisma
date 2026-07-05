@@ -126,6 +126,12 @@ model Dokumen {
   filePath      String
   ukuran        Int?
   mimeType      String?
+  // Who uploaded: PETUGAS (via admin dashboard) or PEMOHON (via public tracking page during REVISI)
+  uploadedBy    String   @default("PETUGAS") // PETUGAS | PEMOHON
+  // True when this document was uploaded by the pemohon as part of a revision request
+  isRevisionUpload Boolean @default(false)
+  // Optional catatan from pemohon when uploading revision docs
+  catatanPemohon String?
   createdAt     DateTime @default(now())
 
   permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)

@@ -5,6 +5,7 @@ import { useAppStore } from "@/store/app-store";
 import { STATUS_BY_KODE } from "@/lib/constants";
 import { Timeline, ProgressBar } from "./Timeline";
 import { StatusBadge, PriorityBadge } from "./StatusBadge";
+import { RevisionUploadCard } from "./RevisionUploadCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -54,6 +55,16 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
     e.preventDefault();
     doSearch(query);
   };
+
+  const refreshResult = useCallback(async () => {
+    if (!result) return;
+    try {
+      const r = await api.track(result.nomorRegister);
+      setResult(r);
+    } catch (e: any) {
+      // silent refresh; keep current result
+    }
+  }, [result]);
 
   return (
     <div className="relative">
@@ -187,7 +198,7 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
           </>
         )}
 
-        {!loading && !error && result && <TrackingResultView result={result} />}
+        {!loading && !error && result && <TrackingResultView result={result} onRefresh={refreshResult} />}
       </section>
     </div>
   );
@@ -253,7 +264,7 @@ function EmptyState({ onLoginClick }: { onLoginClick?: () => void }) {
   );
 }
 
-function TrackingResultView({ result }: { result: TrackingResult }) {
+function TrackingResultView({ result, onRefresh }: { result: TrackingResult; onRefresh?: () => void }) {
   const def = STATUS_BY_KODE[result.statusSaatIni];
   const isRejected = result.statusSaatIni === "DITOLAK";
   const isRevision = result.statusSaatIni === "REVISI";
@@ -326,6 +337,17 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Revision upload section — only shown when status is REVISI */}
+      {isRevision && (
+        <RevisionUploadCard
+          registerNumber={result.nomorRegister}
+          pemohonNama={result.pemohonNama}
+          catatanPerbaikan={result.catatan}
+          initialDocs={result.revisiDokumen || []}
+          onRefresh={onRefresh}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Timeline */}

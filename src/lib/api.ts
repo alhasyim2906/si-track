@@ -26,6 +26,18 @@ export const api = {
 
   // tracking (public)
   track: (reg: string) => req<any>(`/api/tracking/${encodeURIComponent(reg)}`),
+  // public revision upload (no auth) — pemohon uploads docs when status = REVISI
+  publicRevisiUpload: (registerNumber: string, formData: FormData) =>
+    req<{
+      ok: boolean;
+      count: number;
+      total: number;
+      dokumen: any[];
+      errors?: { namaFile: string; error: string }[];
+    }>(`/api/tracking/${encodeURIComponent(registerNumber)}/revisi-upload`, {
+      method: "POST",
+      body: formData,
+    }),
 
   // permohonan
   listPermohonan: (params: Record<string, string | undefined> = {}) => {

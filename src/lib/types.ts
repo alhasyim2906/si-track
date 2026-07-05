@@ -67,6 +67,23 @@ export interface TrackingResult {
   riwayat: RiwayatItem[];
   dokumenCount: number;
   dokumen: { id: string; jenisDokumen: string; namaFile: string; createdAt: string }[];
+  // Revision docs uploaded by pemohon via public tracking page
+  revisiDokumen?: RevisiDokumenItem[];
+  revisiDokumenCount?: number;
+  revisiUploadEnabled?: boolean;
+}
+
+export interface RevisiDokumenItem {
+  id: string;
+  jenisDokumen: string;
+  namaFile: string;
+  filePath: string;
+  ukuran: number | null;
+  mimeType: string | null;
+  uploadedBy: string;
+  isRevisionUpload: boolean;
+  catatanPemohon: string | null;
+  createdAt: string;
 }
 
 export interface DashboardStats {

@@ -39,7 +39,7 @@ import {
   ChevronRight, FileCheck, FileWarning, Files, MessageSquare,
   Phone, MapPinned, Tag, Gauge, ScanLine, FileType2, Printer,
   ChevronDown, FileImage, IdCard, Home, Compass, Paperclip,
-  Mail, Send, Bell,
+  Mail, Send, Bell, Inbox, UserRound, FileCheck2,
 } from "lucide-react";
 import { TandaTerima } from "@/components/app/shared/TandaTerima";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -53,6 +53,9 @@ interface DokumenItem {
   filePath?: string;
   ukuran?: number;
   mimeType?: string | null;
+  uploadedBy?: string; // PETUGAS | PEMOHON
+  isRevisionUpload?: boolean;
+  catatanPemohon?: string | null;
   createdAt: string;
 }
 
@@ -971,6 +974,22 @@ export function PermohonanDetail() {
             </CardContent>
           </Card>
 
+          {/* Pemohon revision uploads — only shown when there are docs uploaded by pemohon via public tracking */}
+          {p.dokumen.some((d) => d.isRevisionUpload) && (
+            <RevisionUploadsPanel
+              docs={p.dokumen.filter((d) => d.isRevisionUpload)}
+              isRevisi={p.statusSaatIni === "REVISI"}
+              onRestore={() =>
+                handleChangeStatus(
+                  { statusKode: "CEK_ADMIN", catatan: "Dokumen revisi pemohon diterima, melanjutkan proses" },
+                  "restore",
+                  "Permohonan dikembalikan ke proses setelah verifikasi unggahan pemohon"
+                )
+              }
+              actionLoading={actionLoading}
+            />
+          )}
+
           {/* Categorized multi-upload zones */}
           {KATEGORI_DOKUMEN.map((kat) => {
             const jenisInKat = DOKUMEN_BY_KATEGORI[kat.kode] || [];
@@ -1539,6 +1558,159 @@ export function PermohonanDetail() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/* ============================================================
+   RevisionUploadsPanel
+   Shown in the Dokumen tab of PermohonanDetail when pemohon has
+   uploaded revision docs via the public tracking page. Lets
+   petugas see what was uploaded, preview/download files, and
+   verify → continue the process (REVISI -> CEK_ADMIN).
+   ============================================================ */
+function RevisionUploadsPanel({
+  docs,
+  isRevisi,
+  onRestore,
+  actionLoading,
+}: {
+  docs: DokumenItem[];
+  isRevisi: boolean;
+  onRestore: () => void;
+  actionLoading: string | null;
+}) {
+  // Group revision docs by jenisDokumen for nicer display
+  const grouped = docs.reduce<Record<string, DokumenItem[]>>((acc, d) => {
+    (acc[d.jenisDokumen] ||= []).push(d);
+    return acc;
+  }, {});
+
+  // Collect any catatan from pemohon (most recent)
+  const latestCatatan = docs.find((d) => d.catatanPemohon)?.catatanPemohon || null;
+  const latestUploadDate = docs[0]?.createdAt;
+
+  return (
+    <Card className="glass-card border-orange-500/30 overflow-hidden">
+      <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-yellow-300" />
+      <CardContent className="p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div className="flex items-start gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-orange-500/15 border border-orange-500/40 flex items-center justify-center shrink-0">
+              <Inbox className="w-4.5 h-4.5 text-orange-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-sm flex items-center gap-2 flex-wrap">
+                Unggahan Revisi Pemohon
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-orange-500/40 text-orange-600 bg-orange-500/10">
+                  {docs.length} file
+                </Badge>
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                <UserRound className="w-3 h-3" />
+                Diunggah oleh pemohon melalui halaman pelacakan publik
+                {latestUploadDate && (
+                  <>
+                    <span className="text-muted-foreground/50">·</span>
+                    <span>{new Date(latestUploadDate).toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                  </>
+                )}
+              </p>
+            </div>
+          </div>
+          {isRevisi && (
+            <Button
+              size="sm"
+              onClick={onRestore}
+              disabled={actionLoading !== null}
+              className="bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:opacity-90 border-0"
+            >
+              {actionLoading === "restore" ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <FileCheck2 className="w-3.5 h-3.5 mr-1.5" />
+              )}
+              Verifikasi & Lanjutkan Proses
+            </Button>
+          )}
+        </div>
+
+        {latestCatatan && (
+          <div className="rounded-lg border border-orange-500/30 bg-orange-500/5 p-2.5 mb-3">
+            <p className="text-[11px] font-semibold text-orange-700 dark:text-orange-300 mb-0.5 flex items-center gap-1.5">
+              <MessageSquare className="w-3 h-3" /> Catatan Pemohon
+            </p>
+            <p className="text-xs text-foreground/90 italic">{latestCatatan}</p>
+          </div>
+        )}
+
+        <div className="space-y-3 max-h-96 overflow-y-auto pr-1 notif-scroll">
+          {Object.entries(grouped).map(([jenisKode, items]) => {
+            const jd = JENIS_DOKUMEN.find((j) => j.kode === jenisKode);
+            return (
+              <div key={jenisKode}>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <FileText className="w-3 h-3" />
+                  {jd?.nama || jenisKode}
+                  <span className="text-muted-foreground/60">·</span>
+                  <span>{items.length} file</span>
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {items.map((d) => {
+                    const img = (d.mimeType || "").startsWith("image") || (d.filePath && /\.(jpg|jpeg|png|gif|webp)$/i.test(d.filePath));
+                    return (
+                      <a
+                        key={d.id}
+                        href={d.filePath || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative rounded-lg overflow-hidden border border-border/50 bg-secondary/30 hover:border-orange-500/50 transition-colors"
+                        title={d.namaFile}
+                      >
+                        <div className="aspect-square bg-background flex items-center justify-center overflow-hidden">
+                          {img && d.filePath ? (
+                            <img
+                              src={d.filePath}
+                              alt={d.namaFile}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <FileText className="w-6 h-6 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="p-1.5">
+                          <p className="text-[10px] font-medium truncate">{d.namaFile}</p>
+                          <p className="text-[9px] text-muted-foreground">
+                            {formatBytes(d.ukuran)} · {new Date(d.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })}
+                          </p>
+                        </div>
+                        <div className="absolute top-1 left-1">
+                          <Badge variant="outline" className="text-[8px] px-1 py-0 bg-orange-500/15 border-orange-500/40 text-orange-600 dark:text-orange-300">
+                            Pemohon
+                          </Badge>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {isRevisi && (
+          <div className="mt-3 rounded-lg border border-orange-500/20 bg-orange-500/5 p-2.5 text-[11px] text-foreground/70 flex items-start gap-2">
+            <AlertCircle className="w-3.5 h-3.5 text-orange-500 mt-0.5 shrink-0" />
+            <p>
+              Setelah memverifikasi dokumen yang diunggah pemohon, klik{" "}
+              <span className="font-semibold text-foreground">Verifikasi &amp; Lanjutkan Proses</span>{" "}
+              untuk mengembalikan permohonan ke tahap <span className="font-semibold">Cek Administrasi</span>.
+              Pastikan semua dokumen yang diminta sudah lengkap dan valid.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
