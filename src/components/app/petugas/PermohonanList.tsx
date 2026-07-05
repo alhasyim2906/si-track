@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import {
   PlusCircle, Search, FileText, ChevronLeft, ChevronRight,
   Inbox, Loader2, Eye, Hash, User, Calendar, Files, MessageSquare,
-  Download, X, CheckSquare,
+  Download, X, CheckSquare, CalendarRange,
 } from "lucide-react";
 
 const PER_PAGE_OPTIONS = ["10", "20", "50"];
@@ -52,6 +52,10 @@ export function PermohonanList() {
   const [limit, setLimit] = useState<string>("10");
   const [page, setPage] = useState(1);
 
+  // advanced date-range filter (YYYY-MM-DD or empty)
+  const [dariTanggal, setDariTanggal] = useState<string>("");
+  const [sampaiTanggal, setSampaiTanggal] = useState<string>("");
+
   // bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -73,6 +77,8 @@ export function PermohonanList() {
         status: status && status !== "ALL" ? status : undefined,
         page: String(page),
         limit,
+        dariTanggal: dariTanggal || undefined,
+        sampaiTanggal: sampaiTanggal || undefined,
       };
       const r = await api.listPermohonan(params);
       setItems(r.items || []);
@@ -85,13 +91,39 @@ export function PermohonanList() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedQ, status, page, limit]);
+  }, [debouncedQ, status, page, limit, dariTanggal, sampaiTanggal]);
 
   useEffect(() => {
     fetchList();
   }, [fetchList]);
 
   const totalPages = Math.max(1, Math.ceil(total / Number(limit || 10)));
+
+  // Helper to format a YYYY-MM-DD date string into a localized short date.
+  const formatDateShort = (d: string): string => {
+    if (!d) return "";
+    try {
+      return new Date(`${d}T00:00:00`).toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return d;
+    }
+  };
+
+  const hasDateRange = !!(dariTanggal || sampaiTanggal);
+  const hasAnyFilter = !!(debouncedQ || (status && status !== "ALL") || hasDateRange);
+
+  const resetAllFilters = () => {
+    setQ("");
+    setDebouncedQ("");
+    setStatus("ALL");
+    setDariTanggal("");
+    setSampaiTanggal("");
+    setPage(1);
+  };
 
   // ---- bulk selection helpers ----
   const allOnPageSelected = items.length > 0 && items.every((it) => selectedIds.has(it.id));
@@ -168,7 +200,7 @@ export function PermohonanList() {
           canCreate ? (
             <Button
               onClick={() => setView("permohonan-baru")}
-              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+              className="alte-btn-primary font-semibold"
             >
               <PlusCircle className="w-4 h-4" /> Daftar Baru
             </Button>
@@ -213,8 +245,56 @@ export function PermohonanList() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Advanced date-range filter */}
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <div className="space-y-1.5">
+              <label
+                htmlFor="dariTanggal"
+                className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"
+              >
+                <CalendarRange className="w-3 h-3" /> Dari Tanggal
+              </label>
+              <Input
+                id="dariTanggal"
+                type="date"
+                value={dariTanggal}
+                onChange={(e) => { setDariTanggal(e.target.value); setPage(1); }}
+                className="w-full"
+                max={sampaiTanggal || undefined}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label
+                htmlFor="sampaiTanggal"
+                className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"
+              >
+                <Calendar className="w-3 h-3" /> Sampai Tanggal
+              </label>
+              <Input
+                id="sampaiTanggal"
+                type="date"
+                value={sampaiTanggal}
+                onChange={(e) => { setSampaiTanggal(e.target.value); setPage(1); }}
+                className="w-full"
+                min={dariTanggal || undefined}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!hasDateRange}
+              onClick={() => { setDariTanggal(""); setSampaiTanggal(""); setPage(1); }}
+              className="h-9"
+              title="Reset rentang tanggal"
+            >
+              <X className="w-3.5 h-3.5" /> Reset Tanggal
+            </Button>
+          </div>
+
           {/* active filter chips */}
-          {(debouncedQ || (status && status !== "ALL")) && (
+          {hasAnyFilter && (
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <span className="text-xs text-muted-foreground">Filter aktif:</span>
               {debouncedQ && (
@@ -227,13 +307,23 @@ export function PermohonanList() {
                   {STATUS_DEFINITIONS.find((s) => s.kode === status)?.nama || status}
                 </Badge>
               )}
+              {dariTanggal && (
+                <Badge variant="outline" className="text-[11px] border-primary/30 bg-primary/5">
+                  Dari: {formatDateShort(dariTanggal)}
+                </Badge>
+              )}
+              {sampaiTanggal && (
+                <Badge variant="outline" className="text-[11px] border-primary/30 bg-primary/5">
+                  Sampai: {formatDateShort(sampaiTanggal)}
+                </Badge>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
                 className="h-6 text-xs px-2"
-                onClick={() => { setQ(""); setDebouncedQ(""); setStatus("ALL"); setPage(1); }}
+                onClick={resetAllFilters}
               >
-                Reset
+                Reset Semua
               </Button>
             </div>
           )}

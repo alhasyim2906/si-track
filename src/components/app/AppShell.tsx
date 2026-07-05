@@ -348,7 +348,7 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
 
       {/* Mobile sidebar via Sheet */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-72 p-0 bg-[#1a2332] border-r border-white/10">
+        <SheetContent side="left" className="w-72 p-0 bg-[#1e2a3a] border-r border-white/10">
           <SheetHeader className="sr-only">
             <SheetTitle>Menu Navigasi</SheetTitle>
           </SheetHeader>

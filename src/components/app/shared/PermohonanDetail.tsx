@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { TandaTerima } from "@/components/app/shared/TandaTerima";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AlteInfoBox } from "@/components/app/AlteInfoBox";
 
 interface DokumenItem {
   id: string;
@@ -440,11 +441,51 @@ export function PermohonanDetail() {
   const isTtdLurah = p.statusSaatIni === "TTD_LURAH";
   const isTtdCamat = p.statusSaatIni === "TTD_CAMAT";
 
+  // Derived values for AdminLTE info-box widgets on the page header
+  const stageProgress =
+    stages.length > 0
+      ? Math.round(((Math.min(safeCurrentIndex + 1, stages.length)) / stages.length) * 100)
+      : 0;
+  // Days since the permohonan was created — if already selesai, count up to tanggalSelesai
+  const refDateMs = p.tanggalSelesai
+    ? new Date(p.tanggalSelesai).getTime()
+    : Date.now();
+  const daysSinceDibuat = Math.max(
+    0,
+    Math.floor((refDateMs - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+  );
+
   return (
     <div className="container mx-auto max-w-7xl px-4 py-6 space-y-5">
       <Button variant="outline" size="sm" onClick={() => setView("permohonan")}>
         <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar
       </Button>
+
+      {/* ===== AdminLTE info-box widgets (signature AdminLTE 4 widget) ===== */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <AlteInfoBox
+          icon={Clock}
+          iconVariant="primary"
+          title="Tahap Saat Ini"
+          value={p.statusNama || p.statusSaatIni}
+          progress={stageProgress}
+          progressText={`Tahap ${Math.min(safeCurrentIndex + 1, stages.length)} dari ${stages.length}`}
+        />
+        <AlteInfoBox
+          icon={Files}
+          iconVariant="info"
+          title="Dokumen"
+          value={`${p.dokumen.length} file`}
+          progressText="Total dokumen terunggah"
+        />
+        <AlteInfoBox
+          icon={Calendar}
+          iconVariant="warning"
+          title="Hari Berjalan"
+          value={`${daysSinceDibuat} hari`}
+          progressText={`Didaftar ${formatDate(p.createdAt)}`}
+        />
+      </div>
 
       {/* ===== Header card ===== */}
       <Card className="glass-card border-primary/20 navy-glow overflow-hidden">
@@ -684,8 +725,7 @@ export function PermohonanDetail() {
                       <Separator />
                       <div className="space-y-2">
                         <Button
-                          variant="outline"
-                          className="w-full border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
+                          className="w-full alte-btn-warning font-semibold"
                           disabled={actionLoading !== null}
                           onClick={() => setRevisiOpen(true)}
                         >

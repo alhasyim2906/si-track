@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/app-store";
 import { SectionHeader } from "@/components/app/StatCard";
 import { SmallBox } from "@/components/app/SmallBox";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import { RecentActivityWidget } from "@/components/app/shared/RecentActivityWidget";
 import { STATUS_BY_KODE } from "@/lib/constants";
 import type { DashboardStats } from "@/lib/types";
 import {
@@ -43,6 +44,8 @@ import {
   ArrowRight,
   Users,
   History,
+  Calendar,
+  CalendarRange,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -97,6 +100,16 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   );
 }
 
+type RangeKey = "today" | "7d" | "30d" | "year" | "all";
+
+const RANGE_CHIPS: { key: RangeKey; label: string }[] = [
+  { key: "today", label: "Hari Ini" },
+  { key: "7d", label: "7 Hari" },
+  { key: "30d", label: "30 Hari" },
+  { key: "year", label: "Tahun Ini" },
+  { key: "all", label: "Semua" },
+];
+
 export function AdminDashboard() {
   const user = useAppStore((s) => s.user);
   const setView = useAppStore((s) => s.setView);
@@ -104,13 +117,14 @@ export function AdminDashboard() {
 
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<number>(currentYear);
+  const [range, setRange] = useState<RangeKey>("year");
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async (y: number) => {
+  const fetchData = useCallback(async (y: number, r: RangeKey) => {
     setLoading(true);
     try {
-      const d = await api.dashboard(y);
+      const d = await api.dashboard(y, r);
       setData(d as DashboardStats);
     } catch (e: any) {
       toast.error("Gagal memuat dashboard", { description: e.message });
@@ -120,8 +134,8 @@ export function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchData(year);
-  }, [year, fetchData]);
+    fetchData(year, range);
+  }, [year, range, fetchData]);
 
   const yearOptions = useMemo(() => {
     const arr: number[] = [];
@@ -147,6 +161,10 @@ export function AdminDashboard() {
       color: STATUS_BY_KODE[s.kode]?.warna || "#d4af37",
     }));
 
+  // Last 6 months trend (total permohonan + selesai) — passed to SmallBox as sparkline.
+  const last6Total = monthly.slice(-6).map((m) => m.total);
+  const last6Selesai = monthly.slice(-6).map((m) => m.selesai);
+
   return (
     <div className="container mx-auto max-w-7xl px-4 py-6 space-y-6">
       <SectionHeader
@@ -154,20 +172,60 @@ export function AdminDashboard() {
         subtitle={`Selamat datang kembali, ${user?.name || "Admin"}. Berikut ringkasan operasional kelurahan.`}
         icon={FileText}
         action={
-          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
-            <SelectTrigger className="w-[140px] glass-card border-primary/15">
-              <SelectValue placeholder="Tahun" />
-            </SelectTrigger>
-            <SelectContent>
-              {yearOptions.map((y) => (
-                <SelectItem key={y} value={String(y)}>
-                  Tahun {y}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          range !== "all" ? (
+            <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+              <SelectTrigger className="w-[140px] glass-card border-primary/15">
+                <SelectValue placeholder="Tahun" />
+              </SelectTrigger>
+              <SelectContent>
+                {yearOptions.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    Tahun {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : undefined
         }
       />
+
+      {/* Date-range quick filter chips */}
+      <Card className="glass-card border-primary/15">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-1">
+              <CalendarRange className="w-3.5 h-3.5" />
+              Rentang:
+            </span>
+            {RANGE_CHIPS.map((chip) => {
+              const active = range === chip.key;
+              return (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => setRange(chip.key)}
+                  aria-pressed={active}
+                  className={
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all " +
+                    (active
+                      ? "bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] border-transparent shadow-sm"
+                      : "bg-background/60 text-foreground/80 border-border hover:border-primary/40 hover:text-foreground")
+                  }
+                >
+                  <Calendar className="w-3 h-3" />
+                  {chip.label}
+                </button>
+              );
+            })}
+            <span className="ml-auto text-[11px] text-muted-foreground hidden sm:inline-flex items-center gap-1">
+              Menampilkan:
+              <span className="font-semibold text-foreground">
+                {data.rangeLabel || "Tahun Ini"}
+              </span>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stat widgets — AdminLTE 4 small-box style */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -176,6 +234,7 @@ export function AdminDashboard() {
           label="Total Permohonan"
           icon={FileText}
           variant="primary"
+          trend={last6Total}
           onClick={() => setView("permohonan")}
         />
         <SmallBox
@@ -211,6 +270,7 @@ export function AdminDashboard() {
           label="Selesai"
           icon={CheckCircle2}
           variant="success"
+          trend={last6Selesai}
           onClick={() => setView("permohonan")}
         />
         <SmallBox
@@ -433,6 +493,9 @@ export function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Recent activity timeline widget (full width) */}
+      <RecentActivityWidget limit={5} />
     </div>
   );
 }

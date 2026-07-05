@@ -402,6 +402,9 @@ button:active:not(:disabled) {
   --ring: #b8941f;
   background-color: #f4f6f9;
   color: #212529;
+  /* AdminLTE 4 typography stack */
+  font-family: 'Source Sans 3', 'Source Sans Pro', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 /* Override the dark-theme glass-card to render as a WHITE AdminLTE card */
@@ -442,7 +445,23 @@ button:active:not(:disabled) {
   background-color: rgba(212, 175, 55, 0.04);
 }
 .adminlte [data-slot="table-body"] > [data-slot="table-row"]:hover {
-  background-color: rgba(212, 175, 55, 0.10);
+  background-color: #f1f3f5;
+}
+/* AdminLTE table cell border + header bottom border */
+.adminlte [data-slot="table-header"] [data-slot="table-row"],
+.adminlte [data-slot="table-body"] [data-slot="table-row"] {
+  border-bottom: 1px solid #e3e6ec;
+}
+.adminlte [data-slot="table-head"],
+.adminlte [data-slot="table-cell"] {
+  border-bottom: 1px solid #e3e6ec;
+}
+.adminlte [data-slot="table-head"] {
+  font-weight: 600;
+  background: #f8f9fa;
+}
+.adminlte [data-slot="table-body"] [data-slot="table-row"] {
+  transition: background-color 0.12s ease;
 }
 
 /* AdminLTE shadcn Card overrides */
@@ -458,6 +477,7 @@ button:active:not(:disabled) {
   background: #f8f9fa;
   border-bottom: 1px solid #e3e6ec;
   padding: 0.75rem 1rem;
+  font-weight: 600;
 }
 
 /* ===== AdminLTE layout ===== */
@@ -469,7 +489,7 @@ button:active:not(:disabled) {
 }
 .adminlte .main-sidebar {
   width: 250px;
-  background: #1a2332;
+  background: #1e2a3a;
   color: #c2c7d0;
   position: fixed;
   top: 0;
@@ -489,7 +509,7 @@ button:active:not(:disabled) {
   background: #f4f6f9;
 }
 .adminlte .main-header {
-  background: #1a2332;
+  background: #1e2a3a;
   border-bottom: 1px solid rgba(255,255,255,.08);
   position: sticky;
   top: 0;
@@ -501,7 +521,7 @@ button:active:not(:disabled) {
   gap: 0.75rem;
 }
 .adminlte .main-footer {
-  background: #1a2332;
+  background: #1e2a3a;
   color: #c2c7d0;
   border-top: 1px solid rgba(255,255,255,.08);
   padding: 0.6rem 1.25rem;
@@ -631,6 +651,7 @@ button:active:not(:disabled) {
   padding: 0.6rem 1rem;
   color: #c2c7d0;
   font-size: 0.875rem;
+  font-weight: 400;
   border-left: 3px solid transparent;
   transition: all 0.15s ease;
   cursor: pointer;
@@ -641,6 +662,7 @@ button:active:not(:disabled) {
   border-bottom: none;
   width: 100%;
   text-align: left;
+  text-shadow: none;
 }
 .adminlte .nav-link:hover {
   background: rgba(255,255,255,.06);
@@ -665,7 +687,8 @@ button:active:not(:disabled) {
   padding: 1.25rem;
   color: #fff;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+  /* Subtler inner glow (was rgba(255,255,255,.08) inset + heavier shadow) */
+  box-shadow: 0 1px 2px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.06);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
   display: block;
@@ -675,7 +698,7 @@ button:active:not(:disabled) {
 }
 .alte-small-box:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,.18);
+  box-shadow: 0 3px 8px rgba(0,0,0,.12), 0 0 1px rgba(0,0,0,.08);
 }
 .alte-small-box .sb-inner {
   display: flex;
@@ -727,73 +750,194 @@ button:active:not(:disabled) {
 .alte-small-box:hover .sb-footer .sb-arrow {
   transform: translateX(4px);
 }
-.alte-small-box.sb-primary { background: #0d6efd; }
-.alte-small-box.sb-success { background: #198754; }
-.alte-small-box.sb-info    { background: #0dcaf0; color: #0a1628; }
-.alte-small-box.sb-info .sb-footer { color: #0a1628; background: rgba(0,0,0,.1); }
-.alte-small-box.sb-warning { background: #ffc107; color: #0a1628; }
-.alte-small-box.sb-warning .sb-footer { color: #0a1628; background: rgba(0,0,0,.1); }
-.alte-small-box.sb-danger  { background: #dc3545; }
-.alte-small-box.sb-gold    { background: linear-gradient(135deg, #d4af37, #b8941f); color: #0a1628; }
+.alte-small-box .sb-trend {
+  margin-left: auto;
+  align-self: flex-end;
+  z-index: 2;
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+  line-height: 0;
+  opacity: 0.95;
+}
+.alte-small-box .sb-sparkline {
+  display: block;
+  width: 40px;
+  height: 16px;
+}
+.alte-small-box.sb-primary {
+  background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+}
+.alte-small-box.sb-success {
+  background: linear-gradient(135deg, #198754 0%, #157347 100%);
+}
+.alte-small-box.sb-info {
+  background: linear-gradient(135deg, #0dcaf0 0%, #0bb6d8 100%);
+  color: #0a1628;
+}
+.alte-small-box.sb-info .sb-footer { color: #0a1628; background: rgba(0,0,0,.08); }
+.alte-small-box.sb-warning {
+  background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+  color: #0a1628;
+}
+.alte-small-box.sb-warning .sb-footer { color: #0a1628; background: rgba(0,0,0,.08); }
+.alte-small-box.sb-danger {
+  background: linear-gradient(135deg, #dc3545 0%, #bb2d3b 100%);
+}
+.alte-small-box.sb-gold {
+  background: linear-gradient(135deg, #d4af37, #b8941f); color: #0a1628;
+}
 .alte-small-box.sb-gold .sb-footer { color: #0a1628; background: rgba(0,0,0,.12); }
 
-/* ===== Info Box ===== */
+/* ===== Info Box — 3-column grid (icon | text | progress) ===== */
 .alte-info-box {
-  display: flex;
+  display: grid;
+  grid-template-columns: 70px 1fr;
   background: #fff;
   border: 1px solid #e3e6ec;
   border-radius: 0.375rem;
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 0 1px rgba(0,0,0,.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  position: relative;
+}
+.alte-info-box:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,.08), 0 0 1px rgba(0,0,0,.05);
+  transform: translateY(-1px);
 }
 .alte-info-box .ib-icon {
-  width: 70px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
   font-size: 1.75rem;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 .alte-info-box .ib-body {
-  padding: 0.6rem 0.85rem;
-  flex: 1;
+  padding: 0.55rem 0.85rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
 }
 .alte-info-box .ib-text {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: #6c757d;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .alte-info-box .ib-number {
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: #212529;
   line-height: 1.2;
+  margin-top: 0.1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .alte-info-box .ib-progress {
-  height: 6px;
+  height: 5px;
   background: #e9ecef;
   border-radius: 3px;
-  margin-top: 0.35rem;
+  margin-top: 0.4rem;
   overflow: hidden;
 }
 .alte-info-box .ib-progress-bar {
   height: 100%;
   border-radius: 3px;
+  transition: width 0.4s ease;
+}
+.alte-info-box .ib-progress-text {
+  font-size: 0.66rem;
+  color: #6c757d;
+  margin-top: 0.2rem;
+  font-weight: 500;
 }
 
-/* Content padding */
+/* Info-box icon color variants (left colored area) */
+.alte-info-box.ib-primary .ib-icon { background: linear-gradient(135deg, #0d6efd, #0b5ed7); }
+.alte-info-box.ib-success .ib-icon { background: linear-gradient(135deg, #198754, #157347); }
+.alte-info-box.ib-info    .ib-icon { background: linear-gradient(135deg, #0dcaf0, #0bb6d8); }
+.alte-info-box.ib-warning .ib-icon { background: linear-gradient(135deg, #ffc107, #e0a800); }
+.alte-info-box.ib-danger  .ib-icon { background: linear-gradient(135deg, #dc3545, #bb2d3b); }
+.alte-info-box.ib-gold    .ib-icon { background: linear-gradient(135deg, #d4af37, #b8941f); }
+
+.alte-info-box.ib-primary .ib-progress-bar { background: #0d6efd; }
+.alte-info-box.ib-success .ib-progress-bar { background: #198754; }
+.alte-info-box.ib-info    .ib-progress-bar { background: #0dcaf0; }
+.alte-info-box.ib-warning .ib-progress-bar { background: #ffc107; }
+.alte-info-box.ib-danger  .ib-progress-bar { background: #dc3545; }
+.alte-info-box.ib-gold    .ib-progress-bar { background: #d4af37; }
+
+/* Content padding — AdminLTE 4 standard content padding.
+   The main content section is `<section className="content">` and gets 1rem padding.
+   Direct children spaced with margin-top to avoid cramped stacked cards. */
 .adminlte .content {
   padding: 1rem 1.25rem;
   flex: 1;
   width: 100%;
 }
+.adminlte section.content {
+  padding: 1rem;
+}
+.adminlte .content > * + * {
+  margin-top: 1rem;
+}
 @media (min-width: 768px) {
   .adminlte .content {
     padding: 1.25rem 1.5rem;
   }
+  .adminlte section.content {
+    padding: 1.25rem;
+  }
+}
+
+/* ===== AdminLTE-style button utility classes ===== */
+/* Use these on a shadcn <Button> (no variant) or any <button>. The class
+   overrides background/border/text colors to AdminLTE's standard palette
+   while keeping shadcn's hover/focus/disabled infrastructure. */
+.adminlte .alte-btn-primary {
+  background-color: #0d6efd !important;
+  color: #ffffff !important;
+  border: 1px solid #0d6efd !important;
+}
+.adminlte .alte-btn-primary:hover {
+  background-color: #0b5ed7 !important;
+  border-color: #0a58ca !important;
+}
+.adminlte .alte-btn-success {
+  background-color: #198754 !important;
+  color: #ffffff !important;
+  border: 1px solid #198754 !important;
+}
+.adminlte .alte-btn-success:hover {
+  background-color: #157347 !important;
+  border-color: #146c43 !important;
+}
+.adminlte .alte-btn-warning {
+  background-color: #ffc107 !important;
+  color: #0a1628 !important;
+  border: 1px solid #ffc107 !important;
+}
+.adminlte .alte-btn-warning:hover {
+  background-color: #e0a800 !important;
+  border-color: #d39e00 !important;
+}
+
+/* ===== Page heading typography (AdminLTE 4 uses weight 600, not 700) ===== */
+.adminlte h1 {
+  font-weight: 600;
+}
+.adminlte h2 {
+  font-weight: 600;
 }
 
 /* Breadcrumb in navbar */
@@ -943,3 +1087,5 @@ button:active:not(:disabled) {
     padding: 0 !important;
   }
 }
+/* trigger recompile */
+/* trigger recompile */

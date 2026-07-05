@@ -1,0 +1,946 @@
+     1→     1→@import "tailwindcss";
+     2→     2→@import "tw-animate-css";
+     3→     3→
+     4→     4→@custom-variant dark (&:is(.dark *));
+     5→     5→
+     6→     6→@theme inline {
+     7→     7→  --color-background: var(--background);
+     8→     8→  --color-foreground: var(--foreground);
+     9→     9→  --font-sans: var(--font-geist-sans);
+    10→    10→  --font-mono: var(--font-geist-mono);
+    11→    11→  --color-sidebar-ring: var(--sidebar-ring);
+    12→    12→  --color-sidebar-border: var(--sidebar-border);
+    13→    13→  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    14→    14→  --color-sidebar-accent: var(--sidebar-accent);
+    15→    15→  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    16→    16→  --color-sidebar-primary: var(--sidebar-primary);
+    17→    17→  --color-sidebar-foreground: var(--sidebar-foreground);
+    18→    18→  --color-sidebar: var(--sidebar);
+    19→    19→  --color-chart-5: var(--chart-5);
+    20→    20→  --color-chart-4: var(--chart-4);
+    21→    21→  --color-chart-3: var(--chart-3);
+    22→    22→  --color-chart-2: var(--chart-2);
+    23→    23→  --color-chart-1: var(--chart-1);
+    24→    24→  --color-ring: var(--ring);
+    25→    25→  --color-input: var(--input);
+    26→    26→  --color-border: var(--border);
+    27→    27→  --color-destructive: var(--destructive);
+    28→    28→  --color-accent-foreground: var(--accent-foreground);
+    29→    29→  --color-accent: var(--accent);
+    30→    30→  --color-muted-foreground: var(--muted-foreground);
+    31→    31→  --color-muted: var(--muted);
+    32→    32→  --color-secondary-foreground: var(--secondary-foreground);
+    33→    33→  --color-secondary: var(--secondary);
+    34→    34→  --color-primary-foreground: var(--primary-foreground);
+    35→    35→  --color-primary: var(--primary);
+    36→    36→  --color-popover-foreground: var(--popover-foreground);
+    37→    37→  --color-popover: var(--popover);
+    38→    38→  --color-card-foreground: var(--card-foreground);
+    39→    39→  --color-card: var(--card);
+    40→    40→  --radius-sm: calc(var(--radius) - 4px);
+    41→    41→  --radius-md: calc(var(--radius) - 2px);
+    42→    42→  --radius-lg: var(--radius);
+    43→    43→  --radius-xl: calc(var(--radius) + 4px);
+    44→    44→}
+    45→    45→
+    46→    46→/* ===== SI-TRACK TANAH: Dark Navy + Gold theme (default, always dark) ===== */
+    47→    47→:root {
+    48→    48→  --radius: 0.625rem;
+    49→    49→
+    50→    50→  /* Deep navy/blackish blue backgrounds */
+    51→    51→  --background: oklch(0.16 0.03 255);          /* near-black navy */
+    52→    52→  --foreground: oklch(0.96 0.01 80);           /* warm off-white */
+    53→    53→
+    54→    54→  --card: oklch(0.21 0.035 255);               /* navy panel */
+    55→    55→  --card-foreground: oklch(0.96 0.01 80);
+    56→    56→
+    57→    57→  --popover: oklch(0.19 0.035 255);
+    58→    58→  --popover-foreground: oklch(0.96 0.01 80);
+    59→    59→
+    60→    60→  /* Gold primary */
+    61→    61→  --primary: oklch(0.80 0.13 85);              /* gold */
+    62→    62→  --primary-foreground: oklch(0.16 0.03 255);  /* navy text on gold */
+    63→    63→
+    64→    64→  --secondary: oklch(0.27 0.04 255);
+    65→    65→  --secondary-foreground: oklch(0.96 0.01 80);
+    66→    66→
+    67→    67→  --muted: oklch(0.26 0.03 255);
+    68→    68→  --muted-foreground: oklch(0.78 0.025 80);
+    69→    69→
+    70→    70→  --accent: oklch(0.32 0.05 255);
+    71→    71→  --accent-foreground: oklch(0.96 0.01 80);
+    72→    72→
+    73→    73→  --destructive: oklch(0.62 0.22 25);
+    74→    74→
+    75→    75→  --border: oklch(0.32 0.03 255 / 60%);
+    76→    76→  --input: oklch(0.28 0.03 255);
+    77→    77→  --ring: oklch(0.80 0.13 85);
+    78→    78→
+    79→    79→  --chart-1: oklch(0.80 0.13 85);   /* gold */
+    80→    80→  --chart-2: oklch(0.62 0.17 250);  /* blue */
+    81→    81→  --chart-3: oklch(0.70 0.15 160);  /* teal/green */
+    82→    82→  --chart-4: oklch(0.72 0.18 40);   /* amber */
+    83→    83→  --chart-5: oklch(0.65 0.22 20);   /* red */
+    84→    84→
+    85→    85→  --sidebar: oklch(0.18 0.035 255);
+    86→    86→  --sidebar-foreground: oklch(0.96 0.01 80);
+    87→    87→  --sidebar-primary: oklch(0.80 0.13 85);
+    88→    88→  --sidebar-primary-foreground: oklch(0.16 0.03 255);
+    89→    89→  --sidebar-accent: oklch(0.26 0.04 255);
+    90→    90→  --sidebar-accent-foreground: oklch(0.96 0.01 80);
+    91→    91→  --sidebar-border: oklch(0.32 0.03 255 / 60%);
+    92→    92→  --sidebar-ring: oklch(0.80 0.13 85);
+    93→    93→}
+    94→    94→
+    95→    95→.dark {
+    96→    96→  /* same as root — app is always dark navy/gold */
+    97→    97→  --background: oklch(0.16 0.03 255);
+    98→    98→  --foreground: oklch(0.96 0.01 80);
+    99→    99→  --card: oklch(0.21 0.035 255);
+   100→   100→  --card-foreground: oklch(0.96 0.01 80);
+   101→   101→  --popover: oklch(0.19 0.035 255);
+   102→   102→  --popover-foreground: oklch(0.96 0.01 80);
+   103→   103→  --primary: oklch(0.80 0.13 85);
+   104→   104→  --primary-foreground: oklch(0.16 0.03 255);
+   105→   105→  --secondary: oklch(0.27 0.04 255);
+   106→   106→  --secondary-foreground: oklch(0.96 0.01 80);
+   107→   107→  --muted: oklch(0.26 0.03 255);
+   108→   108→  --muted-foreground: oklch(0.78 0.025 80);
+   109→   109→  --accent: oklch(0.32 0.05 255);
+   110→   110→  --accent-foreground: oklch(0.96 0.01 80);
+   111→   111→  --destructive: oklch(0.62 0.22 25);
+   112→   112→  --border: oklch(0.32 0.03 255 / 60%);
+   113→   113→  --input: oklch(0.28 0.03 255);
+   114→   114→  --ring: oklch(0.80 0.13 85);
+   115→   115→}
+   116→   116→
+   117→   117→@layer base {
+   118→   118→  * {
+   119→   119→    @apply border-border outline-ring/50;
+   120→   120→  }
+   121→   121→  html, body {
+   122→   122→    @apply bg-background text-foreground;
+   123→   123→  }
+   124→   124→  body {
+   125→   125→    background-color: var(--background);
+   126→   126→    background-image:
+   127→   127→      radial-gradient(circle at 15% 0%, rgba(212, 175, 55, 0.08), transparent 35%),
+   128→   128→      radial-gradient(circle at 85% 100%, rgba(59, 130, 246, 0.08), transparent 40%);
+   129→   129→    background-attachment: fixed;
+   130→   130→  }
+   131→   131→}
+   132→   132→
+   133→   133→/* ===== Custom utility classes ===== */
+   134→   134→@layer components {
+   135→   135→  .gold-text {
+   136→   136→    color: oklch(0.85 0.13 85);
+   137→   137→  }
+   138→   138→  .gold-gradient-text {
+   139→   139→    background: linear-gradient(135deg, #f5d77a 0%, #d4af37 50%, #b8941f 100%);
+   140→   140→    -webkit-background-clip: text;
+   141→   141→    background-clip: text;
+   142→   142→    -webkit-text-fill-color: transparent;
+   143→   143→  }
+   144→   144→  .gold-border {
+   145→   145→    border-color: oklch(0.80 0.13 85 / 50%);
+   146→   146→  }
+   147→   147→  .glass-card {
+   148→   148→    background: linear-gradient(135deg, rgba(33, 51, 90, 0.65) 0%, rgba(16, 28, 54, 0.85) 100%);
+   149→   149→    backdrop-filter: blur(12px);
+   150→   150→    border: 1px solid rgba(212, 175, 55, 0.18);
+   151→   151→  }
+   152→   152→  .navy-glow {
+   153→   153→    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.12), 0 8px 30px rgba(0, 0, 0, 0.4);
+   154→   154→  }
+   155→   155→  .gold-glow {
+   156→   156→    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.35), 0 0 25px rgba(212, 175, 55, 0.18);
+   157→   157→  }
+   158→   158→}
+   159→   159→
+   160→   160→/* ===== Custom scrollbar ===== */
+   161→   161→::-webkit-scrollbar {
+   162→   162→  width: 10px;
+   163→   163→  height: 10px;
+   164→   164→}
+   165→   165→::-webkit-scrollbar-track {
+   166→   166→  background: oklch(0.18 0.03 255);
+   167→   167→}
+   168→   168→::-webkit-scrollbar-thumb {
+   169→   169→  background: oklch(0.35 0.04 255);
+   170→   170→  border-radius: 6px;
+   171→   171→  border: 2px solid oklch(0.18 0.03 255);
+   172→   172→}
+   173→   173→::-webkit-scrollbar-thumb:hover {
+   174→   174→  background: oklch(0.80 0.13 85 / 60%);
+   175→   175→}
+   176→   176→
+   177→   177→/* ===== Timeline connector ===== */
+   178→   178→.timeline-line {
+   179→   179→  background: linear-gradient(to bottom, oklch(0.80 0.13 85 / 60%), oklch(0.32 0.03 255 / 40%));
+   180→   180→}
+   181→   181→
+   182→   182→@keyframes pulse-gold {
+   183→   183→  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+   184→   184→  50% { box-shadow: 0 0 0 8px rgba(212, 175, 55, 0); }
+   185→   185→}
+   186→   186→.pulse-gold {
+   187→   187→  animation: pulse-gold 2s infinite;
+   188→   188→}
+   189→   189→
+   190→   190→@keyframes shimmer {
+   191→   191→  0% { background-position: -200% 0; }
+   192→   192→  100% { background-position: 200% 0; }
+   193→   193→}
+   194→   194→.shimmer-gold {
+   195→   195→  background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.15), transparent);
+   196→   196→  background-size: 200% 100%;
+   197→   197→  animation: shimmer 2.5s infinite;
+   198→   198→}
+   199→   199→
+   200→   200→/* ===== Table polish (zebra + hover + breathing room) ===== */
+   201→   201→[data-slot="table-body"] > [data-slot="table-row"]:nth-child(even) {
+   202→   202→  background-color: rgba(212, 175, 55, 0.035);
+   203→   203→}
+   204→   204→[data-slot="table-body"] > [data-slot="table-row"]:hover {
+   205→   205→  background-color: rgba(212, 175, 55, 0.08);
+   206→   206→}
+   207→   207→[data-slot="table-cell"], [data-slot="table-head"] {
+   208→   208→  padding-top: 0.7rem;
+   209→   209→  padding-bottom: 0.7rem;
+   210→   210→}
+   211→   211→
+   212→   212→/* ===== Focus-visible gold ring for accessibility ===== */
+   213→   213→*:focus-visible {
+   214→   214→  outline: 2px solid oklch(0.80 0.13 85 / 70%);
+   215→   215→  outline-offset: 2px;
+   216→   216→}
+   217→   217→
+   218→   218→/* ===== Print styles for Tanda Terima & Reports ===== */
+   219→   219→@media print {
+   220→   220→  body {
+   221→   221→    background: #ffffff !important;
+   222→   222→    color: #0a1628 !important;
+   223→   223→    background-image: none !important;
+   224→   224→  }
+   225→   225→  .no-print, header, footer, nav, [role="dialog"], button {
+   226→   226→    display: none !important;
+   227→   227→  }
+   228→   228→  .print-only {
+   229→   229→    display: block !important;
+   230→   230→  }
+   231→   231→  .glass-card, .navy-glow {
+   232→   232→    background: #ffffff !important;
+   233→   233→    border: 1px solid #d4af37 !important;
+   234→   234→    box-shadow: none !important;
+   235→   235→    backdrop-filter: none !important;
+   236→   236→    color: #0a1628 !important;
+   237→   237→  }
+   238→   238→  .glass-card * {
+   239→   239→    color: #0a1628 !important;
+   240→   240→  }
+   241→   241→  .gold-gradient-text {
+   242→   242→    -webkit-text-fill-color: #b8941f !important;
+   243→   243→    color: #b8941f !important;
+   244→   244→  }
+   245→   245→  .gold-text {
+   246→   246→    color: #b8941f !important;
+   247→   247→  }
+   248→   248→  main {
+   249→   249→    padding: 0 !important;
+   250→   250→  }
+   251→   251→  .container {
+   252→   252→    max-width: 100% !important;
+   253→   253→    margin: 0 !important;
+   254→   254→    padding: 0 !important;
+   255→   255→  }
+   256→   256→  @page {
+   257→   257→    margin: 1.5cm;
+   258→   258→  }
+   259→   259→
+   260→   260→  /* ===== Tanda Terima dialog print overrides ===== */
+   261→   261→  /* Override the generic [role=dialog] hide for our printable receipt.
+   262→   262→     NOTE: Lightning CSS strips `max-height: none` / `overflow: visible`
+   263→   263→     because they are initial values, so we use explicit overrides here
+   264→   264→     and also rely on Tailwind `print:` variants on the DialogContent. */
+   265→   265→  [role="dialog"].tanda-terima-printable {
+   266→   266→    display: block !important;
+   267→   267→    position: static !important;
+   268→   268→    transform: none !important;
+   269→   269→    inset: auto !important;
+   270→   270→    margin: 0 !important;
+   271→   271→    padding: 0 !important;
+   272→   272→    max-width: 100% !important;
+   273→   273→    width: 100% !important;
+   274→   274→    max-height: 999999px !important;
+   275→   275→    height: auto !important;
+   276→   276→    overflow: visible !important;
+   277→   277→    background: #ffffff !important;
+   278→   278→    border: none !important;
+   279→   279→    box-shadow: none !important;
+   280→   280→    backdrop-filter: none !important;
+   281→   281→    border-radius: 0 !important;
+   282→   282→  }
+   283→   283→  /* Hide the dialog overlay during print */
+   284→   284→  [data-slot="dialog-overlay"] {
+   285→   285→    display: none !important;
+   286→   286→  }
+   287→   287→  /* Hide all body direct children except the portal that hosts our printable dialog */
+   288→   288→  body > *:not([data-slot="dialog-portal"]) {
+   289→   289→    display: none !important;
+   290→   290→  }
+   291→   291→  /* Inside the portal, hide every sibling except our printable dialog content */
+   292→   292→  [data-slot="dialog-portal"] > *:not([role="dialog"].tanda-terima-printable) {
+   293→   293→    display: none !important;
+   294→   294→  }
+   295→   295→}
+   296→   296→.print-only {
+   297→   297→  display: none;
+   298→   298→}
+   299→   299→
+   300→   300→/* ===== Subtle card hover lift ===== */
+   301→   301→.glass-card.card-hover {
+   302→   302→  transition: transform 0.2s ease, border-color 0.2s ease;
+   303→   303→}
+   304→   304→.glass-card.card-hover:hover {
+   305→   305→  transform: translateY(-2px);
+   306→   306→  border-color: rgba(212, 175, 55, 0.4);
+   307→   307→}
+   308→   308→
+   309→   309→/* ===== Fade-in animation for content ===== */
+   310→   310→@keyframes fade-in-up {
+   311→   311→  from { opacity: 0; transform: translateY(8px); }
+   312→   312→  to { opacity: 1; transform: translateY(0); }
+   313→   313→}
+   314→   314→.animate-fade-in-up {
+   315→   315→  animation: fade-in-up 0.4s ease-out both;
+   316→   316→}
+   317→   317→
+   318→   318→/* ===== Staggered fade-in for list items ===== */
+   319→   319→@keyframes fade-in {
+   320→   320→  from { opacity: 0; }
+   321→   321→  to { opacity: 1; }
+   322→   322→}
+   323→   323→.animate-fade-in {
+   324→   324→  animation: fade-in 0.3s ease-out both;
+   325→   325→}
+   326→   326→
+   327→   327→/* ===== Scale-in animation for modals/dialogs ===== */
+   328→   328→@keyframes scale-in {
+   329→   329→  from { opacity: 0; transform: scale(0.95); }
+   330→   330→  to { opacity: 1; transform: scale(1); }
+   331→   331→}
+   332→   332→.animate-scale-in {
+   333→   333→  animation: scale-in 0.2s ease-out both;
+   334→   334→}
+   335→   335→
+   336→   336→/* ===== Slide-up animation ===== */
+   337→   337→@keyframes slide-up {
+   338→   338→  from { opacity: 0; transform: translateY(16px); }
+   339→   339→  to { opacity: 1; transform: translateY(0); }
+   340→   340→}
+   341→   341→.animate-slide-up {
+   342→   342→  animation: slide-up 0.35s ease-out both;
+   343→   343→}
+   344→   344→
+   345→   345→/* ===== Number tabular for stats ===== */
+   346→   346→.tabular-nums {
+   347→   347→  font-variant-numeric: tabular-nums;
+   348→   348→  font-feature-settings: "tnum";
+   349→   349→}
+   350→   350→
+   351→   351→/* ===== Smooth table row transitions ===== */
+   352→   352→[data-slot="table-row"] {
+   353→   353→  transition: background-color 0.15s ease;
+   354→   354→}
+   355→   355→
+   356→   356→/* ===== Interactive button press effect ===== */
+   357→   357→button:active:not(:disabled) {
+   358→   358→  transform: scale(0.98);
+   359→   359→}
+   360→   360→
+   361→   361→/* ===== Smooth link/button underline animations ===== */
+   362→   362→.hover-underline {
+   363→   363→  position: relative;
+   364→   364→}
+   365→   365→.hover-underline::after {
+   366→   366→  content: "";
+   367→   367→  position: absolute;
+   368→   368→  bottom: 0;
+   369→   369→  left: 0;
+   370→   370→  width: 0;
+   371→   371→  height: 1px;
+   372→   372→  background: oklch(0.80 0.13 85);
+   373→   373→  transition: width 0.2s ease;
+   374→   374→}
+   375→   375→.hover-underline:hover::after {
+   376→   376→  width: 100%;
+   377→   377→}
+   378→   378→
+   379→   379→/* ============================================================
+   380→   380→   AdminLTE 4 — admin area theme (scoped under .adminlte)
+   381→   381→   Public-facing pages keep the dark navy + gold theme.
+   382→   382→   ============================================================ */
+   383→   383→.adminlte {
+   384→   384→  /* shadcn CSS variable overrides → light theme inside admin */
+   385→   385→  --background: #f4f6f9;
+   386→   386→  --foreground: #212529;
+   387→   387→  --card: #ffffff;
+   388→   388→  --card-foreground: #212529;
+   389→   389→  --popover: #ffffff;
+   390→   390→  --popover-foreground: #212529;
+   391→   391→  --primary: #b8941f;          /* gold (slightly darker for contrast on white) */
+   392→   392→  --primary-foreground: #ffffff;
+   393→   393→  --secondary: #e9ecef;
+   394→   394→  --secondary-foreground: #212529;
+   395→   395→  --muted: #e9ecef;
+   396→   396→  --muted-foreground: #6c757d;
+   397→   397→  --accent: #f1f3f5;
+   398→   398→  --accent-foreground: #212529;
+   399→   399→  --destructive: #dc3545;
+   400→   400→  --border: #e3e6ec;
+   401→   401→  --input: #ffffff;
+   402→   402→  --ring: #b8941f;
+   403→   403→  background-color: #f4f6f9;
+   404→   404→  color: #212529;
+   405→   405→}
+   406→   406→
+   407→   407→/* Override the dark-theme glass-card to render as a WHITE AdminLTE card */
+   408→   408→.adminlte .glass-card {
+   409→   409→  background: #ffffff !important;
+   410→   410→  border: 1px solid #e3e6ec !important;
+   411→   411→  border-radius: 0.375rem !important;
+   412→   412→  box-shadow: 0 0 1px rgba(0,0,0,.125), 0 1px 3px rgba(0,0,0,.06) !important;
+   413→   413→  backdrop-filter: none !important;
+   414→   414→  color: #212529;
+   415→   415→}
+   416→   416→
+   417→   417→/* Gold utilities re-tuned for light background */
+   418→   418→.adminlte .gold-text {
+   419→   419→  color: #b8941f;
+   420→   420→}
+   421→   421→.adminlte .gold-border {
+   422→   422→  border-color: #d4af37 !important;
+   423→   423→}
+   424→   424→.adminlte .navy-glow {
+   425→   425→  box-shadow: 0 4px 16px rgba(0,0,0,.08) !important;
+   426→   426→}
+   427→   427→
+   428→   428→/* Light scrollbar inside admin area */
+   429→   429→.adminlte ::-webkit-scrollbar-track {
+   430→   430→  background: #f1f3f5;
+   431→   431→}
+   432→   432→.adminlte ::-webkit-scrollbar-thumb {
+   433→   433→  background: #ced4da;
+   434→   434→  border-color: #f1f3f5;
+   435→   435→}
+   436→   436→.adminlte ::-webkit-scrollbar-thumb:hover {
+   437→   437→  background: #b8941f;
+   438→   438→}
+   439→   439→
+   440→   440→/* Table zebra/hover tuned for light bg inside admin */
+   441→   441→.adminlte [data-slot="table-body"] > [data-slot="table-row"]:nth-child(even) {
+   442→   442→  background-color: rgba(212, 175, 55, 0.04);
+   443→   443→}
+   444→   444→.adminlte [data-slot="table-body"] > [data-slot="table-row"]:hover {
+   445→   445→  background-color: rgba(212, 175, 55, 0.10);
+   446→   446→}
+   447→   447→
+   448→   448→/* AdminLTE shadcn Card overrides */
+   449→   449→.adminlte [data-slot="card"] {
+   450→   450→  background: #ffffff !important;
+   451→   451→  border: 1px solid #e3e6ec !important;
+   452→   452→  box-shadow: 0 0 1px rgba(0,0,0,.05), 0 1px 3px rgba(0,0,0,.06) !important;
+   453→   453→  backdrop-filter: none !important;
+   454→   454→  color: #212529;
+   455→   455→}
+   456→   456→.adminlte [data-slot="card-header"],
+   457→   457→.adminlte .card-header {
+   458→   458→  background: #f8f9fa;
+   459→   459→  border-bottom: 1px solid #e3e6ec;
+   460→   460→  padding: 0.75rem 1rem;
+   461→   461→}
+   462→   462→
+   463→   463→/* ===== AdminLTE layout ===== */
+   464→   464→.adminlte.wrapper {
+   465→   465→  min-height: 100vh;
+   466→   466→  background: #f4f6f9;
+   467→   467→  display: flex;
+   468→   468→  flex-direction: column;
+   469→   469→}
+   470→   470→.adminlte .main-sidebar {
+   471→   471→  width: 250px;
+   472→   472→  background: #1a2332;
+   473→   473→  color: #c2c7d0;
+   474→   474→  position: fixed;
+   475→   475→  top: 0;
+   476→   476→  bottom: 0;
+   477→   477→  left: 0;
+   478→   478→  z-index: 50;
+   479→   479→  display: flex;
+   480→   480→  flex-direction: column;
+   481→   481→  transition: transform 0.3s ease;
+   482→   482→  overflow-y: auto;
+   483→   483→}
+   484→   484→.adminlte .content-wrapper {
+   485→   485→  margin-left: 250px;
+   486→   486→  min-height: 100vh;
+   487→   487→  display: flex;
+   488→   488→  flex-direction: column;
+   489→   489→  background: #f4f6f9;
+   490→   490→}
+   491→   491→.adminlte .main-header {
+   492→   492→  background: #1a2332;
+   493→   493→  border-bottom: 1px solid rgba(255,255,255,.08);
+   494→   494→  position: sticky;
+   495→   495→  top: 0;
+   496→   496→  z-index: 40;
+   497→   497→  height: 57px;
+   498→   498→  display: flex;
+   499→   499→  align-items: center;
+   500→   500→  padding: 0 1rem;
+   501→   501→  gap: 0.75rem;
+   502→   502→}
+   503→   503→.adminlte .main-footer {
+   504→   504→  background: #1a2332;
+   505→   505→  color: #c2c7d0;
+   506→   506→  border-top: 1px solid rgba(255,255,255,.08);
+   507→   507→  padding: 0.6rem 1.25rem;
+   508→   508→  margin-left: 0;
+   509→   509→  font-size: 0.78rem;
+   510→   510→}
+   511→   511→.adminlte .main-footer .mf-inner {
+   512→   512→  display: flex;
+   513→   513→  align-items: center;
+   514→   514→  justify-content: space-between;
+   515→   515→  gap: 0.5rem;
+   516→   516→  flex-wrap: wrap;
+   517→   517→}
+   518→   518→
+   519→   519→/* Brand link at top of sidebar */
+   520→   520→.adminlte .brand-link {
+   521→   521→  display: flex;
+   522→   522→  align-items: center;
+   523→   523→  gap: 0.6rem;
+   524→   524→  padding: 0.85rem 1rem;
+   525→   525→  border-bottom: 1px solid rgba(255,255,255,.08);
+   526→   526→  color: #fff;
+   527→   527→  text-decoration: none;
+   528→   528→}
+   529→   529→.adminlte .brand-link .brand-sub {
+   530→   530→  font-size: 0.65rem;
+   531→   531→  color: #8a94a6;
+   532→   532→  text-transform: uppercase;
+   533→   533→  letter-spacing: 0.08em;
+   534→   534→  line-height: 1.1;
+   535→   535→}
+   536→   536→
+   537→   537→/* User panel */
+   538→   538→.adminlte .user-panel {
+   539→   539→  display: flex;
+   540→   540→  align-items: center;
+   541→   541→  gap: 0.65rem;
+   542→   542→  padding: 0.9rem 1rem;
+   543→   543→  border-bottom: 1px solid rgba(255,255,255,.06);
+   544→   544→}
+   545→   545→.adminlte .user-panel .up-avatar {
+   546→   546→  width: 36px;
+   547→   547→  height: 36px;
+   548→   548→  border-radius: 50%;
+   549→   549→  background: linear-gradient(135deg, #d4af37, #b8941f);
+   550→   550→  color: #0a1628;
+   551→   551→  display: flex;
+   552→   552→  align-items: center;
+   553→   553→  justify-content: center;
+   554→   554→  font-weight: 700;
+   555→   555→  font-size: 0.9rem;
+   556→   556→  flex-shrink: 0;
+   557→   557→}
+   558→   558→.adminlte .user-panel .up-info {
+   559→   559→  min-width: 0;
+   560→   560→  flex: 1;
+   561→   561→}
+   562→   562→.adminlte .user-panel .up-name {
+   563→   563→  color: #fff;
+   564→   564→  font-size: 0.85rem;
+   565→   565→  font-weight: 600;
+   566→   566→  line-height: 1.2;
+   567→   567→  overflow: hidden;
+   568→   568→  text-overflow: ellipsis;
+   569→   569→  white-space: nowrap;
+   570→   570→}
+   571→   571→.adminlte .user-panel .up-role {
+   572→   572→  color: #8a94a6;
+   573→   573→  font-size: 0.7rem;
+   574→   574→  display: inline-flex;
+   575→   575→  align-items: center;
+   576→   576→  gap: 0.25rem;
+   577→   577→  margin-top: 0.1rem;
+   578→   578→}
+   579→   579→
+   580→   580→/* Sidebar search */
+   581→   581→.adminlte .sidebar-form {
+   582→   582→  padding: 0.6rem 1rem;
+   583→   583→}
+   584→   584→.adminlte .sidebar-search-btn {
+   585→   585→  width: 100%;
+   586→   586→  display: flex;
+   587→   587→  align-items: center;
+   588→   588→  gap: 0.5rem;
+   589→   589→  background: rgba(255,255,255,.06);
+   590→   590→  border: 1px solid rgba(255,255,255,.05);
+   591→   591→  border-radius: 0.375rem;
+   592→   592→  padding: 0.45rem 0.7rem;
+   593→   593→  color: #8a94a6;
+   594→   594→  font-size: 0.8rem;
+   595→   595→  cursor: pointer;
+   596→   596→  transition: all 0.15s;
+   597→   597→}
+   598→   598→.adminlte .sidebar-search-btn:hover {
+   599→   599→  background: rgba(255,255,255,.10);
+   600→   600→  color: #fff;
+   601→   601→}
+   602→   602→.adminlte .sidebar-search-btn .kbd {
+   603→   603→  margin-left: auto;
+   604→   604→  font-family: ui-monospace, monospace;
+   605→   605→  font-size: 0.65rem;
+   606→   606→  background: rgba(0,0,0,.25);
+   607→   607→  color: #c2c7d0;
+   608→   608→  padding: 1px 5px;
+   609→   609→  border-radius: 3px;
+   610→   610→}
+   611→   611→
+   612→   612→/* Sidebar nav */
+   613→   613→.adminlte .nav-sidebar {
+   614→   614→  list-style: none;
+   615→   615→  padding: 0;
+   616→   616→  margin: 0;
+   617→   617→  flex: 1;
+   618→   618→}
+   619→   619→.adminlte .nav-header {
+   620→   620→  color: #8a94a6;
+   621→   621→  font-size: 0.7rem;
+   622→   622→  font-weight: 700;
+   623→   623→  text-transform: uppercase;
+   624→   624→  letter-spacing: 0.08em;
+   625→   625→  padding: 0.9rem 1rem 0.35rem;
+   626→   626→}
+   627→   627→.adminlte .nav-link {
+   628→   628→  display: flex;
+   629→   629→  align-items: center;
+   630→   630→  gap: 0.75rem;
+   631→   631→  padding: 0.6rem 1rem;
+   632→   632→  color: #c2c7d0;
+   633→   633→  font-size: 0.875rem;
+   634→   634→  border-left: 3px solid transparent;
+   635→   635→  transition: all 0.15s ease;
+   636→   636→  cursor: pointer;
+   637→   637→  text-decoration: none;
+   638→   638→  background: transparent;
+   639→   639→  border-top: none;
+   640→   640→  border-right: none;
+   641→   641→  border-bottom: none;
+   642→   642→  width: 100%;
+   643→   643→  text-align: left;
+   644→   644→}
+   645→   645→.adminlte .nav-link:hover {
+   646→   646→  background: rgba(255,255,255,.06);
+   647→   647→  color: #fff;
+   648→   648→}
+   649→   649→.adminlte .nav-link.active {
+   650→   650→  background: rgba(212,175,55,.12);
+   651→   651→  border-left-color: #d4af37;
+   652→   652→  color: #fff;
+   653→   653→  font-weight: 600;
+   654→   654→}
+   655→   655→.adminlte .nav-link .nav-icon {
+   656→   656→  width: 1.1rem;
+   657→   657→  height: 1.1rem;
+   658→   658→  flex-shrink: 0;
+   659→   659→}
+   660→   660→
+   661→   661→/* ===== Small Box — signature AdminLTE dashboard widget ===== */
+   662→   662→.alte-small-box {
+   663→   663→  position: relative;
+   664→   664→  border-radius: 0.375rem;
+   665→   665→  padding: 1.25rem;
+   666→   666→  color: #fff;
+   667→   667→  overflow: hidden;
+   668→   668→  box-shadow: 0 1px 3px rgba(0,0,0,.12);
+   669→   669→  transition: transform 0.2s ease, box-shadow 0.2s ease;
+   670→   670→  cursor: pointer;
+   671→   671→  display: block;
+   672→   672→  text-align: left;
+   673→   673→  border: none;
+   674→   674→  width: 100%;
+   675→   675→}
+   676→   676→.alte-small-box:hover {
+   677→   677→  transform: translateY(-2px);
+   678→   678→  box-shadow: 0 4px 12px rgba(0,0,0,.18);
+   679→   679→}
+   680→   680→.alte-small-box .sb-inner {
+   681→   681→  display: flex;
+   682→   682→  justify-content: space-between;
+   683→   683→  align-items: flex-start;
+   684→   684→}
+   685→   685→.alte-small-box .sb-text {
+   686→   686→  z-index: 2;
+   687→   687→  position: relative;
+   688→   688→}
+   689→   689→.alte-small-box .sb-number {
+   690→   690→  font-size: 1.75rem;
+   691→   691→  font-weight: 700;
+   692→   692→  line-height: 1.1;
+   693→   693→}
+   694→   694→.alte-small-box .sb-label {
+   695→   695→  font-size: 0.8rem;
+   696→   696→  text-transform: uppercase;
+   697→   697→  letter-spacing: 0.04em;
+   698→   698→  opacity: 0.92;
+   699→   699→  margin-top: 0.15rem;
+   700→   700→}
+   701→   701→.alte-small-box .sb-icon {
+   702→   702→  font-size: 4.5rem;
+   703→   703→  opacity: 0.25;
+   704→   704→  position: absolute;
+   705→   705→  right: 0.5rem;
+   706→   706→  bottom: -0.5rem;
+   707→   707→  z-index: 1;
+   708→   708→  width: auto;
+   709→   709→  height: auto;
+   710→   710→}
+   711→   711→.alte-small-box .sb-footer {
+   712→   712→  display: block;
+   713→   713→  background: rgba(0,0,0,.18);
+   714→   714→  margin: 1.25rem -1.25rem -1.25rem;
+   715→   715→  padding: 0.55rem 1.25rem;
+   716→   716→  font-size: 0.8rem;
+   717→   717→  color: #fff;
+   718→   718→  text-align: right;
+   719→   719→  position: relative;
+   720→   720→  z-index: 2;
+   721→   721→}
+   722→   722→.alte-small-box .sb-footer .sb-arrow {
+   723→   723→  margin-left: 0.35rem;
+   724→   724→  transition: transform 0.2s ease;
+   725→   725→  display: inline-block;
+   726→   726→}
+   727→   727→.alte-small-box:hover .sb-footer .sb-arrow {
+   728→   728→  transform: translateX(4px);
+   729→   729→}
+   730→   730→.alte-small-box.sb-primary { background: #0d6efd; }
+   731→   731→.alte-small-box.sb-success { background: #198754; }
+   732→   732→.alte-small-box.sb-info    { background: #0dcaf0; color: #0a1628; }
+   733→   733→.alte-small-box.sb-info .sb-footer { color: #0a1628; background: rgba(0,0,0,.1); }
+   734→   734→.alte-small-box.sb-warning { background: #ffc107; color: #0a1628; }
+   735→   735→.alte-small-box.sb-warning .sb-footer { color: #0a1628; background: rgba(0,0,0,.1); }
+   736→   736→.alte-small-box.sb-danger  { background: #dc3545; }
+   737→   737→.alte-small-box.sb-gold    { background: linear-gradient(135deg, #d4af37, #b8941f); color: #0a1628; }
+   738→   738→.alte-small-box.sb-gold .sb-footer { color: #0a1628; background: rgba(0,0,0,.12); }
+   739→   739→
+   740→   740→/* ===== Info Box ===== */
+   741→   741→.alte-info-box {
+   742→   742→  display: flex;
+   743→   743→  background: #fff;
+   744→   744→  border: 1px solid #e3e6ec;
+   745→   745→  border-radius: 0.375rem;
+   746→   746→  overflow: hidden;
+   747→   747→  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+   748→   748→}
+   749→   749→.alte-info-box .ib-icon {
+   750→   750→  width: 70px;
+   751→   751→  display: flex;
+   752→   752→  align-items: center;
+   753→   753→  justify-content: center;
+   754→   754→  color: #fff;
+   755→   755→  font-size: 1.75rem;
+   756→   756→  flex-shrink: 0;
+   757→   757→}
+   758→   758→.alte-info-box .ib-body {
+   759→   759→  padding: 0.6rem 0.85rem;
+   760→   760→  flex: 1;
+   761→   761→}
+   762→   762→.alte-info-box .ib-text {
+   763→   763→  font-size: 0.8rem;
+   764→   764→  color: #6c757d;
+   765→   765→  text-transform: uppercase;
+   766→   766→  letter-spacing: 0.04em;
+   767→   767→  font-weight: 600;
+   768→   768→}
+   769→   769→.alte-info-box .ib-number {
+   770→   770→  font-size: 1.35rem;
+   771→   771→  font-weight: 700;
+   772→   772→  color: #212529;
+   773→   773→  line-height: 1.2;
+   774→   774→}
+   775→   775→.alte-info-box .ib-progress {
+   776→   776→  height: 6px;
+   777→   777→  background: #e9ecef;
+   778→   778→  border-radius: 3px;
+   779→   779→  margin-top: 0.35rem;
+   780→   780→  overflow: hidden;
+   781→   781→}
+   782→   782→.alte-info-box .ib-progress-bar {
+   783→   783→  height: 100%;
+   784→   784→  border-radius: 3px;
+   785→   785→}
+   786→   786→
+   787→   787→/* Content padding */
+   788→   788→.adminlte .content {
+   789→   789→  padding: 1rem 1.25rem;
+   790→   790→  flex: 1;
+   791→   791→  width: 100%;
+   792→   792→}
+   793→   793→@media (min-width: 768px) {
+   794→   794→  .adminlte .content {
+   795→   795→    padding: 1.25rem 1.5rem;
+   796→   796→  }
+   797→   797→}
+   798→   798→
+   799→   799→/* Breadcrumb in navbar */
+   800→   800→.adminlte .navbar-breadcrumb {
+   801→   801→  display: flex;
+   802→   802→  align-items: center;
+   803→   803→  gap: 0.5rem;
+   804→   804→  color: #c2c7d0;
+   805→   805→  font-size: 0.875rem;
+   806→   806→}
+   807→   807→.adminlte .navbar-breadcrumb .bc-current {
+   808→   808→  color: #fff;
+   809→   809→  font-weight: 600;
+   810→   810→}
+   811→   811→
+   812→   812→/* Navbar right side buttons */
+   813→   813→.adminlte .navbar-btn {
+   814→   814→  color: #c2c7d0;
+   815→   815→  background: transparent;
+   816→   816→  border: none;
+   817→   817→  padding: 0.4rem 0.6rem;
+   818→   818→  border-radius: 0.375rem;
+   819→   819→  cursor: pointer;
+   820→   820→  transition: background 0.15s, color 0.15s;
+   821→   821→  display: inline-flex;
+   822→   822→  align-items: center;
+   823→   823→  gap: 0.4rem;
+   824→   824→  font-size: 0.85rem;
+   825→   825→}
+   826→   826→.adminlte .navbar-btn:hover {
+   827→   827→  background: rgba(255,255,255,.1);
+   828→   828→  color: #fff;
+   829→   829→}
+   830→   830→
+   831→   831→/* AdminLTE top nav right cluster */
+   832→   832→.adminlte .navbar-nav-right {
+   833→   833→  display: flex;
+   834→   834→  align-items: center;
+   835→   835→  gap: 0.25rem;
+   836→   836→  margin-left: auto;
+   837→   837→}
+   838→   838→
+   839→   839→/* User-trigger button on the navbar (right) */
+   840→   840→.adminlte .navbar-user-btn {
+   841→   841→  display: inline-flex;
+   842→   842→  align-items: center;
+   843→   843→  gap: 0.5rem;
+   844→   844→  background: transparent;
+   845→   845→  border: none;
+   846→   846→  color: #c2c7d0;
+   847→   847→  padding: 0.35rem 0.5rem;
+   848→   848→  border-radius: 0.375rem;
+   849→   849→  cursor: pointer;
+   850→   850→  transition: background 0.15s, color 0.15s;
+   851→   851→}
+   852→   852→.adminlte .navbar-user-btn:hover {
+   853→   853→  background: rgba(255,255,255,.1);
+   854→   854→  color: #fff;
+   855→   855→}
+   856→   856→.adminlte .navbar-user-btn .nu-avatar {
+   857→   857→  width: 30px;
+   858→   858→  height: 30px;
+   859→   859→  border-radius: 50%;
+   860→   860→  background: linear-gradient(135deg, #d4af37, #b8941f);
+   861→   861→  color: #0a1628;
+   862→   862→  display: flex;
+   863→   863→  align-items: center;
+   864→   864→  justify-content: center;
+   865→   865→  font-weight: 700;
+   866→   866→  font-size: 0.78rem;
+   867→   867→  flex-shrink: 0;
+   868→   868→}
+   869→   869→.adminlte .navbar-user-btn .nu-meta {
+   870→   870→  display: flex;
+   871→   871→  flex-direction: column;
+   872→   872→  align-items: flex-start;
+   873→   873→  line-height: 1.15;
+   874→   874→}
+   875→   875→.adminlte .navbar-user-btn .nu-name {
+   876→   876→  color: #fff;
+   877→   877→  font-size: 0.78rem;
+   878→   878→  font-weight: 600;
+   879→   879→}
+   880→   880→.adminlte .navbar-user-btn .nu-role {
+   881→   881→  color: #8a94a6;
+   882→   882→  font-size: 0.66rem;
+   883→   883→  display: inline-flex;
+   884→   884→  align-items: center;
+   885→   885→  gap: 0.2rem;
+   886→   886→}
+   887→   887→
+   888→   888→/* Hamburger (mobile only — controlled by lg:hidden in markup) */
+   889→   889→.adminlte .sidebar-toggle {
+   890→   890→  color: #c2c7d0;
+   891→   891→  background: transparent;
+   892→   892→  border: none;
+   893→   893→  padding: 0.4rem 0.55rem;
+   894→   894→  border-radius: 0.375rem;
+   895→   895→  cursor: pointer;
+   896→   896→  display: inline-flex;
+   897→   897→  align-items: center;
+   898→   898→  justify-content: center;
+   899→   899→  transition: background 0.15s, color 0.15s;
+   900→   900→}
+   901→   901→.adminlte .sidebar-toggle:hover {
+   902→   902→  background: rgba(255,255,255,.1);
+   903→   903→  color: #fff;
+   904→   904→}
+   905→   905→
+   906→   906→/* Brand mini link (top-left corner of navbar when sidebar hidden on mobile) */
+   907→   907→.adminlte .navbar-brand-mini {
+   908→   908→  display: none;
+   909→   909→  align-items: center;
+   910→   910→  gap: 0.5rem;
+   911→   911→  color: #fff;
+   912→   912→  font-weight: 700;
+   913→   913→  font-size: 0.9rem;
+   914→   914→}
+   915→   915→@media (max-width: 991.98px) {
+   916→   916→  .adminlte .navbar-brand-mini { display: inline-flex; }
+   917→   917→}
+   918→   918→
+   919→   919→/* ===== Responsive: hide sidebar on mobile, show via drawer/sheet ===== */
+   920→   920→@media (max-width: 991.98px) {
+   921→   921→  .adminlte .main-sidebar {
+   922→   922→    transform: translateX(-100%);
+   923→   923→  }
+   924→   924→  .adminlte .main-sidebar.is-open {
+   925→   925→    transform: translateX(0);
+   926→   926→  }
+   927→   927→  .adminlte .content-wrapper {
+   928→   928→    margin-left: 0;
+   929→   929→  }
+   930→   930→}
+   931→   931→
+   932→   932→/* ===== Print: hide admin chrome ===== */
+   933→   933→@media print {
+   934→   934→  .adminlte .main-sidebar,
+   935→   935→  .adminlte .main-header,
+   936→   936→  .adminlte .main-footer {
+   937→   937→    display: none !important;
+   938→   938→  }
+   939→   939→  .adminlte .content-wrapper {
+   940→   940→    margin-left: 0 !important;
+   941→   941→  }
+   942→   942→  .adminlte .content {
+   943→   943→    padding: 0 !important;
+   944→   944→  }
+   945→   945→}
+   946→   946→

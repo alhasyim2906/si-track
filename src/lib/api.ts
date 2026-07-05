@@ -46,7 +46,17 @@ export const api = {
   getQr: (id: string) => req<{ qr: string; url: string; nomorRegister: string }>(`/api/permohonan/${id}/qr`),
 
   // dashboard
-  dashboard: (year?: number) => req<any>(`/api/dashboard${year ? `?year=${year}` : ""}`),
+  dashboard: (year?: number, range?: "today" | "7d" | "30d" | "year" | "all") => {
+    const q = new URLSearchParams();
+    if (year) q.set("year", String(year));
+    if (range) q.set("range", range);
+    const qs = q.toString();
+    return req<any>(`/api/dashboard${qs ? `?${qs}` : ""}`);
+  },
+
+  // recent activity (riwayat)
+  riwayatRecent: (limit: number = 5) =>
+    req<{ items: any[] }>(`/api/riwayat/recent?limit=${limit}`),
 
   // master
   jenisSurat: () => req<{ items: any[] }>("/api/jenis-surat"),
