@@ -1,0 +1,1005 @@
+     1→"use client";
+     2→import { useEffect, useState, useCallback } from "react";
+     3→import { api } from "@/lib/api";
+     4→import { useAppStore } from "@/store/app-store";
+     5→import { STATUS_DEFINITIONS } from "@/lib/constants";
+     6→import type { PermohonanListItem } from "@/lib/types";
+     7→import { SectionHeader } from "@/components/app/StatCard";
+     8→import { StatusBadge, PriorityBadge } from "@/components/app/StatusBadge";
+     9→import { Card, CardContent } from "@/components/ui/card";
+    10→import { Button } from "@/components/ui/button";
+    11→import { Input } from "@/components/ui/input";
+    12→import { Checkbox } from "@/components/ui/checkbox";
+    13→import {
+    14→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    15→} from "@/components/ui/select";
+    16→import {
+    17→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    18→} from "@/components/ui/table";
+    19→import { Skeleton } from "@/components/ui/skeleton";
+    20→import { Badge } from "@/components/ui/badge";
+    21→import {
+    22→  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+    23→} from "@/components/ui/dropdown-menu";
+    24→import {
+    25→  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    26→} from "@/components/ui/dialog";
+    27→import {
+    28→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    29→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    30→} from "@/components/ui/alert-dialog";
+    31→import { toast } from "sonner";
+    32→import {
+    33→  PlusCircle, Search, FileText, ChevronLeft, ChevronRight,
+    34→  Inbox, Loader2, Eye, Hash, User, Calendar, Files, MessageSquare,
+    35→  Download, X, CheckSquare, CalendarRange, Trash2, ArrowRight,
+    36→  ChevronsUpDown, Filter, AlertTriangle,
+    37→} from "lucide-react";
+    38→
+    39→const PER_PAGE_OPTIONS = ["10", "20", "50"];
+    40→
+    41→const PRIORITY_OPTIONS = [
+    42→  { value: "ALL", label: "Semua Prioritas" },
+    43→  { value: "NORMAL", label: "Normal" },
+    44→  { value: "TINGGI", label: "Tinggi" },
+    45→  { value: "MENDESAK", label: "Mendesak" },
+    46→] as const;
+    47→
+    48→type DateRangePreset = "today" | "7days" | "30days" | "";
+    49→
+    50→function formatDate(d: string): string {
+    51→  if (!d) return "-";
+    52→  try {
+    53→    return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
+    54→  } catch {
+    55→    return d;
+    56→  }
+    57→}
+    58→
+    59→function toISODate(d: Date): string {
+    60→  return d.toISOString().slice(0, 10);
+    61→}
+    62→
+    63→export function PermohonanList() {
+    64→  const { selectPermohonan, setView, can } = useAppStore();
+    65→  const canCreate = can("create_permohonan");
+    66→  const canDelete = can("delete_permohonan");
+    67→  const canChangeStatus = can("change_status");
+    68→
+    69→  const [items, setItems] = useState<PermohonanListItem[]>([]);
+    70→  const [total, setTotal] = useState(0);
+    71→  const [loading, setLoading] = useState(true);
+    72→  const [error, setError] = useState("");
+    73→
+    74→  // filters
+    75→  const [q, setQ] = useState("");
+    76→  const [debouncedQ, setDebouncedQ] = useState("");
+    77→  const [status, setStatus] = useState<string>("ALL");
+    78→  const [prioritas, setPrioritas] = useState<string>("ALL");
+    79→  const [limit, setLimit] = useState<string>("10");
+    80→  const [page, setPage] = useState(1);
+    81→
+    82→  // advanced date-range filter (YYYY-MM-DD or empty)
+    83→  const [dariTanggal, setDariTanggal] = useState<string>("");
+    84→  const [sampaiTanggal, setSampaiTanggal] = useState<string>("");
+    85→  const [datePreset, setDatePreset] = useState<DateRangePreset>("");
+    86→
+    87→  // bulk selection mode
+    88→  const [bulkMode, setBulkMode] = useState(false);
+    89→  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    90→
+    91→  // bulk action dialog states
+    92→  const [showStatusDialog, setShowStatusDialog] = useState(false);
+    93→  const [bulkStatusKode, setBulkStatusKode] = useState("");
+    94→  const [bulkCatatan, setBulkCatatan] = useState("");
+    95→  const [bulkProcessing, setBulkProcessing] = useState(false);
+    96→  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    97→
+    98→  // debounce search input
+    99→  useEffect(() => {
+   100→    const t = setTimeout(() => {
+   101→      setDebouncedQ(q.trim());
+   102→      setPage(1);
+   103→    }, 400);
+   104→    return () => clearTimeout(t);
+   105→  }, [q]);
+   106→
+   107→  const fetchList = useCallback(async () => {
+   108→    setLoading(true);
+   109→    setError("");
+   110→    try {
+   111→      const params: Record<string, string | undefined> = {
+   112→        q: debouncedQ || undefined,
+   113→        status: status && status !== "ALL" ? status : undefined,
+   114→        prioritas: prioritas && prioritas !== "ALL" ? prioritas : undefined,
+   115→        page: String(page),
+   116→        limit,
+   117→        dariTanggal: dariTanggal || undefined,
+   118→        sampaiTanggal: sampaiTanggal || undefined,
+   119→      };
+   120→      const r = await api.listPermohonan(params);
+   121→      setItems(r.items || []);
+   122→      setTotal(r.total || 0);
+   123→      // clear selection when page/filter changes
+   124→      setSelectedIds(new Set());
+   125→    } catch (e: any) {
+   126→      setError(e.message || "Gagal memuat data");
+   127→      toast.error(e.message || "Gagal memuat data permohonan");
+   128→    } finally {
+   129→      setLoading(false);
+   130→    }
+   131→  }, [debouncedQ, status, prioritas, page, limit, dariTanggal, sampaiTanggal]);
+   132→
+   133→  useEffect(() => {
+   134→    fetchList();
+   135→  }, [fetchList]);
+   136→
+   137→  const totalPages = Math.max(1, Math.ceil(total / Number(limit || 10)));
+   138→
+   139→  // Helper to format a YYYY-MM-DD date string into a localized short date.
+   140→  const formatDateShort = (d: string): string => {
+   141→    if (!d) return "";
+   142→    try {
+   143→      return new Date(`${d}T00:00:00`).toLocaleDateString("id-ID", {
+   144→        day: "2-digit",
+   145→        month: "short",
+   146→        year: "numeric",
+   147→      });
+   148→    } catch {
+   149→      return d;
+   150→    }
+   151→  };
+   152→
+   153→  const hasDateRange = !!(dariTanggal || sampaiTanggal);
+   154→  const hasAnyFilter = !!(debouncedQ || (status && status !== "ALL") || (prioritas && prioritas !== "ALL") || hasDateRange);
+   155→
+   156→  // Count active filters for badge
+   157→  const activeFilterCount = [
+   158→    debouncedQ,
+   159→    status && status !== "ALL",
+   160→    prioritas && prioritas !== "ALL",
+   161→    hasDateRange,
+   162→  ].filter(Boolean).length;
+   163→
+   164→  const resetAllFilters = () => {
+   165→    setQ("");
+   166→    setDebouncedQ("");
+   167→    setStatus("ALL");
+   168→    setPrioritas("ALL");
+   169→    setDariTanggal("");
+   170→    setSampaiTanggal("");
+   171→    setDatePreset("");
+   172→    setPage(1);
+   173→  };
+   174→
+   175→  // ---- Date range preset helpers ----
+   176→  const applyDatePreset = (preset: DateRangePreset) => {
+   177→    const today = new Date();
+   178→    const todayStr = toISODate(today);
+   179→    setDatePreset(preset);
+   180→
+   181→    if (preset === "today") {
+   182→      setDariTanggal(todayStr);
+   183→      setSampaiTanggal(todayStr);
+   184→    } else if (preset === "7days") {
+   185→      const from = new Date();
+   186→      from.setDate(from.getDate() - 6);
+   187→      setDariTanggal(toISODate(from));
+   188→      setSampaiTanggal(todayStr);
+   189→    } else if (preset === "30days") {
+   190→      const from = new Date();
+   191→      from.setDate(from.getDate() - 29);
+   192→      setDariTanggal(toISODate(from));
+   193→      setSampaiTanggal(todayStr);
+   194→    }
+   195→    setPage(1);
+   196→  };
+   197→
+   198→  // ---- bulk selection helpers ----
+   199→  const allOnPageSelected = items.length > 0 && items.every((it) => selectedIds.has(it.id));
+   200→  const someOnPageSelected = items.some((it) => selectedIds.has(it.id));
+   201→
+   202→  const toggleSelectAll = () => {
+   203→    setSelectedIds((prev) => {
+   204→      const next = new Set(prev);
+   205→      if (allOnPageSelected) {
+   206→        items.forEach((it) => next.delete(it.id));
+   207→      } else {
+   208→        items.forEach((it) => next.add(it.id));
+   209→      }
+   210→      return next;
+   211→    });
+   212→  };
+   213→
+   214→  const toggleSelectOne = (id: string) => {
+   215→    setSelectedIds((prev) => {
+   216→      const next = new Set(prev);
+   217→      if (next.has(id)) next.delete(id);
+   218→      else next.add(id);
+   219→      return next;
+   220→    });
+   221→  };
+   222→
+   223→  const clearSelection = () => {
+   224→    setSelectedIds(new Set());
+   225→    setBulkMode(false);
+   226→  };
+   227→
+   228→  const enterBulkMode = () => {
+   229→    setBulkMode(true);
+   230→  };
+   231→
+   232→  const exitBulkMode = () => {
+   233→    setBulkMode(false);
+   234→    setSelectedIds(new Set());
+   235→  };
+   236→
+   237→  // ---- CSV export helpers ----
+   238→  const buildCsv = (data: PermohonanListItem[]) => {
+   239→    const headers = [
+   240→      "Nomor Register", "Nama Pemohon", "NIK", "Jenis Surat",
+   241→      "Status", "Prioritas", "Dibuat", "Selesai", "Keperluan",
+   242→    ];
+   243→    const rows = data.map((it) => [
+   244→      it.nomorRegister,
+   245→      it.pemohonNama,
+   246→      it.pemohonNik,
+   247→      it.jenisSurat?.nama || "-",
+   248→      it.statusNama || it.statusSaatIni,
+   249→      it.prioritas || "NORMAL",
+   250→      it.createdAt ? new Date(it.createdAt).toLocaleDateString("id-ID") : "-",
+   251→      it.tanggalSelesai ? new Date(it.tanggalSelesai).toLocaleDateString("id-ID") : "-",
+   252→      (it.keperluan || "-").replace(/[\n\r,]/g, " "),
+   253→    ]);
+   254→    const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+   255→    return [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+   256→  };
+   257→
+   258→  const downloadCsv = (csv: string, filename: string) => {
+   259→    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+   260→    const url = URL.createObjectURL(blob);
+   261→    const a = document.createElement("a");
+   262→    a.href = url;
+   263→    a.download = filename;
+   264→    document.body.appendChild(a);
+   265→    a.click();
+   266→    document.body.removeChild(a);
+   267→    URL.revokeObjectURL(url);
+   268→  };
+   269→
+   270→  // Export selected items to CSV
+   271→  const exportSelectedCsv = () => {
+   272→    const selected = items.filter((it) => selectedIds.has(it.id));
+   273→    if (selected.length === 0) {
+   274→      toast.error("Tidak ada item terpilih untuk diekspor");
+   275→      return;
+   276→    }
+   277→    const csv = buildCsv(selected);
+   278→    downloadCsv(csv, `permohonan-terpilih-${toISODate(new Date())}.csv`);
+   279→    toast.success(`${selected.length} permohonan diekspor ke CSV`);
+   280→  };
+   281→
+   282→  // Export current page to CSV
+   283→  const exportPageCsv = () => {
+   284→    if (!items.length) {
+   285→      toast.error("Tidak ada data pada halaman ini");
+   286→      return;
+   287→    }
+   288→    const csv = buildCsv(items);
+   289→    downloadCsv(csv, `permohonan-halaman-${page}-${toISODate(new Date())}.csv`);
+   290→    toast.success(`${items.length} permohonan (halaman ini) diekspor ke CSV`);
+   291→  };
+   292→
+   293→  // Export all matching filter to CSV (fetch all pages)
+   294→  const exportAllCsv = async () => {
+   295→    try {
+   296→      const params: Record<string, string | undefined> = {
+   297→        q: debouncedQ || undefined,
+   298→        status: status && status !== "ALL" ? status : undefined,
+   299→        prioritas: prioritas && prioritas !== "ALL" ? prioritas : undefined,
+   300→        page: "1",
+   301→        limit: String(total || 10000),
+   302→        dariTanggal: dariTanggal || undefined,
+   303→        sampaiTanggal: sampaiTanggal || undefined,
+   304→      };
+   305→      const r = await api.listPermohonan(params);
+   306→      const allItems = r.items || [];
+   307→      if (!allItems.length) {
+   308→        toast.error("Tidak ada data untuk diekspor");
+   309→        return;
+   310→      }
+   311→      const csv = buildCsv(allItems);
+   312→      downloadCsv(csv, `permohonan-semua-${toISODate(new Date())}.csv`);
+   313→      toast.success(`${allItems.length} permohonan diekspor ke CSV`);
+   314→    } catch {
+   315→      toast.error("Gagal mengekspor data");
+   316→    }
+   317→  };
+   318→
+   319→  // ---- Bulk actions ----
+   320→  const handleBulkChangeStatus = async () => {
+   321→    if (!bulkStatusKode) {
+   322→      toast.error("Pilih status baru");
+   323→      return;
+   324→    }
+   325→    setBulkProcessing(true);
+   326→    let success = 0;
+   327→    let failed = 0;
+   328→    for (const id of selectedIds) {
+   329→      try {
+   330→        await api.changeStatus(id, { statusKode: bulkStatusKode, catatan: bulkCatatan || undefined });
+   331→        success++;
+   332→      } catch {
+   333→        failed++;
+   334→      }
+   335→    }
+   336→    setBulkProcessing(false);
+   337→    setShowStatusDialog(false);
+   338→    setBulkStatusKode("");
+   339→    setBulkCatatan("");
+   340→    if (success > 0) {
+   341→      toast.success(`${success} permohonan berhasil diubah statusnya`);
+   342→      fetchList();
+   343→    }
+   344→    if (failed > 0) {
+   345→      toast.error(`${failed} permohonan gagal diubah statusnya`);
+   346→    }
+   347→    exitBulkMode();
+   348→  };
+   349→
+   350→  const handleBulkDelete = async () => {
+   351→    setBulkProcessing(true);
+   352→    let success = 0;
+   353→    let failed = 0;
+   354→    for (const id of selectedIds) {
+   355→      try {
+   356→        await api.deletePermohonan(id);
+   357→        success++;
+   358→      } catch {
+   359→        failed++;
+   360→      }
+   361→    }
+   362→    setBulkProcessing(false);
+   363→    setShowDeleteDialog(false);
+   364→    if (success > 0) {
+   365→      toast.success(`${success} permohonan berhasil dihapus`);
+   366→      fetchList();
+   367→    }
+   368→    if (failed > 0) {
+   369→      toast.error(`${failed} permohonan gagal dihapus`);
+   370→    }
+   371→    exitBulkMode();
+   372→  };
+   373→
+   374→  return (
+   375→    <div className="container mx-auto max-w-7xl px-4 py-6 space-y-5">
+   376→      {/* Header with bulk select toggle + export */}
+   377→      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+   378→        <SectionHeader
+   379→          title="Daftar Permohonan"
+   380→          subtitle="Kelola seluruh permohonan surat tanah"
+   381→          icon={FileText}
+   382→        />
+   383→        <div className="flex items-center gap-2 shrink-0">
+   384→          {!bulkMode ? (
+   385→            <>
+   386→              <Button
+   387→                variant="outline"
+   388→                size="sm"
+   389→                onClick={enterBulkMode}
+   390→                className="gap-1.5"
+   391→              >
+   392→                <CheckSquare className="w-4 h-4" /> Pilih
+   393→              </Button>
+   394→              <DropdownMenu>
+   395→                <DropdownMenuTrigger asChild>
+   396→                  <Button variant="outline" size="sm" className="gap-1.5">
+   397→                    <Download className="w-4 h-4" /> Export
+   398→                    <ChevronsUpDown className="w-3 h-3 opacity-50" />
+   399→                  </Button>
+   400→                </DropdownMenuTrigger>
+   401→                <DropdownMenuContent align="end">
+   402→                  <DropdownMenuItem onClick={exportAllCsv}>
+   403→                    <Download className="w-4 h-4 mr-2" /> Export CSV (Semua)
+   404→                  </DropdownMenuItem>
+   405→                  <DropdownMenuItem onClick={exportPageCsv}>
+   406→                    <Download className="w-4 h-4 mr-2" /> Export CSV (Halaman Ini)
+   407→                  </DropdownMenuItem>
+   408→                </DropdownMenuContent>
+   409→              </DropdownMenu>
+   410→            </>
+   411→          ) : (
+   412→            <>
+   413→              {selectedIds.size > 0 && (
+   414→                <Badge className="bg-primary/15 border border-primary/30 text-primary text-[11px] font-semibold px-2.5">
+   415→                  {selectedIds.size} dipilih
+   416→                </Badge>
+   417→              )}
+   418→              <Button
+   419→                variant="outline"
+   420→                size="sm"
+   421→                onClick={exitBulkMode}
+   422→                className="gap-1.5"
+   423→              >
+   424→                <X className="w-4 h-4" /> Batalkan
+   425→              </Button>
+   426→            </>
+   427→          )}
+   428→          {canCreate && (
+   429→            <Button
+   430→              onClick={() => setView("permohonan-baru")}
+   431→              className="alte-btn-primary font-semibold"
+   432→            >
+   433→              <PlusCircle className="w-4 h-4" /> Daftar Baru
+   434→            </Button>
+   435→          )}
+   436→        </div>
+   437→      </div>
+   438→
+   439→      {/* Filters */}
+   440→      <Card className="glass-card border-primary/15">
+   441→        <CardContent className="p-4 space-y-3">
+   442→          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_180px_160px_140px]">
+   443→            <div className="relative">
+   444→              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+   445→              <Input
+   446→                placeholder="Cari nomor register, nama pemohon, atau NIK..."
+   447→                value={q}
+   448→                onChange={(e) => setQ(e.target.value)}
+   449→                className="pl-9"
+   450→              />
+   451→            </div>
+   452→            <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
+   453→              <SelectTrigger className="w-full">
+   454→                <SelectValue placeholder="Semua Status" />
+   455→              </SelectTrigger>
+   456→              <SelectContent>
+   457→                <SelectItem value="ALL">Semua Status</SelectItem>
+   458→                {STATUS_DEFINITIONS.map((s) => (
+   459→                  <SelectItem key={s.kode} value={s.kode}>
+   460→                    {s.nama}
+   461→                  </SelectItem>
+   462→                ))}
+   463→              </SelectContent>
+   464→            </Select>
+   465→            <Select value={prioritas} onValueChange={(v) => { setPrioritas(v); setPage(1); }}>
+   466→              <SelectTrigger className="w-full">
+   467→                <SelectValue placeholder="Semua Prioritas" />
+   468→              </SelectTrigger>
+   469→              <SelectContent>
+   470→                {PRIORITY_OPTIONS.map((p) => (
+   471→                  <SelectItem key={p.value} value={p.value}>
+   472→                    {p.label}
+   473→                  </SelectItem>
+   474→                ))}
+   475→              </SelectContent>
+   476→            </Select>
+   477→            <Select value={limit} onValueChange={(v) => { setLimit(v); setPage(1); }}>
+   478→              <SelectTrigger className="w-full">
+   479→                <SelectValue placeholder="Per halaman" />
+   480→              </SelectTrigger>
+   481→              <SelectContent>
+   482→                {PER_PAGE_OPTIONS.map((n) => (
+   483→                  <SelectItem key={n} value={n}>{n} / halaman</SelectItem>
+   484→                ))}
+   485→              </SelectContent>
+   486→            </Select>
+   487→          </div>
+   488→
+   489→          {/* Date range quick chips */}
+   490→          <div className="flex flex-wrap items-center gap-2">
+   491→            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+   492→              <CalendarRange className="w-3 h-3" /> Rentang:
+   493→            </span>
+   494→            {(["today", "7days", "30days"] as const).map((preset) => {
+   495→              const labels: Record<string, string> = { today: "Hari Ini", "7days": "7 Hari", "30days": "30 Hari" };
+   496→              const isActive = datePreset === preset;
+   497→              return (
+   498→                <Button
+   499→                  key={preset}
+   500→                  variant={isActive ? "default" : "outline"}
+   501→                  size="sm"
+   502→                  className={"h-7 text-[11px] px-2.5 gap-1 " + (isActive ? "bg-primary/20 border-primary/40 text-primary hover:bg-primary/30" : "")}
+   503→                  onClick={() => {
+   504→                    if (isActive) {
+   505→                      setDatePreset("");
+   506→                      setDariTanggal("");
+   507→                      setSampaiTanggal("");
+   508→                      setPage(1);
+   509→                    } else {
+   510→                      applyDatePreset(preset);
+   511→                    }
+   512→                  }}
+   513→                >
+   514→                  {labels[preset]}
+   515→                </Button>
+   516→              );
+   517→            })}
+   518→          </div>
+   519→
+   520→          {/* Advanced date-range filter */}
+   521→          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+   522→            <div className="space-y-1.5">
+   523→              <label
+   524→                htmlFor="dariTanggal"
+   525→                className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"
+   526→              >
+   527→                <CalendarRange className="w-3 h-3" /> Dari Tanggal
+   528→              </label>
+   529→              <Input
+   530→                id="dariTanggal"
+   531→                type="date"
+   532→                value={dariTanggal}
+   533→                onChange={(e) => { setDariTanggal(e.target.value); setDatePreset(""); setPage(1); }}
+   534→                className="w-full"
+   535→                max={sampaiTanggal || undefined}
+   536→              />
+   537→            </div>
+   538→            <div className="space-y-1.5">
+   539→              <label
+   540→                htmlFor="sampaiTanggal"
+   541→                className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"
+   542→              >
+   543→                <Calendar className="w-3 h-3" /> Sampai Tanggal
+   544→              </label>
+   545→              <Input
+   546→                id="sampaiTanggal"
+   547→                type="date"
+   548→                value={sampaiTanggal}
+   549→                onChange={(e) => { setSampaiTanggal(e.target.value); setDatePreset(""); setPage(1); }}
+   550→                className="w-full"
+   551→                min={dariTanggal || undefined}
+   552→              />
+   553→            </div>
+   554→            <Button
+   555→              type="button"
+   556→              variant="outline"
+   557→              size="sm"
+   558→              disabled={!hasDateRange}
+   559→              onClick={() => { setDariTanggal(""); setSampaiTanggal(""); setDatePreset(""); setPage(1); }}
+   560→              className="h-9"
+   561→              title="Reset rentang tanggal"
+   562→            >
+   563→              <X className="w-3.5 h-3.5" /> Reset Tanggal
+   564→            </Button>
+   565→          </div>
+   566→
+   567→          {/* Active filter chips + count */}
+   568→          {hasAnyFilter && (
+   569→            <div className="flex flex-wrap items-center gap-2 pt-1">
+   570→              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+   571→                <Filter className="w-3 h-3" />
+   572→                Filter aktif
+   573→                <Badge className="h-5 min-w-[20px] flex items-center justify-center text-[10px] px-1.5 bg-primary/20 text-primary border-primary/30">
+   574→                  {activeFilterCount}
+   575→                </Badge>:
+   576→              </span>
+   577→              {debouncedQ && (
+   578→                <Badge variant="outline" className="text-[11px] border-primary/30 bg-primary/5">
+   579→                  &quot;{debouncedQ}&quot;
+   580→                </Badge>
+   581→              )}
+   582→              {status && status !== "ALL" && (
+   583→                <Badge variant="outline" className="text-[11px] border-primary/30 bg-primary/5">
+   584→                  {STATUS_DEFINITIONS.find((s) => s.kode === status)?.nama || status}
+   585→                </Badge>
+   586→              )}
+   587→              {prioritas && prioritas !== "ALL" && (
+   588→                <Badge variant="outline" className="text-[11px] border-primary/30 bg-primary/5">
+   589→                  {PRIORITY_OPTIONS.find((p) => p.value === prioritas)?.label || prioritas}
+   590→                </Badge>
+   591→              )}
+   592→              {dariTanggal && (
+   593→                <Badge variant="outline" className="text-[11px] border-primary/30 bg-primary/5">
+   594→                  Dari: {formatDateShort(dariTanggal)}
+   595→                </Badge>
+   596→              )}
+   597→              {sampaiTanggal && (
+   598→                <Badge variant="outline" className="text-[11px] border-primary/30 bg-primary/5">
+   599→                  Sampai: {formatDateShort(sampaiTanggal)}
+   600→                </Badge>
+   601→              )}
+   602→              <Button
+   603→                variant="ghost"
+   604→                size="sm"
+   605→                className="h-6 text-xs px-2"
+   606→                onClick={resetAllFilters}
+   607→              >
+   608→                Reset Semua
+   609→              </Button>
+   610→            </div>
+   611→          )}
+   612→        </CardContent>
+   613→      </Card>
+   614→
+   615→      {/* Loading */}
+   616→      {loading && (
+   617→        <Card className="glass-card border-primary/15">
+   618→          <CardContent className="p-4 space-y-3">
+   619→            {[0, 1, 2, 3, 4].map((i) => (
+   620→              <Skeleton key={i} className="h-12 w-full rounded-md skeleton-shimmer" />
+   621→            ))}
+   622→          </CardContent>
+   623→        </Card>
+   624→      )}
+   625→
+   626→      {/* Error */}
+   627→      {!loading && error && (
+   628→        <Card className="glass-card border-destructive/30">
+   629→          <CardContent className="p-6 text-center">
+   630→            <p className="text-sm text-destructive">{error}</p>
+   631→            <Button variant="outline" size="sm" className="mt-3" onClick={fetchList}>
+   632→              Coba lagi
+   633→            </Button>
+   634→          </CardContent>
+   635→        </Card>
+   636→      )}
+   637→
+   638→      {/* Empty */}
+   639→      {!loading && !error && items.length === 0 && (
+   640→        <Card className="glass-card border-primary/15">
+   641→          <CardContent className="p-10 text-center">
+   642→            <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mb-3">
+   643→              <Inbox className="w-6 h-6 text-primary" />
+   644→            </div>
+   645→            <h3 className="font-semibold">Belum ada permohonan</h3>
+   646→            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+   647→              Belum terdapat permohonan yang sesuai dengan filter Anda.
+   648→              {canCreate && " Anda dapat mendaftarkan permohonan baru."}
+   649→            </p>
+   650→            {canCreate && (
+   651→              <Button
+   652→                onClick={() => setView("permohonan-baru")}
+   653→                className="mt-4 bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+   654→              >
+   655→                <PlusCircle className="w-4 h-4" /> Daftar Permohonan Baru
+   656→              </Button>
+   657→            )}
+   658→          </CardContent>
+   659→        </Card>
+   660→      )}
+   661→
+   662→      {/* Bulk action bar (sticky bottom, appears in bulk mode when items selected) */}
+   663→      {bulkMode && selectedIds.size > 0 && (
+   664→        <div className="sticky bottom-4 z-30 animate-fade-in-up">
+   665→          <Card className="border-primary/40 shadow-lg" style={{ background: "linear-gradient(135deg, rgba(212,175,55,0.12) 0%, rgba(184,148,31,0.08) 100%)" }}>
+   666→            <CardContent className="p-3 sm:p-4">
+   667→              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+   668→                <div className="flex items-center gap-3">
+   669→                  <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
+   670→                    <CheckSquare className="w-4.5 h-4.5 text-primary" />
+   671→                  </div>
+   672→                  <div>
+   673→                    <p className="font-semibold text-sm">
+   674→                      {selectedIds.size} permohonan dipilih
+   675→                    </p>
+   676→                    <p className="text-[11px] text-muted-foreground">
+   677→                      Pilih aksi untuk item terpilih
+   678→                    </p>
+   679→                  </div>
+   680→                </div>
+   681→                <div className="flex flex-wrap items-center gap-2">
+   682→                  {canChangeStatus && (
+   683→                    <Button
+   684→                      size="sm"
+   685→                      variant="outline"
+   686→                      onClick={() => setShowStatusDialog(true)}
+   687→                      className="border-primary/30 gap-1.5"
+   688→                    >
+   689→                      <ArrowRight className="w-3.5 h-3.5" /> Ubah Status
+   690→                    </Button>
+   691→                  )}
+   692→                  <Button
+   693→                    size="sm"
+   694→                    onClick={exportSelectedCsv}
+   695→                    className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 gap-1.5"
+   696→                  >
+   697→                    <Download className="w-3.5 h-3.5" /> Export CSV
+   698→                  </Button>
+   699→                  {canDelete && (
+   700→                    <Button
+   701→                      size="sm"
+   702→                      variant="destructive"
+   703→                      onClick={() => setShowDeleteDialog(true)}
+   704→                      className="gap-1.5"
+   705→                    >
+   706→                      <Trash2 className="w-3.5 h-3.5" /> Hapus
+   707→                    </Button>
+   708→                  )}
+   709→                  <Button
+   710→                    size="sm"
+   711→                    variant="ghost"
+   712→                    onClick={clearSelection}
+   713→                    className="gap-1.5"
+   714→                  >
+   715→                    <X className="w-3.5 h-3.5" /> Batalkan
+   716→                  </Button>
+   717→                </div>
+   718→              </div>
+   719→            </CardContent>
+   720→          </Card>
+   721→        </div>
+   722→      )}
+   723→
+   724→      {/* Bulk status change dialog */}
+   725→      <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
+   726→        <DialogContent>
+   727→          <DialogHeader>
+   728→            <DialogTitle>Ubah Status Massal</DialogTitle>
+   729→            <DialogDescription>
+   730→              Ubah status untuk {selectedIds.size} permohonan terpilih.
+   731→            </DialogDescription>
+   732→          </DialogHeader>
+   733→          <div className="space-y-4 py-2">
+   734→            <div className="space-y-2">
+   735→              <label className="text-sm font-medium">Status Baru</label>
+   736→              <Select value={bulkStatusKode} onValueChange={setBulkStatusKode}>
+   737→                <SelectTrigger>
+   738→                  <SelectValue placeholder="Pilih status..." />
+   739→                </SelectTrigger>
+   740→                <SelectContent>
+   741→                  {STATUS_DEFINITIONS.map((s) => (
+   742→                    <SelectItem key={s.kode} value={s.kode}>
+   743→                      {s.nama}
+   744→                    </SelectItem>
+   745→                  ))}
+   746→                </SelectContent>
+   747→              </Select>
+   748→            </div>
+   749→            <div className="space-y-2">
+   750→              <label className="text-sm font-medium">Catatan (opsional)</label>
+   751→              <Input
+   752→                placeholder="Catatan perubahan status..."
+   753→                value={bulkCatatan}
+   754→                onChange={(e) => setBulkCatatan(e.target.value)}
+   755→              />
+   756→            </div>
+   757→          </div>
+   758→          <DialogFooter>
+   759→            <Button variant="outline" onClick={() => setShowStatusDialog(false)} disabled={bulkProcessing}>
+   760→              Batal
+   761→            </Button>
+   762→            <Button
+   763→              onClick={handleBulkChangeStatus}
+   764→              disabled={!bulkStatusKode || bulkProcessing}
+   765→              className="alte-btn-primary"
+   766→            >
+   767→              {bulkProcessing && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
+   768→              Ubah Status
+   769→            </Button>
+   770→          </DialogFooter>
+   771→        </DialogContent>
+   772→      </Dialog>
+   773→
+   774→      {/* Bulk delete alert dialog */}
+   775→      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+   776→        <AlertDialogContent>
+   777→          <AlertDialogHeader>
+   778→            <AlertDialogTitle className="flex items-center gap-2">
+   779→              <AlertTriangle className="w-5 h-5 text-destructive" />
+   780→              Hapus {selectedIds.size} Permohonan?
+   781→            </AlertDialogTitle>
+   782→            <AlertDialogDescription>
+   783→              Tindakan ini tidak dapat dibatalkan. {selectedIds.size} permohonan yang dipilih akan dihapus secara permanen beserta seluruh riwayat dan dokumen terkait.
+   784→            </AlertDialogDescription>
+   785→          </AlertDialogHeader>
+   786→          <AlertDialogFooter>
+   787→            <AlertDialogCancel disabled={bulkProcessing}>Batal</AlertDialogCancel>
+   788→            <AlertDialogAction
+   789→              onClick={handleBulkDelete}
+   790→              disabled={bulkProcessing}
+   791→              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+   792→            >
+   793→              {bulkProcessing && <Loader2 className="w-4 h-4 animate-spin mr-1.5" />}
+   794→              Hapus Permanen
+   795→            </AlertDialogAction>
+   796→          </AlertDialogFooter>
+   797→        </AlertDialogContent>
+   798→      </AlertDialog>
+   799→
+   800→      {/* Table (desktop) */}
+   801→      {!loading && !error && items.length > 0 && (
+   802→        <>
+   803→          <Card className="glass-card border-primary/15 hidden md:block">
+   804→            <CardContent className="p-0">
+   805→              <Table>
+   806→                <TableHeader>
+   807→                  <TableRow className="border-border/60 hover:bg-transparent">
+   808→                    {bulkMode && (
+   809→                      <TableHead className="w-[44px] pl-4">
+   810→                        <Checkbox
+   811→                          checked={allOnPageSelected ? true : someOnPageSelected ? "indeterminate" : false}
+   812→                          onCheckedChange={toggleSelectAll}
+   813→                          aria-label="Pilih semua di halaman ini"
+   814→                        />
+   815→                      </TableHead>
+   816→                    )}
+   817→                    <TableHead>Nomor Register</TableHead>
+   818→                    <TableHead>Pemohon</TableHead>
+   819→                    <TableHead>Jenis Surat</TableHead>
+   820→                    <TableHead>Status</TableHead>
+   821→                    <TableHead>Prioritas</TableHead>
+   822→                    <TableHead>Dibuat</TableHead>
+   823→                    <TableHead className="text-right pr-4">Aksi</TableHead>
+   824→                  </TableRow>
+   825→                </TableHeader>
+   826→                <TableBody>
+   827→                  {items.map((it) => {
+   828→                    const isSelected = selectedIds.has(it.id);
+   829→                    return (
+   830→                      <TableRow
+   831→                        key={it.id}
+   832→                        className={"cursor-pointer border-border/40 " + (isSelected && bulkMode ? "bg-primary/8" : "")}
+   833→                        onClick={() => {
+   834→                          if (!bulkMode) selectPermohonan(it.id);
+   835→                        }}
+   836→                      >
+   837→                        {bulkMode && (
+   838→                          <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+   839→                            <Checkbox
+   840→                              checked={isSelected}
+   841→                              onCheckedChange={() => toggleSelectOne(it.id)}
+   842→                              aria-label={`Pilih ${it.nomorRegister}`}
+   843→                            />
+   844→                          </TableCell>
+   845→                        )}
+   846→                        <TableCell>
+   847→                          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2 py-1 rounded-md border border-primary/30 bg-primary/5 text-primary font-semibold">
+   848→                            <Hash className="w-3 h-3" />
+   849→                            {it.nomorRegister}
+   850→                          </span>
+   851→                        </TableCell>
+   852→                        <TableCell>
+   853→                          <div className="flex flex-col">
+   854→                            <span className="font-medium text-sm">{it.pemohonNama}</span>
+   855→                            <span className="text-[11px] text-muted-foreground font-mono">{it.pemohonNik}</span>
+   856→                          </div>
+   857→                        </TableCell>
+   858→                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+   859→                          {it.jenisSurat?.nama || "-"}
+   860→                        </TableCell>
+   861→                        <TableCell>
+   862→                          <StatusBadge kode={it.statusSaatIni} nama={it.statusNama} size="sm" />
+   863→                        </TableCell>
+   864→                        <TableCell>
+   865→                          {it.prioritas && it.prioritas !== "NORMAL" ? (
+   866→                            <PriorityBadge prioritas={it.prioritas} />
+   867→                          ) : (
+   868→                            <span className="text-[11px] text-muted-foreground">Normal</span>
+   869→                          )}
+   870→                        </TableCell>
+   871→                        <TableCell className="text-sm text-muted-foreground">
+   872→                          {formatDate(it.createdAt)}
+   873→                        </TableCell>
+   874→                        <TableCell className="text-right pr-4">
+   875→                          <Button
+   876→                            variant="outline"
+   877→                            size="sm"
+   878→                            onClick={(e) => {
+   879→                              e.stopPropagation();
+   880→                              selectPermohonan(it.id);
+   881→                            }}
+   882→                          >
+   883→                            <Eye className="w-3.5 h-3.5" /> Detail
+   884→                          </Button>
+   885→                        </TableCell>
+   886→                      </TableRow>
+   887→                    );
+   888→                  })}
+   889→                </TableBody>
+   890→              </Table>
+   891→            </CardContent>
+   892→          </Card>
+   893→
+   894→          {/* Card list (mobile) */}
+   895→          <div className="md:hidden space-y-3">
+   896→            {items.map((it) => {
+   897→              const isSelected = selectedIds.has(it.id);
+   898→              return (
+   899→              <Card
+   900→                key={it.id}
+   901→                className={"glass-card border-primary/15 cursor-pointer hover:gold-border transition-all " + (isSelected && bulkMode ? "border-primary/40 bg-primary/5" : "")}
+   902→                onClick={() => {
+   903→                  if (bulkMode) {
+   904→                    toggleSelectOne(it.id);
+   905→                  } else {
+   906→                    selectPermohonan(it.id);
+   907→                  }
+   908→                }}
+   909→              >
+   910→                <CardContent className="p-4 space-y-3">
+   911→                  <div className="flex items-start justify-between gap-2">
+   912→                    <div className="flex items-center gap-2">
+   913→                      {bulkMode && (
+   914→                        <Checkbox
+   915→                          checked={isSelected}
+   916→                          onCheckedChange={() => toggleSelectOne(it.id)}
+   917→                          onClick={(e) => e.stopPropagation()}
+   918→                          aria-label={`Pilih ${it.nomorRegister}`}
+   919→                        />
+   920→                      )}
+   921→                      <span className="inline-flex items-center gap-1.5 font-mono text-[10px] px-2 py-1 rounded-md border border-primary/30 bg-primary/5 text-primary font-semibold">
+   922→                        <Hash className="w-3 h-3" />
+   923→                        {it.nomorRegister}
+   924→                      </span>
+   925→                    </div>
+   926→                    <StatusBadge kode={it.statusSaatIni} nama={it.statusNama} size="sm" />
+   927→                  </div>
+   928→                  <div>
+   929→                    <p className="font-semibold text-sm flex items-center gap-1.5">
+   930→                      <User className="w-3.5 h-3.5 text-muted-foreground" />
+   931→                      {it.pemohonNama}
+   932→                    </p>
+   933→                    <p className="text-[11px] text-muted-foreground font-mono ml-5">{it.pemohonNik}</p>
+   934→                  </div>
+   935→                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+   936→                    <span className="flex items-center gap-1">
+   937→                      <FileText className="w-3 h-3" />
+   938→                      {it.jenisSurat?.nama || "-"}
+   939→                    </span>
+   940→                    <span className="flex items-center gap-1">
+   941→                      <Calendar className="w-3 h-3" />
+   942→                      {formatDate(it.createdAt)}
+   943→                    </span>
+   944→                    <span className="flex items-center gap-1">
+   945→                      <Files className="w-3 h-3" />
+   946→                      {it._count?.dokumen ?? 0} dok
+   947→                    </span>
+   948→                  </div>
+   949→                  {it.prioritas && it.prioritas !== "NORMAL" && (
+   950→                    <PriorityBadge prioritas={it.prioritas} />
+   951→                  )}
+   952→                </CardContent>
+   953→              </Card>
+   954→              );
+   955→            })}
+   956→          </div>
+   957→
+   958→          {/* Pagination */}
+   959→          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+   960→            <p className="text-xs text-muted-foreground">
+   961→              Menampilkan <span className="font-semibold text-foreground">{items.length}</span> dari{" "}
+   962→              <span className="font-semibold text-foreground">{total}</span> permohonan
+   963→              {total > 0 && (
+   964→                <span className="ml-1">
+   965→                  · Halaman {page} / {totalPages}
+   966→                </span>
+   967→              )}
+   968→            </p>
+   969→            <div className="flex items-center gap-2">
+   970→              <Button
+   971→                variant="outline"
+   972→                size="sm"
+   973→                disabled={page <= 1 || loading}
+   974→                onClick={() => setPage((p) => Math.max(1, p - 1))}
+   975→              >
+   976→                <ChevronLeft className="w-4 h-4" /> Sebelumnya
+   977→              </Button>
+   978→              <Button
+   979→                variant="outline"
+   980→                size="sm"
+   981→                disabled={page >= totalPages || loading}
+   982→                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+   983→              >
+   984→                Berikutnya <ChevronRight className="w-4 h-4" />
+   985→              </Button>
+   986→            </div>
+   987→          </div>
+   988→        </>
+   989→      )}
+   990→
+   991→      {/* Loading overlay footer */}
+   992→      {loading && items.length === 0 && (
+   993→        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground py-2">
+   994→          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+   995→          <span className="flex items-center gap-1">
+   996→            <MessageSquare className="w-3.5 h-3.5" /> Memuat data permohonan...
+   997→          </span>
+   998→        </div>
+   999→      )}
+  1000→    </div>
+  1001→  );
+  1002→}
+  1003→
+  1004→export default PermohonanList;
+  1005→

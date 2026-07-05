@@ -114,6 +114,9 @@ export const STATUS_BY_KODE: Record<string, StatusDef> = Object.fromEntries(
 // ===== Status Penguasaan Tanah =====
 // Comprehensive list of Indonesian land tenure types. Shared between
 // PermohonanForm (create), PermohonanDetail (view + edit dialog).
+// NOTE: This is the FALLBACK list used when the dynamic master data
+// (StatusPenguasaan table) is empty or unreachable. The admin-managed
+// master data takes precedence — see /api/status-penguasaan.
 export const STATUS_PENGUASAAN_OPTIONS: { value: string; label: string; desc?: string }[] = [
   { value: "Milik Sendiri (SHM)", label: "Milik Sendiri (SHM)", desc: "Sertifikat Hak Milik" },
   { value: "Warisan", label: "Warisan", desc: "Tanah waris dari orang tua / keluarga" },
@@ -125,6 +128,23 @@ export const STATUS_PENGUASAAN_OPTIONS: { value: string; label: string; desc?: s
   { value: "Tanah Negara", label: "Tanah Negara", desc: "Tanah yang dikuasai langsung oleh negara" },
   { value: "Tanah Adat / Ulayat", label: "Tanah Adat / Ulayat", desc: "Tanah hak ulayat masyarakat hukum adat" },
   { value: "Lainnya", label: "Lainnya", desc: "Jenis penguasaan lainnya" },
+];
+
+// ===== Status Penguasaan — seed data for the master table =====
+// Used by scripts/seed.ts to populate the StatusPenguasaan table.
+// Each row: kode (unique business key), nama (display label), deskripsi,
+// urutan (display order), warna (optional hex), isDefault.
+export const STATUS_PENGUASAAN_SEED = [
+  { kode: "SHM", nama: "Milik Sendiri (SHM)", deskripsi: "Sertifikat Hak Milik — bukti kepemilikan kuat atas tanah", urutan: 1, warna: "#16a34a", isDefault: true },
+  { kode: "HGB", nama: "Hak Guna Bangun (HGB)", deskripsi: "Hak untuk mendirikan dan memiliki bangunan atas tanah negara (max 30 thn)", urutan: 2, warna: "#0891b2", isDefault: false },
+  { kode: "HP", nama: "Hak Pakai", deskripsi: "Hak pakai atas tanah negara atau tanah pemerintah", urutan: 3, warna: "#0d9488", isDefault: false },
+  { kode: "HS", nama: "Hak Sewa", deskripsi: "Hak sewa atas tanah untuk keperluan bangunan", urutan: 4, warna: "#6366f1", isDefault: false },
+  { kode: "HPL", nama: "Hak Pengelolaan (HPL)", deskripsi: "Hak pengelolaan tanah oleh instansi pemerintah", urutan: 5, warna: "#7c3aed", isDefault: false },
+  { kode: "WARISAN", nama: "Warisan", deskripsi: "Tanah waris dari orang tua / keluarga (belum bersertifikat)", urutan: 6, warna: "#d4af37", isDefault: false },
+  { kode: "GIRIK", nama: "Girik / Petok D", deskripsi: "Bukti pajak lama / petok D kelurahan (belum bersertifikat)", urutan: 7, warna: "#ca8a04", isDefault: false },
+  { kode: "NEGARA", nama: "Tanah Negara", deskripsi: "Tanah yang dikuasai langsung oleh negara", urutan: 8, warna: "#64748b", isDefault: false },
+  { kode: "ADAT", nama: "Tanah Adat / Ulayat", deskripsi: "Tanah hak ulayat masyarakat hukum adat", urutan: 9, warna: "#a16207", isDefault: false },
+  { kode: "LAINNYA", nama: "Lainnya", deskripsi: "Jenis penguasaan tanah lainnya", urutan: 10, warna: "#94a3b8", isDefault: false },
 ];
 
 // ===== Cara Perolehan Tanah =====

@@ -2,7 +2,7 @@
 // Run: bun run scripts/seed.ts
 import { db } from "../src/lib/db";
 import { hashPassword } from "../src/lib/auth";
-import { STATUS_DEFINITIONS, JENIS_SURAT_SEED } from "../src/lib/constants";
+import { STATUS_DEFINITIONS, JENIS_SURAT_SEED, STATUS_PENGUASAAN_SEED } from "../src/lib/constants";
 
 async function main() {
   console.log("🌱 Seeding SI-TRACK TANAH...");
@@ -43,6 +43,22 @@ async function main() {
     });
   }
   console.log(`  ✓ ${JENIS_SURAT_SEED.length} jenis surat`);
+
+  // 2b. Status Penguasaan (master data — admin-managed, seeded defaults)
+  for (const s of STATUS_PENGUASAAN_SEED) {
+    await db.statusPenguasaan.upsert({
+      where: { kode: s.kode },
+      update: {
+        nama: s.nama,
+        deskripsi: s.deskripsi,
+        urutan: s.urutan,
+        warna: s.warna,
+        isDefault: s.isDefault,
+      },
+      create: s,
+    });
+  }
+  console.log(`  ✓ ${STATUS_PENGUASAAN_SEED.length} status penguasaan`);
 
   // 3. Users
   const users = [
@@ -93,7 +109,7 @@ async function main() {
       batasSelatan: "Tanah Pak Ali",
       batasTimur: "Sungai Pembuang",
       batasBarat: "Tanah Pak Sugeng",
-      statusPenguasaan: "Milik Sendiri",
+      statusPenguasaan: "Milik Sendiri (SHM)",
       keperluan: "Pengurusan Sertifikat Tanah",
       statusSaatIni: "PENGUKURAN",
       prioritas: "NORMAL",
@@ -145,7 +161,7 @@ async function main() {
       batasSelatan: "Jalan Umum",
       batasTimur: "Tanah Ibu Siti",
       batasBarat: "Pematang",
-      statusPenguasaan: "Girik",
+      statusPenguasaan: "Girik / Petok D",
       keperluan: "Permohonan Sertifikat Tanah",
       statusSaatIni: "SELESAI",
       prioritas: "NORMAL",
@@ -198,7 +214,7 @@ async function main() {
       batasSelatan: "Tanah Pak Karim",
       batasTimur: "Jalan Umum",
       batasBarat: "Pematang",
-      statusPenguasaan: "Milik Sendiri",
+      statusPenguasaan: "Milik Sendiri (SHM)",
       keperluan: "Surat Bebas Sengketa",
       statusSaatIni: "DITOLAK",
       prioritas: "NORMAL",

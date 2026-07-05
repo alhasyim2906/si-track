@@ -566,6 +566,26 @@ export function PermohonanDetail() {
   const [tanahOpen, setTanahOpen] = useState(true);
   const [keperluanOpen, setKeperluanOpen] = useState(true);
 
+  // status penguasaan options (admin-managed master data, dynamic).
+  // Falls back to STATUS_PENGUASAAN_OPTIONS constant if API returns empty.
+  const [statusPenguasaanList, setStatusPenguasaanList] = useState<
+    { id: string; kode: string; nama: string; deskripsi?: string | null; warna?: string | null; isDefault: boolean }[]
+  >([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await api.statusPenguasaan();
+        if (r.items && r.items.length > 0) setStatusPenguasaanList(r.items);
+      } catch {
+        // non-fatal — fallback constant will be used
+      }
+    })();
+  }, []);
+  const statusPenguasaanOptions =
+    statusPenguasaanList.length > 0
+      ? statusPenguasaanList.map((s) => ({ value: s.nama, label: s.nama, desc: s.deskripsi || undefined }))
+      : STATUS_PENGUASAAN_OPTIONS;
+
   const fetchDetail = useCallback(async () => {
     if (!selectedPermohonanId) return;
     setLoading(true);
@@ -1781,7 +1801,7 @@ export function PermohonanDetail() {
                   <Select value={editForm.statusPenguasaan || "Milik Sendiri (SHM)"} onValueChange={(v) => setEditForm({ ...editForm, statusPenguasaan: v })}>
                     <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {STATUS_PENGUASAAN_OPTIONS.map((s) => (
+                      {statusPenguasaanOptions.map((s) => (
                         <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                       ))}
                     </SelectContent>

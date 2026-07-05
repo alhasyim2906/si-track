@@ -30,6 +30,8 @@ export interface PermohonanListItem {
   keperluan?: string | null;
   alasanDitolak?: string | null;
   catatan?: string | null;
+  statusPenguasaan?: string | null;
+  lokasiTanah?: string | null;
 }
 
 export interface RiwayatItem {
@@ -178,6 +180,7 @@ export type AppView =
   | "audit-log"
   | "users"
   | "jenis-surat"
+  | "status-penguasaan"
   | "notifikasi"
   | "notifikasi-center"
   | "profil"

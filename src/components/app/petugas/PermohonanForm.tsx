@@ -44,6 +44,18 @@ interface JenisSuratItem {
   isActive: boolean;
 }
 
+// Status penguasaan option as returned by /api/status-penguasaan (active rows only)
+interface StatusPenguasaanItem {
+  id: string;
+  kode: string;
+  nama: string;
+  deskripsi?: string | null;
+  urutan: number;
+  warna?: string | null;
+  isDefault: boolean;
+  isActive: boolean;
+}
+
 interface FormState {
   jenisSuratId: string;
   prioritas: string;
@@ -132,6 +144,10 @@ export function PermohonanForm() {
   const [form, setForm] = useState<FormState>(initialState);
   const [jenisList, setJenisList] = useState<JenisSuratItem[]>([]);
   const [loadingJenis, setLoadingJenis] = useState(true);
+  // Status penguasaan options — fetched from master data API (admin-managed).
+  // Falls back to the static STATUS_PENGUASAAN_OPTIONS constant if the API
+  // is unreachable or returns an empty list (legacy compat).
+  const [statusPenguasaanList, setStatusPenguasaanList] = useState<StatusPenguasaanItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
   // Riwayat tanah (land history) entries — captured at create time.
   // Submitted inline with the permohonan POST body.
@@ -142,15 +158,37 @@ export function PermohonanForm() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await api.jenisSurat();
-        setJenisList((r.items || []).filter((j: JenisSuratItem) => j.isActive));
+        const [jRes, spRes] = await Promise.all([
+          api.jenisSurat(),
+          api.statusPenguasaan().catch(() => ({ items: [] })),
+        ]);
+        setJenisList((jRes.items || []).filter((j: JenisSuratItem) => j.isActive));
+        const spItems = (spRes.items || []) as StatusPenguasaanItem[];
+        setStatusPenguasaanList(spItems);
+        // If there's a default option, auto-select it on the form
+        const def = spItems.find((s) => s.isDefault);
+        if (def) {
+          setForm((p) => ({ ...p, statusPenguasaan: def.nama }));
+        }
       } catch (e: any) {
-        toast.error(e.message || "Gagal memuat jenis surat");
+        toast.error(e.message || "Gagal memuat data master");
       } finally {
         setLoadingJenis(false);
       }
     })();
   }, []);
+
+  // Build the dropdown options. Prefer the dynamic master list; fall back to
+  // the static STATUS_PENGUASAAN_OPTIONS constant for legacy/offline support.
+  const statusPenguasaanOptions =
+    statusPenguasaanList.length > 0
+      ? statusPenguasaanList.map((s) => ({
+          value: s.nama,
+          label: s.nama,
+          desc: s.deskripsi || undefined,
+          warna: s.warna || undefined,
+        }))
+      : STATUS_PENGUASAAN_OPTIONS;
 
   const selectedJenis = jenisList.find((j) => j.id === form.jenisSuratId);
 
@@ -475,11 +513,20 @@ export function PermohonanForm() {
                     <SelectValue placeholder="Pilih status penguasaan" />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUS_PENGUASAAN_OPTIONS.map((s) => (
+                    {statusPenguasaanOptions.map((s) => (
                       <SelectItem key={s.value} value={s.value}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{s.label}</span>
-                          {s.desc && <span className="text-[10px] text-muted-foreground">{s.desc}</span>}
+                        <div className="flex items-start gap-2">
+                          {"warna" in s && s.warna ? (
+                            <span
+                              className="w-2.5 h-2.5 rounded-full mt-1 shrink-0"
+                              style={{ backgroundColor: s.warna as string }}
+                              aria-hidden
+                            />
+                          ) : null}
+                          <div className="flex flex-col">
+                            <span className="font-medium">{s.label}</span>
+                            {s.desc && <span className="text-[10px] text-muted-foreground">{s.desc}</span>}
+                          </div>
                         </div>
                       </SelectItem>
                     ))}

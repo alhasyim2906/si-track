@@ -802,9 +802,10 @@ export function PermohonanList() {
         <>
           <Card className="glass-card border-primary/15 hidden md:block">
             <CardContent className="p-0">
+              <div className="permohonan-table-scroll max-h-[60vh] overflow-y-auto overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-border/60 hover:bg-transparent">
+                  <TableRow className="border-border/60 hover:bg-transparent sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
                     {bulkMode && (
                       <TableHead className="w-[44px] pl-4">
                         <Checkbox
@@ -888,11 +889,12 @@ export function PermohonanList() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
 
           {/* Card list (mobile) */}
-          <div className="md:hidden space-y-3">
+          <div className="md:hidden space-y-3 max-h-[60vh] overflow-y-auto permohonan-mobile-scroll pr-1 -mr-1">
             {items.map((it) => {
               const isSelected = selectedIds.has(it.id);
               return (

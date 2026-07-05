@@ -106,6 +106,18 @@ export const api = {
     req<{ ok: boolean }>(`/api/jenis-surat/${id}`, { method: "DELETE" }),
   statusProses: () => req<{ items: any[] }>("/api/status-proses"),
 
+  // status penguasaan (master data — land tenure types, admin-managed CRUD)
+  statusPenguasaan: (includeInactive = false) =>
+    req<{ items: any[] }>(
+      `/api/status-penguasaan${includeInactive ? "?includeInactive=true" : ""}`
+    ),
+  createStatusPenguasaan: (body: any) =>
+    req<{ item: any }>("/api/status-penguasaan", { method: "POST", body: JSON.stringify(body) }),
+  updateStatusPenguasaan: (id: string, body: any) =>
+    req<{ item: any }>(`/api/status-penguasaan/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteStatusPenguasaan: (id: string) =>
+    req<{ ok: boolean }>(`/api/status-penguasaan/${id}`, { method: "DELETE" }),
+
   // SLA tracking (atasan/admin)
   sla: (filter?: "all" | "warning" | "breach") => {
     const q = new URLSearchParams();

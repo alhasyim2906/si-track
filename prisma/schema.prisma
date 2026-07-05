@@ -40,6 +40,25 @@ model JenisSurat {
   permohonan       Permohonan[]
 }
 
+// ===== Master: Status Penguasaan Tanah =====
+// Master data for the "Status Penguasaan" dropdown on the permohonan form.
+// Admin-managed (CRUD). The Permohonan.statusPenguasaan field stores the
+// `nama` value of the selected option as a plain string (denormalized),
+// so historical records remain readable even if a master row is later
+// deactivated or deleted.
+model StatusPenguasaan {
+  id          String   @id @default(cuid())
+  kode        String   @unique // e.g. SHM, HGB, GIRIK — uppercase business key
+  nama        String   // display label, e.g. "Milik Sendiri (SHM)"
+  deskripsi   String?  // short explanation, e.g. "Sertifikat Hak Milik"
+  urutan      Int      @default(0) // display order (lower = first)
+  warna       String?  // optional hex color for UI badge
+  isDefault   Boolean  @default(false) // whether this is the default selection on new permohonan
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 // ===== User =====
 model User {
   id           String    @id @default(cuid())

@@ -2165,3 +2165,157 @@ Project was stable after Task 19 (Jenis Surat edit/delete, Gmail SMTP config, SL
 5. **Riwayat tanah summary in dashboard**: add a chart showing distribution of cara perolehan (Warisan vs Jual Beli vs Hibah) across all permohonan.
 6. **Auto-fill from previous permohonan**: when same pemohon NIK + same lokasi tanah detected, offer to copy riwayat tanah from previous permohonan.
 7. **Continue with previously-queued features**: SLA breach auto-notify (now that Gmail is configured), PWA polish, map integration, PDF export polish.
+
+---
+Task ID: 22
+Agent: main
+Task: Tambahkan scrollbar pada Daftar Permohonan (tabel desktop + card list mobile) + tambahkan input manajemen Status Penguasaan (CRUD master data untuk jenis hak penguasaan tanah).
+
+## Current Project Status Assessment
+Project stable setelah Task 21 (status penguasaan extended options + riwayat tanah). User meminta dua hal:
+1. Tambahkan scrollbar pada Daftar Permohonan — agar list permohonan yang panjang tidak memenuhi seluruh viewport, tabel desktop & card list mobile perlu max-height + overflow dengan header sticky.
+2. Tambahkan input manajemen Status Penguasaan — sebelumnya opsi status penguasaan hardcoded di `STATUS_PENGUASAAN_OPTIONS` constant (10 opsi). User ingin admin dapat mengelola (CRUD) opsi tersebut secara dinamis (tambah/edit/hapus), sama seperti Jenis Surat Tanah.
+
+## Work Completed
+
+### Part A — Scrollbar pada Daftar Permohonan (`PermohonanList.tsx`)
+**Files:**
+- Updated: `src/components/app/petugas/PermohonanList.tsx`
+  - Desktop table: wrap `<Table>` dalam `<div className="permohonan-table-scroll max-h-[60vh] overflow-y-auto overflow-x-auto">`. TableHeader row diberi `sticky top-0 z-10 bg-card/95 backdrop-blur` agar header tetap visible saat scroll.
+  - Mobile card list: container diberi `max-h-[60vh] overflow-y-auto permohonan-mobile-scroll pr-1 -mr-1` agar konsisten dengan desktop.
+- Updated: `src/app/globals.css` — added Section L: custom scrollbar styling for `.permohonan-table-scroll` & `.permohonan-mobile-scroll`:
+  - `scrollbar-width: thin` (Firefox)
+  - `::-webkit-scrollbar` width/height 10px, gold gradient thumb (`rgba(212,175,55,0.6)` → `rgba(184,148,31,0.7)`), rounded 6px, hover/active states
+  - Light-mode variant for `.adminlte` scope
+  - Sticky header rounded corners cleanup
+
+**Behavior:**
+- Tabel desktop: max-height 60vh (≈346px on 577px viewport). Saat baris melebihi viewport, scrollbar vertikal muncul dengan thumb emas. Header tabel tetap sticky di atas (position: sticky, top: 0, z-index: 10, semi-transparent backdrop-blur bg).
+- Card list mobile: max-height 60vh dengan scrollbar emas yang sama.
+- Custom scrollbar konsisten dengan theme emas/navy aplikasi (matching `.notif-scroll` pattern dari Task 16).
+
+### Part B — Manajemen Status Penguasaan (CRUD Master Data)
+
+**Database layer:**
+- `prisma/schema.prisma`: NEW model `StatusPenguasaan`:
+  - `id` (cuid), `kode` (unique UPPERCASE business key, e.g. SHM/HGB/GIRIK), `nama` (display label), `deskripsi` (String?), `urutan` (Int, display order), `warna` (String? hex), `isDefault` (Boolean, hanya satu row boleh true), `isActive` (Boolean), `createdAt`, `updatedAt`
+  - Catatan: `Permohonan.statusPenguasaan` tetap String (denormalized) untuk kompatibilitas historis — nilai string disimpan, bukan FK. Referential integrity dilakukan manual via count query.
+- Ran `bun run db:push` — schema synced, Prisma client regenerated.
+
+**API layer:**
+- NEW: `src/app/api/status-penguasaan/route.ts`
+  - `GET` (public, no auth) — list active rows, ordered by urutan then nama. Query `?includeInactive=true` requires ADMIN.
+  - `POST` (ADMIN only) — create. Normalizes kode to UPPERCASE_WITH_UNDERSCORES. Rejects duplicate kode. If `isDefault=true`, clears other defaults first (single-default enforcement). Writes CREATE audit log.
+- NEW: `src/app/api/status-penguasaan/[id]/route.ts`
+  - `PUT` (ADMIN only) — update nama/deskripsi/urutan/warna/isDefault/isActive. Rejects kode change (immutable, HTTP 400). Single-default enforcement. Writes UPDATE audit log.
+  - `DELETE` (ADMIN only) — referential check: count Permohonan where `statusPenguasaan === nama`. If >0 → HTTP 409 with helpful message + permohonanCount. Otherwise delete + DELETE audit log.
+
+**Frontend library:**
+- `src/lib/api.ts`: 4 new methods — `statusPenguasaan(includeInactive?)`, `createStatusPenguasaan(body)`, `updateStatusPenguasaan(id, body)`, `deleteStatusPenguasaan(id)`
+- `src/lib/types.ts`:
+  - Extended `PermohonanListItem` with `statusPenguasaan?` and `lokasiTanah?` (for client-side usage count in management page)
+  - Added `"status-penguasaan"` to `AppView` union
+- `src/lib/constants.ts`:
+  - `STATUS_PENGUASAAN_OPTIONS` — kept as FALLBACK (used when API returns empty / unreachable)
+  - NEW `STATUS_PENGUASAAN_SEED` — 10 seed rows with kode (SHM, HGB, HP, HS, HPL, WARISAN, GIRIK, NEGARA, ADAT, LAINNYA), nama, deskripsi lengkap, urutan, warna hex, isDefault (SHM=true)
+
+**Management component:**
+- NEW: `src/components/app/admin/StatusPenguasaanManagement.tsx` (~530 lines, mirroring JenisSuratManagement pattern):
+  - Info banner: total/aktif/nonaktif counts + current default indicator
+  - Card grid (md:2, xl:3 cols) — each card shows: warna dot, nama, kode badge, urutan #, Default badge (amber star), Aktif/Nonaktif badge, deskripsi, warna hex swatch, "Digunakan: N" count, warning when N>0 ("tidak dapat dihapus")
+  - Action buttons per card: Edit (pencil), Set Default (star, disabled when already default), Toggle Active (power), Delete (trash, locked when in-use)
+  - Default card has amber ring highlight
+  - Create/Edit Dialog: Kode (disabled in edit mode with lock hint), Urutan, Nama, Deskripsi, Warna Badge (color picker + hex input), Pilihan Default switch, Status Aktif switch
+  - Delete AlertDialog: red theme, "Hapus Permanen" button, explains permohonan with old string values won't be affected
+  - Client-side usage count: fetches all permohonan (limit 1000) and counts by `statusPenguasaan` string field (since denormalized, can't use Prisma relation count)
+
+**Wiring:**
+- `src/components/app/AppShell.tsx`: added `ShieldAlert` icon import, "Status Penguasaan" nav item (ADMIN only) in MANAJEMEN group, `status-penguasaan` in VIEW_LABELS
+- `src/components/app/shared/CommandPalette.tsx`: added "Status Penguasaan" to quick-nav items
+- `src/app/page.tsx`: import `StatusPenguasaanManagement`, added `case "status-penguasaan"` to renderView switch (ADMIN only)
+
+**Consumer updates (dynamic options):**
+- `src/components/app/petugas/PermohonanForm.tsx` (Daftar Baru form):
+  - Added `StatusPenguasaanItem` interface + `statusPenguasaanList` state
+  - On mount: fetch `api.statusPenguasaan()` in parallel with `api.jenisSurat()`. If a row has `isDefault=true`, auto-select it on the form.
+  - `statusPenguasaanOptions` computed: prefer dynamic master list (with warna dot + desc), fall back to static `STATUS_PENGUASAAN_OPTIONS` constant for offline/legacy.
+  - Dropdown SelectItem now renders warna dot + label + desc when available.
+- `src/components/app/shared/PermohonanDetail.tsx` (Edit dialog):
+  - Added `statusPenguasaanList` state + fetch on mount
+  - `statusPenguasaanOptions` computed (dynamic with fallback)
+  - Edit dialog Select uses `statusPenguasaanOptions` instead of static constant.
+
+**Seed:**
+- `scripts/seed.ts`: added Section 2b — upsert `STATUS_PENGUASAAN_SEED` into `StatusPenguasaan` table. Also updated sample permohonan `statusPenguasaan` values to match new master data names ("Milik Sendiri" → "Milik Sendiri (SHM)", "Girik" → "Girik / Petok D") so referential integrity count works correctly in demo.
+- Ran `bun run scripts/seed.ts` — 10 status penguasaan + 5 sample permohonan seeded.
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile, no runtime errors in `/home/z/my-project/dev.log` (only 409 from intentional delete-protection test)
+- **API tests (curl with admin cookie)**:
+  - `GET /api/status-penguasaan` (no auth) → 200 with 10 active items ✓
+  - `GET /api/status-penguasaan?includeInactive=true` (admin) → 200 with all items ✓
+  - `POST /api/status-penguasaan` with kode+nama → 201 with created item ✓
+  - `POST` with duplicate kode → 400 "Kode sudah digunakan" ✓
+  - `PUT /api/status-penguasaan/[id]` with nama change → 200 with updated item ✓
+  - `PUT` with kode change → 400 "Kode status penguasaan tidak dapat diubah setelah dibuat (kunci unik)." ✓
+  - `DELETE /api/status-penguasaan/[id]` (unused) → 200 `{"ok":true}` ✓
+  - `DELETE` SHM (used by 2 permohonan) → 409 "Tidak dapat menghapus status penguasaan 'Milik Sendiri (SHM)' karena masih digunakan oleh 2 permohonan. Nonaktifkan (set isActive=false) sebagai gantinya." with `permohonanCount: 2` ✓
+- **Agent-browser E2E tests**:
+  - Admin login → Dashboard → sidebar shows "Status Penguasaan" under MANAJEMEN group (between "Jenis Surat" and "Pengguna") ✓
+  - Click "Status Penguasaan" → page renders with:
+    - SectionHeader "Status Penguasaan Tanah" + "Tambah Status" gold button ✓
+    - Info banner: "10 total, 10 aktif, 0 nonaktif, Default: Milik Sendiri (SHM)" ✓
+    - 10 cards (SHM #1 with Default badge + amber ring, HGB #2, HP #3, HS #4, HPL #5, Warisan #6, Girik #7, Negara #8, Adat #9, Lainnya #10) ✓
+    - SHM card: "Digunakan: 2" + warning "tidak dapat dihapus" + delete button locked ✓
+    - Warisan card: "Digunakan: 2" + warning + delete locked ✓
+    - Girik card: "Digunakan: 1" + warning + delete locked ✓
+    - Other cards: "Digunakan: 0" + delete enabled ✓
+    - Each card has Edit / Set-Default / Toggle-Active / Delete buttons ✓
+  - Click "Tambah Status" → Create dialog opens with: Kode (text, uppercase hint), Urutan Tampil (number), Nama Status Penguasaan, Deskripsi (textarea), Warna Badge (color picker + hex input), Pilihan Default (switch), Status Aktif (switch) ✓
+  - Fill form + click "Simpan Status" → POST 201, dialog closes, new card "Test E2E Status (TEST_E2E #11)" appears at end of list ✓
+  - Click Edit on new card → Edit dialog opens, Kode field disabled with "(tidak dapat diubah)" label + lock hint, other fields editable ✓
+  - Cancel edit → Click Delete on new card → AlertDialog "Hapus Status Penguasaan? ...Test E2E Status (TEST_E2E)..." with red "Hapus Permanen" button ✓
+  - Confirm delete → DELETE 200, card removed from list ✓
+  - Navigate to "Permohonan" → table wrapped in `.permohonan-table-scroll` div with `max-height: 346.2px (60vh), overflow-y: auto`, TableHeader sticky (position: sticky, top: 0, z-index: 10, semi-transparent backdrop-blur bg) ✓
+  - Mobile card list also has `max-h-[60vh] overflow-y-auto permohonan-mobile-scroll` ✓
+  - Navigate to "Daftar Baru" form → Status Penguasaan dropdown shows 10 dynamic options from API (with warna dot + label + deskripsi), default "Milik Sendiri (SHM)" auto-selected ✓
+  - Footer sticky at bottom: on long pages pushed naturally (footerBottom === bodyHeight), on short pages sticks to viewport bottom ✓
+
+## Files Changed (summary)
+- NEW: `src/app/api/status-penguasaan/route.ts` (~95 lines)
+- NEW: `src/app/api/status-penguasaan/[id]/route.ts` (~135 lines)
+- NEW: `src/components/app/admin/StatusPenguasaanManagement.tsx` (~530 lines)
+- Updated: `prisma/schema.prisma` (new `StatusPenguasaan` model)
+- Updated: `src/lib/constants.ts` (new `STATUS_PENGUASAAN_SEED` constant + fallback note)
+- Updated: `src/lib/api.ts` (4 new status penguasaan methods)
+- Updated: `src/lib/types.ts` (extended `PermohonanListItem` + added `"status-penguasaan"` to `AppView`)
+- Updated: `src/components/app/petugas/PermohonanList.tsx` (scrollbar wrapper + sticky header)
+- Updated: `src/components/app/petugas/PermohonanForm.tsx` (dynamic status penguasaan options from API + auto-select default)
+- Updated: `src/components/app/shared/PermohonanDetail.tsx` (dynamic status penguasaan options in edit dialog)
+- Updated: `src/components/app/AppShell.tsx` (ShieldAlert icon + nav item + view label + manajemen group)
+- Updated: `src/components/app/shared/CommandPalette.tsx` (quick-nav entry)
+- Updated: `src/app/page.tsx` (renderView case for status-penguasaan)
+- Updated: `src/app/globals.css` (Section L: custom scrollbar for permohonan list)
+- Updated: `scripts/seed.ts` (seed StatusPenguasaan table + updated sample permohonan strings)
+
+## Stage Summary
+- **Scrollbar Daftar Permohonan**: tabel desktop & card list mobile sekarang punya max-height 60vh dengan custom scrollbar emas (gradient thumb, hover/active states, light/dark variants). TableHeader sticky di atas saat scroll (position: sticky, top: 0, z-10, backdrop-blur). Konsisten dengan theme emas/navy aplikasi.
+- **Manajemen Status Penguasaan**: admin sekarang dapat CRUD penuh opsi status penguasaan tanah (SHM, HGB, HP, HS, HPL, Warisan, Girik, Negara, Adat, Lainnya) via halaman "Status Penguasaan" di sidebar MANAJEMEN. Setiap opsi memiliki: kode (immutable), nama, deskripsi, urutan, warna badge, isDefault flag (single-default enforced), isActive flag. Referential integrity: opsi yang dipakai permohonan tidak bisa dihapus (HTTP 409 + pesan jelas); admin bisa nonaktifkan sebagai gantinya. Audit log untuk semua operasi CREATE/UPDATE/DELETE.
+- **Dynamic options**: form Daftar Baru & Edit Permohonan sekarang fetch opsi dari API (master data). Default auto-terpilih saat membuat permohonan baru. Fallback ke constant lama jika API unreachable (graceful degradation).
+- Lint: 0 errors. Dev server: no runtime errors. Semua fitur verified end-to-end via curl API tests + agent-browser UI tests.
+
+## Unresolved Issues / Risks
+- **Denormalized string field**: `Permohonan.statusPenguasaan` tetap String (bukan FK ke `StatusPenguasaan.id`). Ini berarti jika admin mengganti `nama` suatu opsi, permohonan lama tetap menyimpan nama lama (tidak auto-update). Trade-off: data historis immutable + tidak perlu migration data, tapi bisa terjadi orphan string (nilai string yang tidak match master manapun). Management page tetap menampilkan count berdasarkan exact string match.
+- **Client-side usage count**: `StatusPenguasaanManagement` fetch all permohonan (limit 1000) untuk hitung usage count. Fine untuk ratusan record; untuk ribuan record sebaiknya tambah endpoint aggregate dedicated (e.g., `GET /api/status-penguasaan/[id]/usage`).
+- **Single-default enforcement di app layer**: jika ada race condition (dua admin set default bersamaan), bisa transiently ada 2 default. API POST/PUT clear existing default first, tapi non-transactional. Low risk untuk admin-only operasi.
+- **No re-order drag-drop**: urutan diatur via field `urutan` (number input), bukan drag-and-drop. Future enhancement: tambah DnD reordering.
+- **No bulk activate/deactivate**: admin harus toggle satu per satu. Future enhancement: bulk actions.
+
+## Priority Recommendations for Next Round
+1. **Materialize `statusPenguasaanId` FK on Permohonan**: tambah kolom FK opsional yang reference `StatusPenguasaan.id`, populated untuk record baru, sementara string lama tetap untuk backward-compat. Memungkinkan Prisma relation count + auto-update saat nama master berubah.
+2. **Re-order via drag-and-drop**: tambah DnD reordering untuk urutan tampil (mirip prioritas todo).
+3. **Bulk actions**: tambah bulk activate/deactivate/delete di management page.
+4. **Dedicated usage aggregate endpoint**: `GET /api/status-penguasaan/usage` yang return map `{ nama → count }` sekali query (aggregate DB-side), ganti client-side fetch-all.
+5. **Continue with previously-queued features**: SLA breach auto-notify (Gmail configured), PWA polish, map integration, Tanda Terima PDF polish (include riwayat tanah + status penguasaan).
+6. **Tambah filter "Status Penguasaan" di Daftar Permohonan**: filter dropdown berdasarkan status penguasaan untuk reporting (e.g., "show all tanah warisan").
