@@ -66,6 +66,24 @@ export const api = {
     req(`/api/permohonan/${id}/dokumen?dokId=${dokId}`, { method: "DELETE" }),
   getQr: (id: string) => req<{ qr: string; url: string; nomorRegister: string }>(`/api/permohonan/${id}/qr`),
 
+  // riwayat tanah (land ownership history) — CRUD per permohonan
+  listRiwayatTanah: (id: string) =>
+    req<{ items: any[] }>(`/api/permohonan/${id}/riwayat-tanah`),
+  addRiwayatTanah: (id: string, body: any) =>
+    req<{ entry: any }>(`/api/permohonan/${id}/riwayat-tanah`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateRiwayatTanah: (id: string, entryId: string, body: any) =>
+    req<{ entry: any }>(`/api/permohonan/${id}/riwayat-tanah/${entryId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteRiwayatTanah: (id: string, entryId: string) =>
+    req<{ ok: boolean }>(`/api/permohonan/${id}/riwayat-tanah/${entryId}`, {
+      method: "DELETE",
+    }),
+
   // dashboard
   dashboard: (year?: number, range?: "today" | "7d" | "30d" | "year" | "all") => {
     const q = new URLSearchParams();

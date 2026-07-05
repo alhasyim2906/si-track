@@ -110,11 +110,34 @@ model Permohonan {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  jenisSurat  JenisSurat      @relation(fields: [jenisSuratId], references: [id])
-  creator     User            @relation(fields: [createdBy], references: [id])
-  dokumen     Dokumen[]
-  riwayat     RiwayatProses[]
-  notifikasi  Notifikasi[]
+  jenisSurat   JenisSurat      @relation(fields: [jenisSuratId], references: [id])
+  creator      User            @relation(fields: [createdBy], references: [id])
+  dokumen      Dokumen[]
+  riwayat      RiwayatProses[]
+  riwayatTanah RiwayatTanah[]
+  notifikasi   Notifikasi[]
+}
+
+// ===== Riwayat Tanah (Land Ownership History) =====
+// Tracks the chain of ownership/acquisition events for the land
+// being registered. Multiple entries per permohonan, ordered by urutan.
+model RiwayatTanah {
+  id                String   @id @default(cuid())
+  permohonanId      String
+  urutan            Int      @default(1) // display order (1 = earliest)
+  tahun             String?  // year of acquisition (string for flexibility, e.g., "2019" or "sebelum 2000")
+  pemilikSebelumnya String?  // name of the previous owner / land holder
+  hubunganPemilik   String?  // relationship of previous owner to current owner (Ayah, Ibu, Kakek, Nenek, Saudara, dll.)
+  caraPerolehan     String?  // how the land was acquired (Jual Beli, Warisan, Hibah, Lelang, Tukar Menukar, Sumbang, Lainnya)
+  noDokumen         String?  // supporting doc number (e.g., akta jual beli, surat waris)
+  keterangan        String?  // free-text note
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
+
+  @@index([permohonanId])
+  @@index([urutan])
 }
 
 // ===== Dokumen =====

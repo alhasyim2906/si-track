@@ -11,11 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { PublicStatsBanner, FAQSection, RequirementsSection, RegulationSection } from "./PublicSections";
 import {
   Search, QrCode, Loader2, FileSearch, MapPin, User, Calendar,
   CheckCircle2, XCircle, AlertTriangle, Clock, FileText, ArrowRight, Info, Ruler, Building2,
+  History, Landmark, Compass,
 } from "lucide-react";
 import type { TrackingResult } from "@/lib/types";
 
@@ -388,6 +390,12 @@ function TrackingResultView({ result, onRefresh }: { result: TrackingResult; onR
             <CardContent className="space-y-2.5 text-sm">
               {result.lokasiTanah && <InfoRow label="Lokasi" value={result.lokasiTanah} />}
               {result.luasTanah && <InfoRow label="Luas" value={`${result.luasTanah} m²`} icon={Ruler} />}
+              {result.statusPenguasaan && (
+                <InfoRow label="Status Penguasaan" value={result.statusPenguasaan} icon={Building2} />
+              )}
+              {(result.tanahRt || result.tanahRw) && (
+                <InfoRow label="RT / RW" value={[result.tanahRt, result.tanahRw].filter(Boolean).join(" / ")} icon={MapPin} />
+              )}
               <InfoRow label="Dokumen" value={`${result.dokumenCount} berkas`} icon={FileText} />
               <InfoRow label="Tanggal Daftar" value={new Date(result.createdAt).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })} icon={Calendar} />
               {result.tanggalSelesai && (
@@ -395,8 +403,98 @@ function TrackingResultView({ result, onRefresh }: { result: TrackingResult; onR
               )}
             </CardContent>
           </Card>
+
+          {/* Batas-batas bidang tanah */}
+          {(result.batasUtara || result.batasSelatan || result.batasTimur || result.batasBarat) && (
+            <Card className="glass-card border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-primary" /> Batas Bidang Tanah
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                    {result.batasUtara && <InfoRow label="Utara" value={result.batasUtara} />}
+                    {result.batasSelatan && <InfoRow label="Selatan" value={result.batasSelatan} />}
+                    {result.batasTimur && <InfoRow label="Timur" value={result.batasTimur} />}
+                    {result.batasBarat && <InfoRow label="Barat" value={result.batasBarat} />}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
+
+      {/* Riwayat Tanah (Land Ownership History) — only show when entries exist */}
+      {result.riwayatTanah && result.riwayatTanah.length > 0 && (
+        <Card className="glass-card border-primary/20 mt-5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <History className="w-4 h-4 text-primary" /> Riwayat Tanah
+              <Badge variant="secondary" className="ml-1 text-[10px]">{result.riwayatTanah.length}</Badge>
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Catatan perolehan dan riwayat kepemilikan bidang tanah
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2.5">
+              {result.riwayatTanah.map((r, idx) => (
+                <div
+                  key={r.id}
+                  className="relative pl-8 pr-3 py-3 rounded-lg border border-border/60 bg-background/40"
+                >
+                  <div className="absolute left-3 top-3.5 w-3 h-3 rounded-full bg-primary border-2 border-background" />
+                  {idx < result.riwayatTanah!.length - 1 && (
+                    <div className="absolute left-[15px] top-7 bottom-0 w-px bg-border/60" />
+                  )}
+                  <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                    <Badge variant="outline" className="text-[10px] border-primary/30 bg-primary/5 text-primary">
+                      #{r.urutan || idx + 1}
+                    </Badge>
+                    {r.tahun && (
+                      <Badge variant="outline" className="text-[10px]">
+                        <Calendar className="w-3 h-3 mr-1" /> {r.tahun}
+                      </Badge>
+                    )}
+                    {r.caraPerolehan && (
+                      <Badge variant="outline" className="text-[10px] border-amber-500/40 bg-amber-500/10 text-amber-600">
+                        {r.caraPerolehan}
+                      </Badge>
+                    )}
+                    {r.hubunganPemilik && (
+                      <Badge variant="outline" className="text-[10px] border-blue-500/40 bg-blue-500/10 text-blue-600">
+                        <User className="w-3 h-3 mr-1" /> {r.hubunganPemilik}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                    {r.pemilikSebelumnya && (
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[120px]">Pemilik Sebelumnya:</span>
+                        <span className="font-medium break-words">{r.pemilikSebelumnya}</span>
+                      </div>
+                    )}
+                    {r.noDokumen && (
+                      <div className="flex gap-2">
+                        <span className="text-muted-foreground min-w-[120px]">No. Dokumen:</span>
+                        <span className="font-medium font-mono text-[11px] break-all">{r.noDokumen}</span>
+                      </div>
+                    )}
+                  </div>
+                  {r.keterangan && (
+                    <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed break-words">
+                      {r.keterangan}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
+              <Landmark className="w-3.5 h-3.5" />
+              <span>Untuk perubahan riwayat tanah, silakan hubungi petugas kelurahan.</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Riwayat table */}
       <Card className="glass-card border-primary/20">

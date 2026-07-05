@@ -2019,3 +2019,149 @@ Project was stable after Task 18 (revision upload by pemohon). User reported thr
 4. **Jenis Surat reorder**: Add drag-and-drop reordering of jenis surat (currently sorted by createdAt).
 5. **Per-stage SLA warning threshold**: Allow different warning thresholds per stage (e.g., 70% for TTD_LURAH but 90% for PEMBUATAN_SURAT).
 6. **Gmail send quota monitor**: Track daily email send count to stay under Gmail's 500/day limit; show a warning in the admin dashboard.
+
+---
+Task ID: 21
+Agent: main
+Task: Tambahkan input status penguasaan (extended options) + tambahkan riwayat tanah (land ownership history) untuk setiap permohonan.
+
+## Current Project Status Assessment
+Project was stable after Task 19 (Jenis Surat edit/delete, Gmail SMTP config, SLA tracking). User requested two additions:
+1. **Status Penguasaan** input sudah ada sebelumnya tetapi hanya 5 opsi terbatas ("Milik Sendiri", "Warisan", "Girik", "Sewa", "Lainnya"). User ingin diperluas dengan jenis hak penguasaan tanah yang lengkap sesuai konteks Indonesia (SHM, HGB, Hak Pakai, Hak Sewa, HPL, Tanah Negara, Tanah Adat/Ulayat, dll).
+2. **Riwayat Tanah** (Land Ownership History) — fitur BARU untuk mencatat rantai perolehan & kepemilikan tanah (cth: tanah milik kakek → waris ke ayah → waris ke pemohon). Belum ada sebelumnya.
+
+## Work Completed
+
+### Part A — Extended Status Penguasaan Options
+**Files:**
+- NEW shared constants in `src/lib/constants.ts`:
+  - `STATUS_PENGUASAAN_OPTIONS` — 10 opsi dengan deskripsi (Milik Sendiri (SHM), Warisan, Girik/Petok D, HGB, Hak Pakai, Hak Sewa, Hak Pengelolaan, Tanah Negara, Tanah Adat/Ulayat, Lainnya)
+  - `CARA_PEROLEHAN_TANAH` — 9 opsi cara perolehan (Jual Beli, Warisan, Hibah, Lelang, Tukar Menukar, Sumbang/Hibah Wasiat, Pembagian Hak, Penjualan via PPAT, Lainnya)
+  - `HUBUNGAN_PEMILIK_OPTIONS` — 11 opsi hubungan (Diri Sendiri, Ayah, Ibu, Kakek, Nenek, Suami/Istri, Saudara Kandung, Paman/Bibi, Anak, Pihak Ketiga, Lainnya)
+- Updated `src/components/app/petugas/PermohonanForm.tsx`:
+  - Removed local `STATUS_PENGUASAAN` array, now imports shared `STATUS_PENGUASAAN_OPTIONS`
+  - Default value changed to `"Milik Sendiri (SHM)"`
+  - Select dropdown now shows label + deskripsi (cth: "Milik Sendiri (SHM)" + "Sertifikat Hak Milik")
+- Updated `src/components/app/shared/PermohonanDetail.tsx`:
+  - Removed local `STATUS_PENGUASAAN_OPTIONS` (was 5-item string array), now imports shared constant
+  - Updated Edit dialog Select to use `s.value`/`s.label`
+  - Default fallback changed to `"Milik Sendiri (SHM)"`
+
+### Part B — Riwayat Tanah (Land Ownership History) — NEW FEATURE
+**Database layer:**
+- `prisma/schema.prisma`: NEW model `RiwayatTanah` with fields:
+  - `id` (cuid), `permohonanId` (FK cascade delete), `urutan` (Int, display order)
+  - `tahun` (String? — tahun perolehan, cth "1995"), `pemilikSebelumnya` (String?), `hubunganPemilik` (String?), `caraPerolehan` (String?), `noDokumen` (String? — cth no akta), `keterangan` (String?)
+  - `createdAt`, `updatedAt`
+  - Indexes on `permohonanId` and `urutan`
+- `Permohonan` model: added `riwayatTanah RiwayatTanah[]` relation
+- Ran `bun run db:push` — schema synced, Prisma client regenerated
+
+**API layer:**
+- NEW: `src/app/api/permohonan/[id]/riwayat-tanah/route.ts`
+  - `GET` (auth: any staff) — list all riwayat tanah entries for a permohonan, ordered by `urutan` then `createdAt`
+  - `POST` (auth: PETUGAS/ADMIN) — add new entry. If `urutan` not provided, auto-increments to max+1. Writes CREATE audit log.
+- NEW: `src/app/api/permohonan/[id]/riwayat-tanah/[entryId]/route.ts`
+  - `PUT` (auth: PETUGAS/ADMIN) — update entry. Validates entry belongs to permohonan. Writes UPDATE audit log.
+  - `DELETE` (auth: PETUGAS/ADMIN) — delete entry. Writes DELETE audit log.
+- Updated `src/app/api/permohonan/route.ts` (POST): now accepts optional `riwayatTanah` array in body. Creates inline via Prisma nested write. `urutan` auto-assigned by index if not provided. Empty entries are filtered client-side before submission.
+- Updated `src/app/api/permohonan/[id]/route.ts` (GET): includes `riwayatTanah` in response (ordered by `urutan` then `createdAt`).
+- Updated `src/app/api/tracking/[registerNumber]/route.ts` (GET): public tracking response now includes `statusPenguasaan`, `tanahRt`, `tanahRw`, `batasUtara/Selatan/Timur/Barat`, and `riwayatTanah` array (read-only for public).
+
+**Frontend library:**
+- `src/lib/api.ts`: added 4 new methods — `listRiwayatTanah(id)`, `addRiwayatTanah(id, body)`, `updateRiwayatTanah(id, entryId, body)`, `deleteRiwayatTanah(id, entryId)`
+- `src/lib/types.ts`: added `RiwayatTanahPublicItem` interface; extended `TrackingResult` with `statusPenguasaan?`, `tanahRt/Rw?`, `batasUtara/Selatan/Timur/Barat?`, `riwayatTanah?`
+
+**UI layer:**
+- `src/components/app/petugas/PermohonanForm.tsx` (Daftar Baru form):
+  - Added `RiwayatTanahEntry` interface and state `riwayatTanah` (initialized with 1 empty entry)
+  - New "Riwayat Tanah" card section (Section 4) after Data Tanah card
+  - Multi-entry form with add/remove buttons (min 1 entry, "Tambah Riwayat Tanah" dashed button to add, trash icon to remove)
+  - Each entry has: Tahun Perolehan (numeric 4-digit), Pemilik Sebelumnya, Hubungan dgn Pemohon (Select), Cara Perolehan (Select), No. Dokumen Pendukung, Keterangan (Textarea)
+  - Numbered badge (1, 2, 3...) for each entry
+  - Info banner explaining the purpose with example
+  - Total entry counter at bottom
+  - Submit body filters out empty entries before sending to API
+- `src/components/app/shared/PermohonanDetail.tsx` (Detail page):
+  - Added `RiwayatTanahItem` interface to component types
+  - Extended `PermohonanDetail` interface with `riwayatTanah?: RiwayatTanahItem[]`
+  - NEW inline component `RiwayatTanahCard` (~350 lines) placed between Data Tanah and Keperluan & Jenis Surat cards:
+    - Collapsible card with badge count + "Tambah" button (PETUGAS/ADMIN only)
+    - Empty state with Landmark icon + helpful message
+    - Timeline-style list of entries (numbered dot + connector line)
+    - Each entry shows: #urutan badge, Tahun (Calendar), Cara Perolehan (amber badge), Hubungan (blue badge with UserRound icon), Pemilik Sebelumnya, No. Dokumen (mono font), Keterangan
+    - Edit + Delete buttons per entry (PETUGAS/ADMIN only)
+    - Add/Edit Dialog with all 6 fields (Tahun, Pemilik Sebelumnya, Hubungan, Cara Perolehan, No. Dokumen, Keterangan)
+    - Delete confirmation AlertDialog (red theme)
+    - Auto-refreshes parent detail after add/edit/delete
+  - Imported `Plus`, `Landmark` icons and `STATUS_PENGUASAAN_OPTIONS`, `CARA_PEROLEHAN_TANAH`, `HUBUNGAN_PEMILIK_OPTIONS` from constants
+- `src/components/app/PublicTracking.tsx` (Public tracking page):
+  - Imported `Separator`, `History`, `Landmark`, `Compass` icons
+  - Extended "Lokasi Tanah" card: now also shows Status Penguasaan (with Building2 icon) and RT/RW when available
+  - NEW: "Batas Bidang Tanah" card (only shown when any batas field is set) — shows Utara/Selatan/Timur/Barat
+  - NEW: "Riwayat Tanah" card (only shown when entries exist) — timeline-style display matching the detail page UI, with footer note "Untuk perubahan riwayat tanah, silakan hubungi petugas kelurahan"
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile, no runtime errors in `/home/z/my-project/dev.log`
+- **API tests (curl)**:
+  - `GET /api/permohonan/[id]/riwayat-tanah` (empty initially) → `{"items":[]}` 200 ✓
+  - `POST /api/permohonan/[id]/riwayat-tanah` with full body → 201 with created entry (urutan auto-set to 1) ✓
+  - `GET` again → returns the new entry ✓
+  - `PUT /api/permohonan/[id]/riwayat-tanah/[entryId]` with partial update → 200 with updated entry ✓
+  - `GET /api/permohonan/[id]` (detail) → includes `riwayatTanah` array (count: 1) ✓
+  - `DELETE /api/permohonan/[id]/riwayat-tanah/[entryId]` → 200 `{"ok":true}` ✓
+  - `GET` after delete → empty array ✓
+  - `POST /api/permohonan` with `riwayatTanah: [2 entries]` → 201 with permohonan including both riwayat tanah entries (urutan 1 & 2) ✓
+  - `GET /api/tracking/[registerNumber]` → response now includes `statusPenguasaan`, `batasUtara`, `riwayatTanah` array ✓
+- **Agent-browser E2E tests**:
+  - Public tracking with `?track=KPII-TNH-2026-ZPGKNHME` → renders result page ✓
+  - Body text contains: "Test Riwayat Tanah" (pemohon), "Riwayat Tanah" section, "Status Penguasaan" label, "Kakek Sutedi" (entry), "Warisan" (cara perolehan) ✓
+  - Admin login via cookie set → Dashboard → click "Permohonan" → list shows ✓
+  - Click "Test Riwayat Tanah" row → Detail page loads → switch to "Data" tab → "Riwayat Tanah" card visible with badge "2" and "Tambah" button ✓
+  - Riwayat Tanah card expanded → shows #1 (1970, Warisan, Kakek, "Pemilik Sebelumnya: Kakek Sutedi", "Warisan dari kakek"), #2 (1995, Warisan, Ayah, "Ayah Sukarman"), Edit buttons ✓
+  - Click "Tambah" → Add Riwayat Tanah dialog opens with all 6 fields (Tahun Perolehan, Pemilik Sebelumnya, Hubungan, Cara Perolehan, No. Dokumen, Keterangan) ✓
+  - Click "Edit" on existing entry → Edit Riwayat Tanah dialog opens pre-filled with 1970, Kakek Sutedi, etc. ✓
+  - Data Tanah card (when expanded) → shows "Status Penguasaan: Warisan" ✓
+  - Navigate to "Daftar Baru" form → "Riwayat Tanah" section visible, "Status Penguasaan" field present, "Tambah Riwayat Tanah" button present, "Tahun Perolehan" and "Cara Perolehan" fields present ✓
+  - Click Status Penguasaan dropdown → shows all 10 new options including "Milik Sendiri (SHM)" + "Sertifikat Hak Milik" desc, "Hak Guna Bangun", "Tanah Adat", "Girik", "Hak Pengelolaan" ✓
+
+## Files Changed (summary)
+- NEW: `src/app/api/permohonan/[id]/riwayat-tanah/route.ts` (~85 lines)
+- NEW: `src/app/api/permohonan/[id]/riwayat-tanah/[entryId]/route.ts` (~110 lines)
+- Updated: `prisma/schema.prisma` (new `RiwayatTanah` model + relation)
+- Updated: `src/lib/constants.ts` (3 new shared constants)
+- Updated: `src/lib/api.ts` (4 new methods)
+- Updated: `src/lib/types.ts` (new `RiwayatTanahPublicItem` + extended `TrackingResult`)
+- Updated: `src/app/api/permohonan/route.ts` (POST accepts + creates riwayatTanah inline)
+- Updated: `src/app/api/permohonan/[id]/route.ts` (GET includes riwayatTanah)
+- Updated: `src/app/api/tracking/[registerNumber]/route.ts` (public response includes statusPenguasaan, batas, riwayatTanah)
+- Updated: `src/components/app/petugas/PermohonanForm.tsx` (extended status options + new Riwayat Tanah section)
+- Updated: `src/components/app/shared/PermohonanDetail.tsx` (new RiwayatTanahCard component ~350 lines + use shared constants)
+- Updated: `src/components/app/PublicTracking.tsx` (extended Lokasi Tanah card + new Batas card + new Riwayat Tanah card)
+
+## Stage Summary
+- **Status Penguasaan** input now has 10 comprehensive Indonesian land tenure types (instead of only 5). Each option shows label + description in the dropdown. Default changed from "Milik Sendiri" to "Milik Sendiri (SHM)". Available consistently in: Daftar Baru form, Edit dialog, and shared via constants.
+- **Riwayat Tanah** (Land Ownership History) is now a first-class feature:
+  - Captured at permohonan creation (multi-entry form in Daftar Baru)
+  - Managed post-creation via dedicated card in Detail page (Add/Edit/Delete with dialogs)
+  - Displayed to public in tracking result (read-only timeline)
+  - Each entry tracks: urutan, tahun, pemilik sebelumnya, hubungan dengan pemohon, cara perolehan, no. dokumen pendukung, keterangan
+  - Full CRUD API with audit logging
+  - Cascade delete when permohonan is deleted
+- Lint: 0 errors. Dev server: no runtime errors. All features verified end-to-end via curl API tests + agent-browser UI tests.
+
+## Unresolved Issues / Risks
+- **Riwayat Tanah urutan re-numbering**: when an entry is deleted, the remaining entries keep their original urutan (gaps may appear, e.g., 1, 3, 4 after deleting #2). Cosmetic only — the UI displays entries in order regardless of urutan gaps. Future enhancement: re-number on delete.
+- **No file attachment per riwayat tanah entry**: each entry has a `noDokumen` text field but no actual file upload. Future enhancement: allow uploading scan of akta/surat waris per entry.
+- **Public cannot edit riwayat tanah**: by design — pemohon can only view. To request changes, they must contact petugas (footer note explains this).
+- **No export/print of riwayat tanah**: the Tanda Terima PDF doesn't yet include riwayat tanah. Future enhancement: add riwayat tanah section to Tanda Terima printout.
+
+## Priority Recommendations for Next Round
+1. **Add riwayat tanah to Tanda Terima PDF**: include the timeline of land ownership in the printable receipt for legal documentation.
+2. **Re-number urutan on delete**: prevent gaps in numbering when entries are deleted.
+3. **File attachment per entry**: allow uploading scans (akta jual beli, surat waris) per riwayat tanah entry.
+4. **Search/filter by status penguasaan**: in Permohonan List, add a filter dropdown for status penguasaan (useful for reporting, e.g., "show all tanah warisan").
+5. **Riwayat tanah summary in dashboard**: add a chart showing distribution of cara perolehan (Warisan vs Jual Beli vs Hibah) across all permohonan.
+6. **Auto-fill from previous permohonan**: when same pemohon NIK + same lokasi tanah detected, offer to copy riwayat tanah from previous permohonan.
+7. **Continue with previously-queued features**: SLA breach auto-notify (now that Gmail is configured), PWA polish, map integration, PDF export polish.

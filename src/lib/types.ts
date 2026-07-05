@@ -62,6 +62,14 @@ export interface TrackingResult {
   tanggalSelesai: string | null;
   lokasiTanah: string | null;
   luasTanah: string | null;
+  statusPenguasaan?: string | null;
+  tanahRt?: string | null;
+  tanahRw?: string | null;
+  batasUtara?: string | null;
+  batasSelatan?: string | null;
+  batasTimur?: string | null;
+  batasBarat?: string | null;
+  riwayatTanah?: RiwayatTanahPublicItem[];
   stages: string[];
   currentIndex: number;
   riwayat: RiwayatItem[];
@@ -71,6 +79,17 @@ export interface TrackingResult {
   revisiDokumen?: RevisiDokumenItem[];
   revisiDokumenCount?: number;
   revisiUploadEnabled?: boolean;
+}
+
+export interface RiwayatTanahPublicItem {
+  id: string;
+  urutan: number;
+  tahun?: string | null;
+  pemilikSebelumnya?: string | null;
+  hubunganPemilik?: string | null;
+  caraPerolehan?: string | null;
+  noDokumen?: string | null;
+  keterangan?: string | null;
 }
 
 export interface RevisiDokumenItem {

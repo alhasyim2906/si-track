@@ -39,12 +39,17 @@ import {
   ChevronRight, FileCheck, FileWarning, Files, MessageSquare,
   Phone, MapPinned, Tag, Gauge, ScanLine, FileType2, Printer,
   ChevronDown, FileImage, IdCard, Home, Compass, Paperclip,
-  Mail, Send, Bell, Inbox, UserRound, FileCheck2,
+  Mail, Send, Bell, Inbox, UserRound, FileCheck2, Plus, Landmark,
 } from "lucide-react";
 import { TandaTerima } from "@/components/app/shared/TandaTerima";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AlteInfoBox } from "@/components/app/AlteInfoBox";
 import { MultiUploadZone, type UploadedDoc } from "@/components/app/shared/MultiUploadZone";
+import {
+  STATUS_PENGUASAAN_OPTIONS,
+  CARA_PEROLEHAN_TANAH,
+  HUBUNGAN_PEMILIK_OPTIONS,
+} from "@/lib/constants";
 
 interface DokumenItem {
   id: string;
@@ -57,6 +62,19 @@ interface DokumenItem {
   isRevisionUpload?: boolean;
   catatanPemohon?: string | null;
   createdAt: string;
+}
+
+interface RiwayatTanahItem {
+  id: string;
+  urutan: number;
+  tahun?: string | null;
+  pemilikSebelumnya?: string | null;
+  hubunganPemilik?: string | null;
+  caraPerolehan?: string | null;
+  noDokumen?: string | null;
+  keterangan?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface RiwayatEntry {
@@ -108,9 +126,8 @@ interface PermohonanDetail {
   statusPenguasaan: string | null;
   dokumen: DokumenItem[];
   riwayat: RiwayatEntry[];
+  riwayatTanah?: RiwayatTanahItem[];
 }
-
-const STATUS_PENGUASAAN_OPTIONS = ["Milik Sendiri", "Warisan", "Girik", "Sewa", "Lainnya"];
 
 function formatDate(d?: string | null): string {
   if (!d) return "-";
@@ -156,6 +173,360 @@ function DLRow({ label, value, icon: Icon }: { label: string; value: React.React
         <p className="text-sm font-medium break-words">{value || <span className="text-muted-foreground">-</span>}</p>
       </div>
     </div>
+  );
+}
+
+// ===== Riwayat Tanah Card =====
+// Inline-managed land ownership history. Allows petugas/admin to add, edit,
+// and delete entries directly from the permohonan detail page. Read-only
+// for atasan and other viewers.
+interface RtDialogForm {
+  tahun?: string;
+  pemilikSebelumnya?: string;
+  hubunganPemilik?: string;
+  caraPerolehan?: string;
+  noDokumen?: string;
+  keterangan?: string;
+}
+const EMPTY_RT_FORM: RtDialogForm = {
+  tahun: "",
+  pemilikSebelumnya: "",
+  hubunganPemilik: "Diri Sendiri",
+  caraPerolehan: "",
+  noDokumen: "",
+  keterangan: "",
+};
+
+function RiwayatTanahCard({
+  permohonanId,
+  items,
+  canEdit,
+  onRefresh,
+}: {
+  permohonanId: string;
+  items: RiwayatTanahItem[];
+  canEdit: boolean;
+  onRefresh: () => Promise<void>;
+}) {
+  const [rtOpen, setRtOpen] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<RtDialogForm>(EMPTY_RT_FORM);
+  const [saving, setSaving] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const openAdd = () => {
+    setEditingId(null);
+    setForm(EMPTY_RT_FORM);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (it: RiwayatTanahItem) => {
+    setEditingId(it.id);
+    setForm({
+      tahun: it.tahun || "",
+      pemilikSebelumnya: it.pemilikSebelumnya || "",
+      hubunganPemilik: it.hubunganPemilik || "Diri Sendiri",
+      caraPerolehan: it.caraPerolehan || "",
+      noDokumen: it.noDokumen || "",
+      keterangan: it.keterangan || "",
+    });
+    setDialogOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (
+      !form.tahun?.trim() &&
+      !form.pemilikSebelumnya?.trim() &&
+      !form.caraPerolehan &&
+      !form.keterangan?.trim()
+    ) {
+      toast.error("Isi minimal salah satu field riwayat tanah");
+      return;
+    }
+    setSaving(true);
+    try {
+      const body: any = {
+        tahun: form.tahun?.trim() || undefined,
+        pemilikSebelumnya: form.pemilikSebelumnya?.trim() || undefined,
+        hubunganPemilik: form.hubunganPemilik || undefined,
+        caraPerolehan: form.caraPerolehan || undefined,
+        noDokumen: form.noDokumen?.trim() || undefined,
+        keterangan: form.keterangan?.trim() || undefined,
+      };
+      if (editingId) {
+        await api.updateRiwayatTanah(permohonanId, editingId, body);
+        toast.success("Riwayat tanah diperbarui");
+      } else {
+        await api.addRiwayatTanah(permohonanId, body);
+        toast.success("Riwayat tanah ditambahkan");
+      }
+      setDialogOpen(false);
+      await onRefresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal menyimpan riwayat tanah");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      await api.deleteRiwayatTanah(permohonanId, deleteId);
+      toast.success("Riwayat tanah dihapus");
+      setDeleteId(null);
+      await onRefresh();
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal menghapus riwayat tanah");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <Collapsible open={rtOpen} onOpenChange={setRtOpen}>
+      <Card className="glass-card border-primary/15">
+        <CardContent className="p-5">
+          <CollapsibleTrigger asChild>
+            <h3 className="font-semibold text-sm flex items-center gap-2 mb-3 cursor-pointer select-none">
+              <History className="w-4 h-4 text-primary" /> Riwayat Tanah
+              <Badge variant="secondary" className="ml-1 text-[10px]">{items.length}</Badge>
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${rtOpen ? "rotate-180" : "rotate-0"}`} />
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto h-7 px-2 text-[11px] border-primary/30 text-primary hover:bg-primary/5"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openAdd();
+                  }}
+                >
+                  <Plus className="w-3.5 h-3.5" /> Tambah
+                </Button>
+              )}
+            </h3>
+          </CollapsibleTrigger>
+          <Separator className="mb-3" />
+          <CollapsibleContent>
+            {items.length === 0 ? (
+              <div className="text-center py-6 px-4 rounded-lg bg-muted/30 border border-dashed border-border/60">
+                <Landmark className="w-7 h-7 text-muted-foreground/60 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground mb-1">Belum ada riwayat tanah</p>
+                <p className="text-[11px] text-muted-foreground/70">
+                  {canEdit
+                    ? "Klik \"Tambah\" untuk mencatat riwayat perolehan dan kepemilikan tanah."
+                    : "Petugas/admin belum mencatat riwayat tanah untuk permohonan ini."}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {/* Timeline-style list */}
+                {items.map((it, idx) => (
+                  <div
+                    key={it.id}
+                    className="relative pl-8 pr-3 py-3 rounded-lg border border-border/60 bg-background/40 hover:border-primary/30 transition-colors"
+                  >
+                    {/* Timeline dot + connector */}
+                    <div className="absolute left-3 top-3.5 w-3 h-3 rounded-full bg-primary border-2 border-background" />
+                    {idx < items.length - 1 && (
+                      <div className="absolute left-[15px] top-7 bottom-0 w-px bg-border/60" />
+                    )}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                          <Badge variant="outline" className="text-[10px] border-primary/30 bg-primary/5 text-primary">
+                            #{it.urutan || idx + 1}
+                          </Badge>
+                          {it.tahun && (
+                            <Badge variant="outline" className="text-[10px]">
+                              <Calendar className="w-3 h-3 mr-1" /> {it.tahun}
+                            </Badge>
+                          )}
+                          {it.caraPerolehan && (
+                            <Badge variant="outline" className="text-[10px] border-amber-500/40 bg-amber-500/10 text-amber-600">
+                              {it.caraPerolehan}
+                            </Badge>
+                          )}
+                          {it.hubunganPemilik && (
+                            <Badge variant="outline" className="text-[10px] border-blue-500/40 bg-blue-500/10 text-blue-600">
+                              <UserRound className="w-3 h-3 mr-1" /> {it.hubunganPemilik}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="grid sm:grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                          {it.pemilikSebelumnya && (
+                            <div className="flex gap-2">
+                              <span className="text-muted-foreground min-w-[110px]">Pemilik Sebelumnya:</span>
+                              <span className="font-medium break-words">{it.pemilikSebelumnya}</span>
+                            </div>
+                          )}
+                          {it.noDokumen && (
+                            <div className="flex gap-2">
+                              <span className="text-muted-foreground min-w-[110px]">No. Dokumen:</span>
+                              <span className="font-medium font-mono text-[11px] break-all">{it.noDokumen}</span>
+                            </div>
+                          )}
+                        </div>
+                        {it.keterangan && (
+                          <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed break-words">
+                            {it.keterangan}
+                          </p>
+                        )}
+                      </div>
+                      {canEdit && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-[11px] hover:bg-primary/5 hover:text-primary"
+                            onClick={() => openEdit(it)}
+                            title="Edit entri"
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-[11px] text-red-600 hover:bg-red-500/10 hover:text-red-700"
+                            onClick={() => setDeleteId(it.id)}
+                            title="Hapus entri"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CollapsibleContent>
+        </CardContent>
+      </Card>
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="w-4 h-4 text-primary" />
+              {editingId ? "Edit Riwayat Tanah" : "Tambah Riwayat Tanah"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingId
+                ? "Perbarui data riwayat perolehan/kepemilikan tanah."
+                : "Catat peristiwa perolehan atau perpindahan kepemilikan tanah."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid sm:grid-cols-2 gap-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Tahun Perolehan</Label>
+              <Input
+                value={form.tahun || ""}
+                onChange={(e) => setForm({ ...form, tahun: e.target.value.replace(/[^0-9]/g, "").slice(0, 4) })}
+                placeholder="1995"
+                inputMode="numeric"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Pemilik Sebelumnya</Label>
+              <Input
+                value={form.pemilikSebelumnya || ""}
+                onChange={(e) => setForm({ ...form, pemilikSebelumnya: e.target.value })}
+                placeholder="Nama pemilik sebelumnya"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Hubungan dengan Pemohon</Label>
+              <Select
+                value={form.hubunganPemilik || "Diri Sendiri"}
+                onValueChange={(v) => setForm({ ...form, hubunganPemilik: v })}
+              >
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {HUBUNGAN_PEMILIK_OPTIONS.map((h) => (
+                    <SelectItem key={h.value} value={h.value}>{h.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Cara Perolehan</Label>
+              <Select
+                value={form.caraPerolehan || ""}
+                onValueChange={(v) => setForm({ ...form, caraPerolehan: v })}
+              >
+                <SelectTrigger className="w-full"><SelectValue placeholder="Pilih cara perolehan" /></SelectTrigger>
+                <SelectContent>
+                  {CARA_PEROLEHAN_TANAH.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label className="text-xs">No. Dokumen Pendukung</Label>
+              <Input
+                value={form.noDokumen || ""}
+                onChange={(e) => setForm({ ...form, noDokumen: e.target.value })}
+                placeholder="Cth: Akta Jual Beli No. 12/2019, Surat Waris tgl 3-5-2020"
+              />
+            </div>
+            <div className="sm:col-span-2 space-y-1.5">
+              <Label className="text-xs">Keterangan</Label>
+              <Textarea
+                value={form.keterangan || ""}
+                onChange={(e) => setForm({ ...form, keterangan: e.target.value })}
+                placeholder="Catatan tambahan tentang riwayat tanah ini..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
+              Batal
+            </Button>
+            <Button
+              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+              disabled={saving}
+              onClick={handleSave}
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {editingId ? "Simpan Perubahan" : "Tambah Riwayat"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Riwayat Tanah?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Entri riwayat tanah ini akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-700"
+              disabled={deleting}
+              onClick={handleDelete}
+            >
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Hapus Permanen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Collapsible>
   );
 }
 
@@ -292,7 +663,7 @@ export function PermohonanDetail() {
       batasSelatan: permohonan.batasSelatan || "",
       batasTimur: permohonan.batasTimur || "",
       batasBarat: permohonan.batasBarat || "",
-      statusPenguasaan: permohonan.statusPenguasaan || "Milik Sendiri",
+      statusPenguasaan: permohonan.statusPenguasaan || "Milik Sendiri (SHM)",
       keperluan: permohonan.keperluan || "",
       prioritas: permohonan.prioritas || "NORMAL",
     });
@@ -879,6 +1250,14 @@ export function PermohonanDetail() {
               </Card>
             </Collapsible>
 
+            {/* Riwayat Tanah (Land Ownership History) */}
+            <RiwayatTanahCard
+              permohonanId={p.id}
+              items={p.riwayatTanah || []}
+              canEdit={isPetugasOrAdmin}
+              onRefresh={fetchDetail}
+            />
+
             {/* Keperluan & Jenis Surat */}
             <Card className="glass-card border-primary/15 lg:col-span-2">
               <CardContent className="p-5">
@@ -1399,11 +1778,11 @@ export function PermohonanDetail() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Status Penguasaan</Label>
-                  <Select value={editForm.statusPenguasaan || "Milik Sendiri"} onValueChange={(v) => setEditForm({ ...editForm, statusPenguasaan: v })}>
+                  <Select value={editForm.statusPenguasaan || "Milik Sendiri (SHM)"} onValueChange={(v) => setEditForm({ ...editForm, statusPenguasaan: v })}>
                     <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {STATUS_PENGUASAAN_OPTIONS.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

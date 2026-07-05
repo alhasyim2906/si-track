@@ -137,8 +137,24 @@ export async function POST(req: NextRequest) {
         prioritas: body.prioritas || "NORMAL",
         statusSaatIni: "PENGAJUAN",
         createdBy: current.user.id,
+        // Optional: create initial riwayat tanah entries inline
+        riwayatTanah: Array.isArray(body.riwayatTanah) && body.riwayatTanah.length > 0
+          ? {
+              create: body.riwayatTanah
+                .filter((r: any) => r && typeof r === "object")
+                .map((r: any, idx: number) => ({
+                  urutan: typeof r.urutan === "number" ? r.urutan : idx + 1,
+                  tahun: r.tahun?.toString().trim() || null,
+                  pemilikSebelumnya: r.pemilikSebelumnya?.toString().trim() || null,
+                  hubunganPemilik: r.hubunganPemilik?.toString().trim() || null,
+                  caraPerolehan: r.caraPerolehan?.toString().trim() || null,
+                  noDokumen: r.noDokumen?.toString().trim() || null,
+                  keterangan: r.keterangan?.toString().trim() || null,
+                })),
+            }
+          : undefined,
       },
-      include: { jenisSurat: true },
+      include: { jenisSurat: true, riwayatTanah: true },
     });
 
     // initial riwayat

@@ -111,6 +111,53 @@ export const STATUS_BY_KODE: Record<string, StatusDef> = Object.fromEntries(
   STATUS_DEFINITIONS.map((s) => [s.kode, s])
 );
 
+// ===== Status Penguasaan Tanah =====
+// Comprehensive list of Indonesian land tenure types. Shared between
+// PermohonanForm (create), PermohonanDetail (view + edit dialog).
+export const STATUS_PENGUASAAN_OPTIONS: { value: string; label: string; desc?: string }[] = [
+  { value: "Milik Sendiri (SHM)", label: "Milik Sendiri (SHM)", desc: "Sertifikat Hak Milik" },
+  { value: "Warisan", label: "Warisan", desc: "Tanah waris dari orang tua / keluarga" },
+  { value: "Girik / Petok D", label: "Girik / Petok D", desc: "Bukti pajak lama / petok D kelurahan" },
+  { value: "Hak Guna Bangun (HGB)", label: "Hak Guna Bangun (HGB)", desc: "Sertifikat HGB" },
+  { value: "Hak Pakai", label: "Hak Pakai", desc: "Hak pakai atas tanah negara" },
+  { value: "Hak Sewa", label: "Hak Sewa", desc: "Tanah sewa" },
+  { value: "Hak Pengelolaan", label: "Hak Pengelolaan", desc: "HPL" },
+  { value: "Tanah Negara", label: "Tanah Negara", desc: "Tanah yang dikuasai langsung oleh negara" },
+  { value: "Tanah Adat / Ulayat", label: "Tanah Adat / Ulayat", desc: "Tanah hak ulayat masyarakat hukum adat" },
+  { value: "Lainnya", label: "Lainnya", desc: "Jenis penguasaan lainnya" },
+];
+
+// ===== Cara Perolehan Tanah =====
+// Used in the Riwayat Tanah (Land Ownership History) form to record
+// how the current applicant acquired the land from the previous holder.
+export const CARA_PEROLEHAN_TANAH: { value: string; label: string }[] = [
+  { value: "Jual Beli", label: "Jual Beli" },
+  { value: "Warisan", label: "Warisan" },
+  { value: "Hibah", label: "Hibah" },
+  { value: "Lelang", label: "Lelang" },
+  { value: "Tukar Menukar", label: "Tukar Menukar" },
+  { value: "Sumbang / Hibah Wasiat", label: "Sumbang / Hibah Wasiat" },
+  { value: "Pembagian Hak", label: "Pembagian Hak" },
+  { value: "Penjualan Melalui PPAT", label: "Penjualan Melalui PPAT" },
+  { value: "Lainnya", label: "Lainnya" },
+];
+
+// ===== Hubungan Pemilik Sebelumnya =====
+// Relationship of the previous land holder to the current applicant.
+export const HUBUNGAN_PEMILIK_OPTIONS: { value: string; label: string }[] = [
+  { value: "Diri Sendiri", label: "Diri Sendiri" },
+  { value: "Ayah", label: "Ayah" },
+  { value: "Ibu", label: "Ibu" },
+  { value: "Kakek", label: "Kakek" },
+  { value: "Nenek", label: "Nenek" },
+  { value: "Suami / Istri", label: "Suami / Istri" },
+  { value: "Saudara Kandung", label: "Saudara Kandung" },
+  { value: "Paman / Bibi", label: "Paman / Bibi" },
+  { value: "Anak", label: "Anak" },
+  { value: "Pihak Ketiga", label: "Pihak Ketiga" },
+  { value: "Lainnya", label: "Lainnya" },
+];
+
 // ===== Jenis Dokumen =====
 // kategori: PEMONON | TANAH | BATAS | LAINNYA — drives UI grouping in multi-upload
 // multi: true → jenis ini mendukung banyak file (multi-upload)
