@@ -100,4 +100,5 @@ export type AppView =
   | "audit-log"
   | "users"
   | "jenis-surat"
-  | "notifikasi";
+  | "notifikasi"
+  | "profil";

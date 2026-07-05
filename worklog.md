@@ -5,6 +5,20 @@ Client: Kelurahan Kuala Pembuang II
 Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4 + shadcn/ui + Prisma (SQLite)
 Theme: Dark navy/blackish blue with gold accents
 
+## Current Project Status (Phase 7 — Visual Polish & New Features)
+
+**Status**: Production-ready with enhanced visual quality and new features. All core flows verified. Lint: 0 errors. Server compiles clean.
+
+**VLM Visual Quality Scores**:
+- Public landing page: 8/10 (up from 7/10)
+- Stats banner section: 8/10 (up from 6/10)
+- Admin dashboard: 8/10
+- Permohonan list: 8/10
+- User management: 8/10
+- Audit log: 8/10
+
+**Demo credentials**: admin@kpii.go.id/admin123, petugas@kpii.go.id/petugas123, lurah@kpii.go.id/lurah123
+
 ---
 Task ID: 1
 Agent: main
@@ -205,3 +219,211 @@ App was production-usable from Task 4 (all core flows verified). This round focu
 4. **Search/global command palette** (Cmd+K) for quick navigation.
 5. **PWA manifest + service worker** for offline tracking (mentioned as optional in original spec).
 6. **WhatsApp/email notification integration** (currently dashboard-only notifications).
+
+---
+Task ID: 7-a
+Agent: full-stack-developer
+Task: Build Profile/Account Settings feature
+
+Work Log:
+- Read worklog.md and all infrastructure files (types.ts, api.ts, app-store.ts, auth.ts, audit.ts, schema.prisma, AppShell.tsx, page.tsx, StatCard.tsx) to understand patterns.
+- Added `"profil"` to AppView union type in `/src/lib/types.ts`.
+- Added `profile()` and `updateProfile()` methods to `/src/lib/api.ts` (GET and PUT /api/auth/profile).
+- Added `edit_profile` case to `/src/store/app-store.ts` can() function (returns true for all logged-in users).
+- Created backend API endpoint `/src/app/api/auth/profile/route.ts`:
+  * GET — returns current user profile (id, email, name, role, position, nip, phone, avatar) using `getCurrentUser()` from auth.
+  * PUT — updates profile fields (name, phone, position) and/or changes password.
+  * Password change requires both currentPassword and newPassword, min 6 chars for new password.
+  * Verifies current password using `verifyPassword()` (bcrypt compare) before allowing change.
+  * Hashes new password with `hashPassword()` before saving.
+  * Returns updated user info on success.
+  * Logs to audit trail via `writeAudit()` with UPDATE aksi, AUTH modul, listing which fields changed.
+- Created frontend component `/src/components/app/shared/ProfileSettings.tsx`:
+  * "use client" component with SectionHeader "Pengaturan Akun" + UserCog icon.
+  * Two-column grid (md:grid-cols-2) with glass-card border-primary/15 styling:
+    - Informasi Profil: editable Nama, Jabatan, Telepon; read-only NIP, Email; Role with icon badge.
+    - Ubah Password: current password, new password (min 6 chars hint), confirm password; all with show/hide toggle buttons.
+  * Gold gradient buttons for both "Simpan Profil" and "Simpan Password".
+  * Loading skeleton on initial load, Loader2 spinner on save buttons.
+  * Toast feedback (success/error) via sonner.
+  * Updates Zustand store user on profile save so header reflects new name immediately.
+  * Password fields clear on successful save.
+  * Real-time validation hints (password min length, confirm mismatch).
+- Added "profil" view case in `/src/app/page.tsx` renderView() → returns `<ProfileSettings />`.
+- Added "Profil" nav item with UserCog icon in AppShell.tsx navItems array (after Dashboard, available to all 3 roles).
+- Added "Pengaturan Akun" option in user dropdown menu (with UserCog icon, before "Keluar" separator).
+- Ran `bun run lint`: 0 errors in my files (3 pre-existing errors in CommandPalette.tsx, outside task scope).
+- Dev server compiles cleanly, all routes 200.
+
+Stage Summary:
+- Files created:
+  • /src/app/api/auth/profile/route.ts (backend API)
+  • /src/components/app/shared/ProfileSettings.tsx (frontend component)
+- Files modified:
+  • /src/lib/types.ts (added "profil" to AppView)
+  • /src/lib/api.ts (added profile + updateProfile methods)
+  • /src/store/app-store.ts (added edit_profile permission)
+  • /src/app/page.tsx (added profil view case + import)
+  • /src/components/app/AppShell.tsx (added Profil nav item + Pengaturan Akun dropdown option)
+- Feature complete: all logged-in users can view/edit their profile (name, phone, position) and change their password with current password verification. Audit trail logged for all profile changes.
+
+---
+Task ID: 7-b
+Agent: full-stack-developer
+Task: Build Command Palette (Cmd+K) for quick navigation
+
+Work Log:
+- Read worklog.md and all infrastructure files (command.tsx, app-store.ts, api.ts, types.ts, constants.ts, AppShell.tsx, StatusBadge.tsx) to understand the component API, store hooks, and styling patterns.
+- Created `/src/components/app/shared/CommandPalette.tsx`:
+  * "use client" component using shadcn/ui CommandDialog (CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut, CommandSeparator).
+  * **Navigation commands**: Quick jump to Dashboard, Permohonan, Daftar Baru, Laporan, Jenis Surat, Pengguna, Audit Log, Profil, Notifikasi, Lacak Surat (Public). Filtered by user role using same roles as AppShell navItems.
+  * **Quick search**: Debounced (300ms) search for permohonan by register number or pemohon name using `api.listPermohonan({ search, limit: "5", page: "1" })`. Shows top 5 results with gold mono register badge, pemohon name, and status badge. On select, calls `selectPermohonan(id)` to navigate to detail.
+  * **Quick actions**: "Daftar Permohonan Baru" (gated on `can("create_permohonan")`), "Keluar (Logout)".
+  * Custom glass-card + navy-glow styling with `bg-background/95 backdrop-blur-md`.
+  * Gold accent for selected items (`data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary`).
+  * Search results show: nomor register (mono gold badge), pemohon name, status badge with dynamic colors.
+  * Navigation items show: icon + label, with keyboard shortcut hints (⌘D, ⌘P, ⌘L, ⌘T).
+  * Footer hint bar: ↑↓ navigasi, ↵ pilih, esc tutup.
+  * Empty/loading states: "Mencari..." with Loader2 spinner, "Tidak ditemukan" for no results, hint for min 2 chars.
+  * State reset handled via `key` prop in AppShell — increments `cmdKey` each time palette opens, remounting with fresh state (avoids set-state-in-effect lint rule).
+  * Derived `effectiveQuery` (only when >= 2 chars) and `visibleResults` (derived from effectiveQuery + searchResults) to avoid set-state-in-effect for clearing results.
+  * Debounced search uses setTimeout with setState only inside the callback (passes lint).
+- Integrated into `/src/components/app/AppShell.tsx`:
+  * Added `cmdOpen` and `cmdKey` state variables.
+  * Global keyboard listener (Cmd+K on Mac / Ctrl+K on Windows) with useEffect + document.addEventListener.
+  * Search trigger button in header (next to NotificationsBell, for logged-in users): Search icon + "Cari..." text + ⌘K kbd badge. Hidden on mobile (sm:flex).
+  * CommandPalette rendered at end of AppShell with `key={cmdKey}` for clean state reset on each open.
+  * Passes setView, selectPermohonan, and handleLogout to CommandPalette.
+- Ran `bun run lint`: 0 errors across all files.
+- Dev server compiles cleanly.
+
+Stage Summary:
+- Files created:
+  • /src/components/app/shared/CommandPalette.tsx
+- Files modified:
+  • /src/components/app/AppShell.tsx (added CommandPalette import, cmdOpen/cmdKey state, Cmd+K listener, search trigger button, CommandPalette render)
+- Feature complete: Cmd+K / Ctrl+K opens command palette with quick navigation (role-filtered), permohonan search (debounced, top 5 results), and quick actions (new permohonan, logout). Consistent dark navy + gold theme.
+
+---
+Task ID: 7
+Agent: main
+Task: Visual polish, new features (Profile Settings, Command Palette), and QA
+
+## Current Project Status Assessment
+App was production-usable from Phase 6 (all core flows verified, public stats/FAQ/tanda terima added). This round focused on: (1) visual quality improvements based on VLM QA feedback, (2) new high-impact features, (3) enhanced animations/micro-interactions.
+
+## Work Completed
+
+### QA Findings (agent-browser + VLM visual review — 7 screenshots)
+- All views render without runtime errors
+- VLM rated public landing page 7/10 (contrast issues, spacing inconsistencies)
+- VLM rated stats banner 6/10 (weak contrast, inconsistent icon styling)
+- Admin dashboard charts lacked data labels on bars/pie segments
+- Footer was basic 3-column layout lacking visual richness
+- Text contrast issues: muted-foreground text too dim on navy background
+- Missing hover states and micro-interactions on cards
+
+### Visual Polish Fixes
+1. **Public Landing Page** (`PublicTracking.tsx`):
+   - Enhanced hero section: larger badge, better spacing (pt-12 pb-10), added 3rd ambient glow blob
+   - Improved subtitle contrast: `text-foreground/70` instead of `text-muted-foreground`
+   - Search card: added gold gradient top bar, larger inputs (h-12), "Lacak Sekarang" with shadow
+   - Example register buttons: styled as proper badges with border + hover effects
+   - QR icon now larger with better visibility
+
+2. **Empty State Steps** (`PublicTracking.tsx`):
+   - Each step now has unique accent color (blue → teal → gold → green)
+   - Larger icon containers (14x14 rounded-2xl) with color-tinted backgrounds
+   - Arrow connectors between steps on desktop (lg:block)
+   - Group hover scale effect on icons
+   - Petugas login card: gold gradient top line, icon in container, gold CTA button
+
+3. **Tracking Result** (`PublicTracking.tsx`):
+   - Status hero: thicker top bar (h-2), pulse-gold animation on status icon
+   - Better badge sizing (px-2.5 py-1)
+   - Added "Progres Keseluruhan" label + "Tahap X dari Y" indicator above progress bar
+   - Fade-in-up animation on the result card
+
+4. **Stats Banner** (`PublicSections.tsx`):
+   - Icon in container with border (like other sections)
+   - Subtitle "Data real-time dari sistem SI-TRACK TANAH"
+   - Period badge now in a styled container with bg + border
+   - Stat cards: larger (p-4 rounded-xl), colored value text, hover border transition
+   - Icon hover scale effect on all stat items
+
+5. **Requirements Section** (`PublicSections.tsx`):
+   - Icon containers with hover scale (group-hover:scale-110)
+   - Info cards (Lokasi/Jam/Biaya): upgraded from p-3 rounded-lg to p-4 rounded-xl with card-hover + group effects
+   - Better text contrast using `text-foreground/55`
+
+6. **FAQ Section** (`PublicSections.tsx`):
+   - Icon in container matching other section headers
+   - Better padding (p-4 sm:p-6)
+   - Answer text uses `text-foreground/60` for better readability
+
+7. **Footer** (`Footer.tsx`):
+   - Expanded to 4-column grid (was 3)
+   - Added "Resmi & Terpercaya" badge with ShieldCheck icon
+   - Added "Tautan" column with navigation links
+   - Added "Minggu & Hari Libur: Tutup" in service hours
+   - Section headers now have icons (MapPin, Clock, ExternalLink)
+   - "Dibuat dengan ❤" heart icon in copyright line
+   - Better text contrast with `text-foreground/55`
+
+8. **Dashboard Charts** (`AdminDashboard.tsx`):
+   - Bar chart: added data labels on top of bars (position: "top", colored per series)
+   - Pie chart: added percentage labels on slices, increased radius (55→85 inner, 80→85 outer)
+   - Increased pie chart height (h-52 → h-56)
+
+9. **StatCard** (`StatCard.tsx`):
+   - Hover shadow effect (`hover:shadow-lg hover:shadow-primary/5`)
+   - Gradient top bar now fades (`${accent}80, transparent`)
+   - Colored value text for non-gold accents
+   - Better label contrast (`text-foreground/50`)
+   - Tabular-nums on values for alignment
+
+10. **SectionHeader** (`StatCard.tsx`):
+    - Added `animate-fade-in-up` for entrance animation
+    - Better subtitle contrast
+
+11. **Global CSS** (`globals.css`):
+    - New animations: `animate-fade-in`, `animate-scale-in`, `animate-slide-up`
+    - Smooth table row transitions
+    - Button active press effect (`scale(0.98)`)
+    - `.hover-underline` utility for animated underline on hover
+
+### New Features
+12. **Profile/Account Settings** (new `ProfileSettings.tsx` + `/api/auth/profile` route):
+    - GET/PUT endpoint for profile data and password change
+    - Two-section UI: Informasi Profil (editable name, phone, position; readonly email, role, NIP) + Ubah Password (with current/new/confirm, validation, show/hide toggles)
+    - Audit trail logging for all profile changes
+    - Zustand store update on save (header reflects name changes immediately)
+    - Nav item "Profil" added for all roles + dropdown menu "Pengaturan Akun"
+
+13. **Command Palette** (new `CommandPalette.tsx`):
+    - Cmd+K / Ctrl+K keyboard shortcut
+    - Navigation commands (role-filtered): Dashboard, Permohonan, Daftar Baru, Laporan, etc.
+    - Quick search: debounced search for permohonan by register/name (5 results max)
+    - Quick actions: "Daftar Permohonan Baru" (role-gated), "Keluar" (destructive)
+    - Search trigger button in header with ⌘K badge
+    - Clean state reset via key prop remounting
+
+## Verification Results
+- `bun run lint`: 0 errors
+- Dev server: compiles clean, all routes 200
+- API endpoints verified: Homepage, Public Stats, Tracking, Login, Profile (all 200)
+- VLM re-review: public page 8/10 (up from 7/10), stats section 8/10 (up from 6/10)
+- Note: OOM issues in sandbox environment prevented extended browser testing (Next.js + Chrome memory pressure)
+
+## Unresolved Issues / Risks
+- OOM kills Next.js server when Chrome browser is also running in sandbox (4GB RAM limit). This is an environment constraint, not an application bug.
+- Tanda Terima print output not physically tested (window.print() opens browser print dialog — can't automate).
+- Reports PDF export uses popup window + window.print() — functional but basic.
+
+## Priority Recommendations for Next Round
+1. **Dashboard date-range filter for Petugas/Atasan** (currently only Admin has year filter)
+2. **Permohonan list bulk actions** (bulk status change, bulk export)
+3. **PWA manifest + service worker** for offline tracking (mentioned as optional in original spec)
+4. **WhatsApp/email notification integration** (currently dashboard-only notifications)
+5. **Enhanced chart interactivity** (click-to-filter on pie/bar segments)
+6. **Data export improvements** (proper PDF generation with jsPDF instead of window.print)

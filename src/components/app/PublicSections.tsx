@@ -39,13 +39,18 @@ export function PublicStatsBanner() {
     <div className="container mx-auto max-w-5xl px-4">
       <Card className="glass-card border-primary/20 overflow-hidden">
         <div className="h-1" style={{ background: "linear-gradient(90deg, #f5d77a, #d4af37, #b8941f, transparent)" }} />
-        <CardContent className="p-4 sm:p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-semibold">Transparansi Pelayanan Publik</h3>
+        <CardContent className="p-5 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold">Transparansi Pelayanan Publik</h3>
+                <p className="text-[10px] text-foreground/50">Data real-time dari sistem SI-TRACK TANAH</p>
+              </div>
             </div>
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <span className="text-[10px] text-foreground/50 flex items-center gap-1.5 bg-primary/5 px-2.5 py-1 rounded-md border border-primary/15">
               <Calendar className="w-3 h-3" /> {stats.thisMonth} bulan ini
             </span>
           </div>
@@ -53,12 +58,12 @@ export function PublicStatsBanner() {
             {items.map((it) => {
               const Icon = it.icon;
               return (
-                <div key={it.label} className="text-center p-3 rounded-lg bg-background/40 border border-border/40">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: `${it.color}1a`, border: `1px solid ${it.color}40` }}>
-                    <Icon className="w-4.5 h-4.5" style={{ color: it.color }} />
+                <div key={it.label} className="text-center p-4 rounded-xl bg-background/50 border border-border/30 hover:border-primary/30 transition-colors group">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2.5 transition-transform group-hover:scale-110" style={{ backgroundColor: `${it.color}1a`, border: `1px solid ${it.color}40` }}>
+                    <Icon className="w-5 h-5" style={{ color: it.color }} />
                   </div>
-                  <p className="text-xl font-extrabold tabular-nums">{it.value}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{it.label}</p>
+                  <p className="text-2xl font-extrabold tabular-nums" style={{ color: it.color }}>{it.value}</p>
+                  <p className="text-[10px] text-foreground/55 uppercase tracking-wide mt-0.5 font-medium">{it.label}</p>
                 </div>
               );
             })}
@@ -100,22 +105,24 @@ export function FAQSection() {
   return (
     <div className="container mx-auto max-w-3xl px-4">
       <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 mb-2">
-          <HelpCircle className="w-4 h-4 text-primary" />
+        <div className="inline-flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center">
+            <HelpCircle className="w-4 h-4 text-primary" />
+          </div>
           <span className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">FAQ</span>
         </div>
-        <h2 className="text-2xl font-bold mb-1">Pertanyaan yang Sering Diajukan</h2>
-        <p className="text-sm text-muted-foreground">Informasi penting seputar layanan tracking surat tanah</p>
+        <h2 className="text-2xl font-bold mb-1.5">Pertanyaan yang Sering Diajukan</h2>
+        <p className="text-sm text-foreground/55">Informasi penting seputar layanan tracking surat tanah</p>
       </div>
       <Card className="glass-card border-primary/15">
-        <CardContent className="p-4 sm:p-5">
+        <CardContent className="p-4 sm:p-6">
           <Accordion type="single" collapsible className="w-full">
             {FAQS.map((f, i) => (
               <AccordionItem key={i} value={`item-${i}`} className="border-border/40">
-                <AccordionTrigger className="text-sm font-medium text-left hover:no-underline hover:text-primary py-3">
+                <AccordionTrigger className="text-sm font-medium text-left hover:no-underline hover:text-primary py-3.5 transition-colors">
                   {f.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-4">
+                <AccordionContent className="text-sm text-foreground/60 leading-relaxed pb-4">
                   {f.a}
                 </AccordionContent>
               </AccordionItem>
@@ -140,49 +147,57 @@ export function RequirementsSection() {
   return (
     <div className="container mx-auto max-w-5xl px-4">
       <div className="text-center mb-6">
-        <div className="inline-flex items-center gap-2 mb-2">
-          <FileCheck className="w-4 h-4 text-primary" />
+        <div className="inline-flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center">
+            <FileCheck className="w-4 h-4 text-primary" />
+          </div>
           <span className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Persyaratan</span>
         </div>
-        <h2 className="text-2xl font-bold mb-1">Dokumen yang Diperlukan</h2>
-        <p className="text-sm text-muted-foreground">Lengkapi dokumen berikut sebelum mendaftar untuk proses lebih cepat</p>
+        <h2 className="text-2xl font-bold mb-1.5">Dokumen yang Diperlukan</h2>
+        <p className="text-sm text-foreground/55">Lengkapi dokumen berikut sebelum mendaftar untuk proses lebih cepat</p>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {REQUIREMENTS.map((r) => {
           const Icon = r.icon;
           return (
-            <Card key={r.label} className="glass-card border-primary/15 card-hover text-center">
+            <Card key={r.label} className="glass-card border-primary/15 card-hover text-center group">
               <CardContent className="p-4">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-2">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center mx-auto mb-2.5 transition-transform group-hover:scale-110">
                   <Icon className="w-5 h-5 text-primary" />
                 </div>
                 <p className="text-sm font-semibold">{r.label}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{r.desc}</p>
+                <p className="text-[10px] text-foreground/50 mt-0.5 leading-tight">{r.desc}</p>
               </CardContent>
             </Card>
           );
         })}
       </div>
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="flex items-center gap-3 p-3 rounded-lg glass-card border-primary/10">
-          <MapPin className="w-5 h-5 text-primary shrink-0" />
+      <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex items-center gap-3.5 p-4 rounded-xl glass-card border-primary/10 card-hover group">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <MapPin className="w-5 h-5 text-primary" />
+          </div>
           <div>
             <p className="text-xs font-semibold">Lokasi Kantor</p>
-            <p className="text-[11px] text-muted-foreground">Jl. Iskandar No. 1, Kuala Pembuang</p>
+            <p className="text-[11px] text-foreground/55">Jl. Iskandar No. 1, Kuala Pembuang</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-3 rounded-lg glass-card border-primary/10">
-          <Clock className="w-5 h-5 text-primary shrink-0" />
+        <div className="flex items-center gap-3.5 p-4 rounded-xl glass-card border-primary/10 card-hover group">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <Clock className="w-5 h-5 text-primary" />
+          </div>
           <div>
             <p className="text-xs font-semibold">Jam Layanan</p>
-            <p className="text-[11px] text-muted-foreground">Senin–Jumat 08.00–15.00 WIB</p>
+            <p className="text-[11px] text-foreground/55">Senin–Jumat 08.00–15.00 WIB</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-3 rounded-lg glass-card border-primary/10">
-          <CreditCard className="w-5 h-5 text-primary shrink-0" />
+        <div className="flex items-center gap-3.5 p-4 rounded-xl glass-card border-primary/10 card-hover group">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+            <CreditCard className="w-5 h-5 text-primary" />
+          </div>
           <div>
             <p className="text-xs font-semibold">Biaya Layanan</p>
-            <p className="text-[11px] text-muted-foreground">Gratis — tidak dipungut biaya</p>
+            <p className="text-[11px] text-foreground/55">Gratis — tidak dipungut biaya</p>
           </div>
         </div>
       </div>

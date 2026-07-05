@@ -40,6 +40,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         return u.role === "PETUGAS" || u.role === "ADMIN";
       case "approve":
         return u.role === "ATASAN" || u.role === "ADMIN";
+      case "edit_profile":
+        return true;
       default:
         return true;
     }

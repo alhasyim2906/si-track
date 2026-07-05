@@ -60,15 +60,16 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
           <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
         </div>
-        <div className="container mx-auto max-w-5xl px-4 pt-10 pb-8 text-center animate-fade-in-up">
-          <Badge variant="outline" className="mb-4 gold-border text-primary bg-primary/5">
-            <Building2 className="w-3 h-3 mr-1" /> Pemerintah Kelurahan Kuala Pembuang II
+        <div className="container mx-auto max-w-5xl px-4 pt-12 pb-10 text-center animate-fade-in-up">
+          <Badge variant="outline" className="mb-5 gold-border text-primary bg-primary/10 px-4 py-1.5 text-xs">
+            <Building2 className="w-3.5 h-3.5 mr-1.5" /> Pemerintah Kelurahan Kuala Pembuang II
           </Badge>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mb-3">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
             Lacak Status <span className="gold-gradient-text">Surat Tanah</span> Anda
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
+          <p className="text-foreground/70 max-w-2xl mx-auto text-base sm:text-lg leading-relaxed">
             Pantau proses pendaftaran surat tanah secara real-time. Cukup masukkan
             <span className="gold-text font-semibold"> Nomor Register</span> yang Anda terima,
             atau pindai QR Code pada tanda terima.
@@ -77,36 +78,37 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
       </section>
 
       {/* Search */}
-      <section className="container mx-auto max-w-3xl px-4 -mt-4">
-        <Card className="glass-card navy-glow border-primary/25">
-          <CardContent className="p-4 sm:p-5">
-            <form onSubmit={submit} className="flex flex-col sm:flex-row gap-2.5">
+      <section className="container mx-auto max-w-3xl px-4 -mt-2">
+        <Card className="glass-card navy-glow border-primary/25 overflow-hidden">
+          <div className="h-0.5 bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f]" />
+          <CardContent className="p-5 sm:p-6">
+            <form onSubmit={submit} className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-primary/60" />
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Contoh: KPII-TNH-2026-000001"
-                  className="pl-9 h-11 bg-background/60 uppercase font-mono tracking-wide"
+                  className="pl-10 h-12 bg-background/60 uppercase font-mono tracking-wide text-sm border-primary/20 focus:border-primary/50"
                   autoComplete="off"
                 />
               </div>
-              <Button type="submit" disabled={loading} className="h-11 bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 px-6">
+              <Button type="submit" disabled={loading} className="h-12 bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 px-8 text-sm shadow-lg shadow-primary/20">
                 {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Search className="w-4 h-4 mr-2" />}
-                Lacak
+                Lacak Sekarang
               </Button>
             </form>
-            <div className="mt-3 flex flex-wrap justify-center gap-2 items-center text-xs text-muted-foreground">
-              <QrCode className="w-3.5 h-3.5" />
+            <div className="mt-4 flex flex-wrap justify-center gap-2 items-center text-xs text-foreground/60">
+              <QrCode className="w-4 h-4 text-primary/70" />
               <span>Atau pindai QR Code pada tanda terima Anda.</span>
-              <span className="text-muted-foreground/50">·</span>
-              <span>Coba:</span>
+              <span className="text-foreground/30">·</span>
+              <span className="font-medium">Coba:</span>
               {["KPII-TNH-2026-000001", "KPII-TNH-2026-000002", "KPII-TNH-2026-000003"].map((r) => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => { setQuery(r); doSearch(r); }}
-                  className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  className="font-mono text-[11px] px-2 py-1 rounded-md bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20 hover:border-primary/40 transition-all"
                 >
                   {r}
                 </button>
@@ -165,44 +167,56 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
 
 function EmptyState({ onLoginClick }: { onLoginClick?: () => void }) {
   const steps = [
-    { icon: FileText, title: "1. Ajukan Permohonan", desc: "Datang ke Kelurahan dengan dokumen lengkap." },
-    { icon: Search, title: "2. Dapat Nomor Register", desc: "Petugas memberikan nomor register unik." },
-    { icon: QrCode, title: "3. Lacak Real-time", desc: "Pantau proses dari rumah via nomor/QR." },
-    { icon: CheckCircle2, title: "4. Surat Selesai", desc: "Ambil surat saat status selesai." },
+    { icon: FileText, title: "1. Ajukan Permohonan", desc: "Datang ke Kelurahan dengan dokumen lengkap.", color: "#3b82f6" },
+    { icon: Search, title: "2. Dapat Nomor Register", desc: "Petugas memberikan nomor register unik.", color: "#0891b2" },
+    { icon: QrCode, title: "3. Lacak Real-time", desc: "Pantau proses dari rumah via nomor/QR.", color: "#d4af37" },
+    { icon: CheckCircle2, title: "4. Surat Selesai", desc: "Ambil surat saat status selesai.", color: "#16a34a" },
   ];
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-xl font-bold text-center mb-1">Cara Melacak Surat Tanah</h2>
-        <p className="text-center text-sm text-muted-foreground">Empat langkah mudah mengetahui status surat Anda</p>
+      <div className="text-center">
+        <div className="inline-flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center">
+            <Search className="w-4 h-4 text-primary" />
+          </div>
+          <span className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Panduan</span>
+        </div>
+        <h2 className="text-2xl font-bold mb-2">Cara Melacak Surat Tanah</h2>
+        <p className="text-sm text-foreground/60">Empat langkah mudah mengetahui status surat Anda</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {steps.map((s, i) => {
           const Icon = s.icon;
           return (
-            <Card key={i} className="glass-card border-primary/15 hover:gold-border transition-colors">
-              <CardContent className="p-5 text-center">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-                  <Icon className="w-6 h-6 text-primary" />
+            <Card key={i} className="glass-card border-primary/15 card-hover group" style={{ animationDelay: `${i * 100}ms` }}>
+              <CardContent className="p-5 text-center relative">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-transform group-hover:scale-110" style={{ backgroundColor: `${s.color}15`, border: `1px solid ${s.color}35` }}>
+                  <Icon className="w-7 h-7" style={{ color: s.color }} />
                 </div>
-                <h3 className="font-semibold text-sm mb-1">{s.title}</h3>
-                <p className="text-xs text-muted-foreground">{s.desc}</p>
+                <h3 className="font-semibold text-sm mb-1.5">{s.title}</h3>
+                <p className="text-xs text-foreground/55 leading-relaxed">{s.desc}</p>
+                {i < 3 && (
+                  <ArrowRight className="hidden lg:block w-4 h-4 text-primary/30 absolute -right-2.5 top-1/2 -translate-y-1/2" />
+                )}
               </CardContent>
             </Card>
           );
         })}
       </div>
-      <Card className="glass-card border-primary/15">
+      <Card className="glass-card border-primary/15 overflow-hidden">
+        <div className="h-0.5 bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
         <CardContent className="p-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Info className="w-5 h-5 text-primary shrink-0" />
-            <p className="text-sm text-muted-foreground">
-              Anda petugas Kelurahan? <span className="text-foreground font-medium">Masuk</span> untuk mengelola permohonan.
+            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center shrink-0">
+              <Info className="w-5 h-5 text-primary" />
+            </div>
+            <p className="text-sm text-foreground/70">
+              Anda petugas Kelurahan? <span className="text-foreground font-semibold">Masuk</span> untuk mengelola permohonan.
             </p>
           </div>
           {onLoginClick && (
-            <Button variant="outline" size="sm" onClick={onLoginClick} className="gold-border text-primary">
-              Login Petugas <ArrowRight className="w-3.5 h-3.5 ml-1" />
+            <Button size="sm" onClick={onLoginClick} className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 shrink-0">
+              Login Petugas <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
             </Button>
           )}
         </CardContent>
@@ -220,16 +234,16 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
   return (
     <div className="space-y-5">
       {/* Status hero */}
-      <Card className={`glass-card overflow-hidden ${isRejected ? "border-destructive/40" : isDone ? "border-green-500/40" : "border-primary/30"}`}>
+      <Card className={`glass-card overflow-hidden animate-fade-in-up ${isRejected ? "border-destructive/40" : isDone ? "border-green-500/40" : "border-primary/30"}`}>
         <div
-          className="h-1.5"
-          style={{ background: `linear-gradient(90deg, ${result.statusWarna}, transparent)` }}
+          className="h-2"
+          style={{ background: `linear-gradient(90deg, ${result.statusWarna}, ${result.statusWarna}80, transparent)` }}
         />
         <CardContent className="p-5 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-start gap-4">
             <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0"
-              style={{ backgroundColor: `${result.statusWarna}1a`, border: `1px solid ${result.statusWarna}55` }}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 pulse-gold"
+              style={{ backgroundColor: `${result.statusWarna}1a`, border: `2px solid ${result.statusWarna}55` }}
             >
               {isRejected ? <XCircle className="w-9 h-9" style={{ color: result.statusWarna }} /> :
                isDone ? <CheckCircle2 className="w-9 h-9" style={{ color: result.statusWarna }} /> :
@@ -237,15 +251,15 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
                <Clock className="w-9 h-9" style={{ color: result.statusWarna }} />}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <Badge variant="outline" className="font-mono text-[10px] gold-border text-primary">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <Badge variant="outline" className="font-mono text-[10px] gold-border text-primary px-2.5 py-1">
                   {result.nomorRegister}
                 </Badge>
                 <StatusBadge kode={result.statusSaatIni} size="lg" />
                 <PriorityBadge prioritas={result.prioritas} />
               </div>
-              <h2 className="text-2xl font-bold mb-1">{result.pemohonNama}</h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="text-2xl font-bold mb-1.5">{result.pemohonNama}</h2>
+              <p className="text-sm text-foreground/60">
                 {result.jenisSurat} {result.keperluan ? `· ${result.keperluan}` : ""}
               </p>
               {isRejected && result.alasanDitolak && (
@@ -265,14 +279,20 @@ function TrackingResultView({ result }: { result: TrackingResult }) {
                 </div>
               )}
               {result.statusKeterangan && !isRejected && !isRevision && (
-                <p className="text-xs text-muted-foreground mt-2 italic">{result.statusKeterangan}</p>
+                <p className="text-xs text-foreground/50 mt-2 italic">{result.statusKeterangan}</p>
               )}
             </div>
           </div>
 
           {/* Progress bar */}
           {!isRejected && !isRevision && (
-            <div className="mt-5">
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-foreground/50 font-medium">Progres Keseluruhan</span>
+                <span className="text-xs font-semibold gold-text">
+                  Tahap {result.currentIndex + 1} dari {result.stages.length}
+                </span>
+              </div>
               <ProgressBar stages={result.stages} currentIndex={result.currentIndex} />
             </div>
           )}

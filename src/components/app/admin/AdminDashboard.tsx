@@ -259,8 +259,8 @@ export function AdminDashboard() {
                     tickLine={false}
                   />
                   <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.2 }} />
-                  <Bar dataKey="total" name="Total Permohonan" fill="#d4af37" radius={[4, 4, 0, 0]} maxBarSize={26} />
-                  <Bar dataKey="selesai" name="Selesai" fill="#16a34a" radius={[4, 4, 0, 0]} maxBarSize={26} />
+                  <Bar dataKey="total" name="Total Permohonan" fill="#d4af37" radius={[4, 4, 0, 0]} maxBarSize={26} label={{ position: "top", fill: "#d4af37", fontSize: 10, fontWeight: 600 }} />
+                  <Bar dataKey="selesai" name="Selesai" fill="#16a34a" radius={[4, 4, 0, 0]} maxBarSize={26} label={{ position: "top", fill: "#16a34a", fontSize: 10, fontWeight: 600 }} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -291,7 +291,7 @@ export function AdminDashboard() {
               </div>
             ) : (
               <>
-                <div className="h-52 w-full">
+                <div className="h-56 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -300,11 +300,12 @@ export function AdminDashboard() {
                         nameKey="nama"
                         cx="50%"
                         cy="50%"
-                        innerRadius={50}
-                        outerRadius={80}
+                        innerRadius={55}
+                        outerRadius={85}
                         paddingAngle={2}
                         stroke="var(--background)"
                         strokeWidth={2}
+                        label={({ nama, value, percent }) => value > 0 ? `${(percent * 100).toFixed(0)}%` : ""}
                       >
                         {pieData.map((entry, i) => (
                           <Cell key={i} fill={entry.color} />

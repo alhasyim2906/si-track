@@ -78,6 +78,11 @@ export const api = {
   markNotifRead: (id?: string) =>
     req("/api/notifikasi", { method: "PATCH", body: JSON.stringify(id ? { id } : { markAll: true }) }),
 
+  // profile
+  profile: () => req<{ user: any }>("/api/auth/profile"),
+  updateProfile: (data: { name?: string; phone?: string; position?: string; currentPassword?: string; newPassword?: string }) =>
+    req<{ user: any }>("/api/auth/profile", { method: "PUT", body: JSON.stringify(data) }),
+
   // settings
   settings: () => req<{ settings: Record<string, string> }>("/api/settings"),
 

@@ -15,6 +15,7 @@ import { Reports } from "@/components/app/shared/Reports";
 import { AuditLogView } from "@/components/app/admin/AuditLogView";
 import { UserManagement } from "@/components/app/admin/UserManagement";
 import { JenisSuratManagement } from "@/components/app/admin/JenisSuratManagement";
+import { ProfileSettings } from "@/components/app/shared/ProfileSettings";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
@@ -100,6 +101,8 @@ export default function Home() {
         return user.role === "ADMIN" ? <UserManagement /> : <PublicTracking />;
       case "jenis-surat":
         return user.role === "ADMIN" ? <JenisSuratManagement /> : <PublicTracking />;
+      case "profil":
+        return <ProfileSettings />;
       default:
         return <PublicTracking initialRegister={trackQuery} onLoginClick={handleLoginClick} />;
     }
