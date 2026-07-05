@@ -292,6 +292,19 @@ async function main() {
   await db.settings.upsert({ where: { key: "register_prefix" }, update: {}, create: { key: "register_prefix", value: "KPII-TNH" } });
   await db.settings.upsert({ where: { key: "register_digit_count" }, update: {}, create: { key: "register_digit_count", value: "8" } });
   await db.settings.upsert({ where: { key: "register_use_random" }, update: {}, create: { key: "register_use_random", value: "true" } });
+  // Mark setup as complete for the seeded demo data so the Setup Wizard
+  // doesn't auto-trigger on an already-seeded database. New/empty databases
+  // will have no `setup_complete` row → wizard triggers automatically.
+  await db.settings.upsert({
+    where: { key: "setup_complete" },
+    update: {},
+    create: { key: "setup_complete", value: "true" },
+  });
+  await db.settings.upsert({
+    where: { key: "setup_completed_at" },
+    update: {},
+    create: { key: "setup_completed_at", value: new Date().toISOString() },
+  });
 
   console.log("✅ Seed complete!");
   console.log("   Login: admin@kpii.go.id / admin123");

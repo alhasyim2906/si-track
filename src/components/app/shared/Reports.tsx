@@ -474,10 +474,10 @@ export function Reports() {
               <p className="text-xs text-muted-foreground/70 mt-1">Coba ubah rentang tanggal atau status.</p>
             </div>
           ) : (
-            <ScrollArea className="max-h-96">
+            <div className="list-table-scroll max-h-[60vh] overflow-y-auto overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-border/40 hover:bg-transparent">
+                  <TableRow className="border-border/40 hover:bg-transparent sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
                     <TableHead className="text-xs">No. Register</TableHead>
                     <TableHead className="text-xs">Pemohon</TableHead>
                     <TableHead className="text-xs">Jenis Surat</TableHead>
@@ -532,7 +532,7 @@ export function Reports() {
                   ))}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>

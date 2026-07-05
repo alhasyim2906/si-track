@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
@@ -394,7 +395,7 @@ function SettingsSkeleton() {
    Main SettingsManagement component
    ============================================================ */
 export function SettingsManagement() {
-  const { can, setBranding, setAppName, setSettings: setGlobalSettings } = useAppStore();
+  const { can, setBranding, setAppName, setSettings: setGlobalSettings, setSetupWizardOpen } = useAppStore();
   const allowed = can("manage_settings");
 
   const [settings, setSettings] = useState<Record<string, string>>(DEFAULTS);
@@ -551,20 +552,79 @@ export function SettingsManagement() {
         subtitle="Konfigurasi sistem SI-TRACK TANAH"
         icon={Settings}
         action={
-          <Button
-            onClick={handleSave}
-            disabled={saving || !hasChanges}
-            className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 shadow-lg shadow-[#d4af37]/20"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            Simpan Semua
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setSetupWizardOpen(true)}
+              variant="outline"
+              className="border-primary/40 text-primary hover:bg-primary/10"
+              title="Jalankan ulang Setup Wizard"
+            >
+              <Sparkles className="w-4 h-4 mr-1.5" /> Setup Wizard
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !hasChanges}
+              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 shadow-lg shadow-[#d4af37]/20"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Simpan Semua
+            </Button>
+          </div>
         }
       />
+
+      {/* Setup Wizard status banner — only show for ADMIN */}
+      <Card className="glass-card border-primary/15">
+        <CardContent className="p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#f5d77a] via-[#d4af37] to-[#b8941f] flex items-center justify-center shrink-0 shadow-lg">
+                <Sparkles className="w-5 h-5 text-[#0a1628]" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  Setup Wizard
+                  {settings.setup_complete === "true" ? (
+                    <Badge variant="outline" className="text-[10px] border-green-500/40 text-green-500">
+                      <CheckCircle2 className="w-3 h-3 mr-1" /> Selesai
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-500">
+                      <AlertTriangle className="w-3 h-3 mr-1" /> Belum Selesai
+                    </Badge>
+                  )}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                  Panduan konfigurasi awal sistem. Jalankan ulang kapan saja untuk memperbarui identitas kelurahan,
+                  format nomor register, dan notifikasi dalam satu langkah terpadu.
+                  {settings.setup_completed_at && (
+                    <span className="block mt-1 text-[10px] text-muted-foreground/70">
+                      Terakhir diselesaikan:{" "}
+                      {new Date(settings.setup_completed_at).toLocaleString("id-ID", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => setSetupWizardOpen(true)}
+              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 shrink-0"
+            >
+              <Sparkles className="w-4 h-4 mr-1.5" /> {settings.setup_complete === "true" ? "Jalankan Ulang" : "Selesaikan Setup"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Section 1: Informasi Kelurahan */}
       <Card className="glass-card border-primary/15">

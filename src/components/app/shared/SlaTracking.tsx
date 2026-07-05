@@ -312,10 +312,12 @@ export function SlaTracking() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-3">
-              {items.map((item) => (
-                <SlaRow key={item.id} item={item} onOpen={() => selectPermohonan(item.id)} />
-              ))}
+            <div className="list-table-scroll max-h-[60vh] overflow-y-auto pr-1 -mr-1">
+              <div className="space-y-3">
+                {items.map((item) => (
+                  <SlaRow key={item.id} item={item} onOpen={() => selectPermohonan(item.id)} />
+                ))}
+              </div>
             </div>
           )}
 

@@ -12,6 +12,8 @@ interface AppState {
   settings: Record<string, string>;
   appName: string;
   appSubtitle: string;
+  // setup wizard open flag — any component can open the wizard via this
+  setupWizardOpen: boolean;
   // nav
   setView: (v: AppView) => void;
   setUser: (u: AppUser | null) => void;
@@ -19,6 +21,7 @@ interface AppState {
   setBranding: (b: Record<string, string>) => void;
   setSettings: (s: Record<string, string>) => void;
   setAppName: (name: string, subtitle?: string) => void;
+  setSetupWizardOpen: (open: boolean) => void;
   // helpers
   can: (action: string) => boolean;
 }
@@ -31,6 +34,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   settings: {},
   appName: "SI-TRACK TANAH",
   appSubtitle: "Kelurahan Kuala Pembuang II",
+  setupWizardOpen: false,
   setView: (v) => {
     set({ view: v });
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
@@ -41,6 +45,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSettings: (s) => set({ settings: s }),
   setAppName: (name, subtitle) =>
     set((s) => ({ appName: name || s.appName, appSubtitle: subtitle ?? s.appSubtitle })),
+  setSetupWizardOpen: (open) => set({ setupWizardOpen: open }),
   can: (action) => {
     const u = get().user;
     if (!u) return false;

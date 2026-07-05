@@ -307,10 +307,10 @@ export function UserManagement() {
               <p className="text-sm text-muted-foreground">Belum ada pengguna terdaftar.</p>
             </div>
           ) : (
-            <ScrollArea className="max-h-[640px]">
+            <div className="list-table-scroll max-h-[60vh] overflow-y-auto overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-border/40 hover:bg-transparent">
+                  <TableRow className="border-border/40 hover:bg-transparent sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
                     <TableHead className="text-xs">Pengguna</TableHead>
                     <TableHead className="text-xs">Role</TableHead>
                     <TableHead className="text-xs">Jabatan</TableHead>
@@ -425,7 +425,7 @@ export function UserManagement() {
                   })}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>

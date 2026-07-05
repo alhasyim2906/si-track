@@ -20,10 +20,11 @@ import { SettingsManagement } from "@/components/app/admin/SettingsManagement";
 import { ProfileSettings } from "@/components/app/shared/ProfileSettings";
 import { NotificationCenter } from "@/components/app/shared/NotificationCenter";
 import { SlaTracking } from "@/components/app/shared/SlaTracking";
+import { SetupWizard } from "@/components/app/shared/SetupWizard";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
-  const { user, view, setUser, setView, setBranding, setAppName, setSettings } = useAppStore();
+  const { user, view, setUser, setView, setBranding, setAppName, setSettings, setupWizardOpen, setSetupWizardOpen } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);
   const [trackQuery, setTrackQuery] = useState("");
@@ -32,21 +33,27 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
-        const [meR, setR, brandR] = await Promise.all([
+        const [meR, setR, brandR, setupR] = await Promise.all([
           api.me(),
           api.settings(),
           api.getBranding().catch(() => ({ branding: {} })),
+          api.setupStatus().catch(() => ({ needed: false })),
         ]);
         if (meR.user) setUser(meR.user);
         setAppName(setR.settings.app_name, setR.settings.app_subtitle);
         setSettings(setR.settings || {});
         setBranding(brandR.branding || {});
+        // Auto-open Setup Wizard on first-run when visitor isn't logged in.
+        // Admins see a banner in-app instead (see AppShell / Settings).
+        if ((setupR as any).needed && !meR.user) {
+          setSetupWizardOpen(true);
+        }
       } catch {
       } finally {
         setLoading(false);
       }
     })();
-  }, [setUser, setBranding, setAppName, setSettings]);
+  }, [setUser, setBranding, setAppName, setSettings, setSetupWizardOpen]);
 
   // read ?track= from URL once
   useEffect(() => {
@@ -82,6 +89,21 @@ export default function Home() {
         {renderView()}
       </AppShell>
       <LoginModal open={loginOpen} onOpenChange={setLoginOpen} />
+      <SetupWizard
+        open={setupWizardOpen}
+        onOpenChange={setSetupWizardOpen}
+        onCompleted={async ({ adminCreated }) => {
+          // If the wizard created an admin and auto-logged-in, refresh session
+          if (adminCreated) {
+            try {
+              const meR = await api.me();
+              if (meR.user) setUser(meR.user);
+            } catch {
+              /* non-blocking */
+            }
+          }
+        }}
+      />
     </>
   );
 

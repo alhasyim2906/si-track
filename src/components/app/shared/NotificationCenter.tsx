@@ -425,7 +425,7 @@ export function NotificationCenter() {
           </p>
         </div>
       ) : (
-        <div className="max-h-[600px] overflow-y-scroll notif-scroll pr-1.5">
+        <div className="max-h-[60vh] overflow-y-auto notif-scroll pr-1.5">
           <div className="space-y-5">
             {groups.map(([label, groupItems]) => (
               <div key={label}>

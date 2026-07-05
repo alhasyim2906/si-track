@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { PaginationBar } from "@/components/app/shared/PaginationBar";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  PlusCircle, Search, FileText, ChevronLeft, ChevronRight,
+  PlusCircle, Search, FileText,
   Inbox, Loader2, Eye, Hash, User, Calendar, Files, MessageSquare,
   Download, X, CheckSquare, CalendarRange, Trash2, ArrowRight,
   ChevronsUpDown, Filter, AlertTriangle,
@@ -958,35 +959,14 @@ export function PermohonanList() {
           </div>
 
           {/* Pagination */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
-            <p className="text-xs text-muted-foreground">
-              Menampilkan <span className="font-semibold text-foreground">{items.length}</span> dari{" "}
-              <span className="font-semibold text-foreground">{total}</span> permohonan
-              {total > 0 && (
-                <span className="ml-1">
-                  · Halaman {page} / {totalPages}
-                </span>
-              )}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1 || loading}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                <ChevronLeft className="w-4 h-4" /> Sebelumnya
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages || loading}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Berikutnya <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+          <PaginationBar
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={parseInt(limit)}
+            onPageChange={setPage}
+            itemName="permohonan"
+          />
         </>
       )}
 

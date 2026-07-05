@@ -2319,3 +2319,200 @@ Project stable setelah Task 21 (status penguasaan extended options + riwayat tan
 4. **Dedicated usage aggregate endpoint**: `GET /api/status-penguasaan/usage` yang return map `{ nama → count }` sekali query (aggregate DB-side), ganti client-side fetch-all.
 5. **Continue with previously-queued features**: SLA breach auto-notify (Gmail configured), PWA polish, map integration, Tanda Terima PDF polish (include riwayat tanah + status penguasaan).
 6. **Tambah filter "Status Penguasaan" di Daftar Permohonan**: filter dropdown berdasarkan status penguasaan untuk reporting (e.g., "show all tanah warisan").
+
+---
+Task ID: 23
+Agent: main
+Task: Tambahkan scrollbar pada Audit Log & pagination & list lainnya + tambahkan fitur Setup Wizard (first-run onboarding).
+
+## Current Project Status Assessment
+Project stable setelah Task 22 (scrollbar Daftar Permohonan + manajemen Status Penguasaan CRUD). User meminta dua hal:
+1. Tambahkan scrollbar pada Audit Log, pagination, dan list lainnya — agar tabel panjang tidak memenuhi viewport, dengan header sticky + custom scrollbar emas.
+2. Tambahkan fitur Setup Wizard — wizard first-run yang memandu admin mengonfigurasi sistem (identitas kelurahan, akun admin, format register, notifikasi) dalam satu alur terpadu.
+
+## Work Completed
+
+### Part A — Scrollbar konsisten pada Audit Log + list lainnya
+
+**CSS (`src/app/globals.css`):**
+- Section L diperluas: class `.list-table-scroll` ditambahkan sebagai alias generic ke rule `.permohonan-table-scroll` / `.permohonan-mobile-scroll` (gold scrollbar + sticky header). Semua selector `::-webkit-scrollbar*` kini mencakup ketiga class. Light-mode variant `.adminlte .list-table-scroll` juga ditambahkan.
+- Section M baru: `.pager-bar` — reusable pagination bar dengan gold accents. Class anak: `.pager-info`, `.pager-controls`, `.pager-btn`, `.pager-page` (`.active` state dengan gold gradient), `.pager-ellipsis`. Mendukung ringkasan "Menampilkan X–Y dari Z entri · Halaman N / M" + tombol first/prev/pages/next/last.
+
+**Reusable component (`src/components/app/shared/PaginationBar.tsx`, NEW ~110 lines):**
+- Komponen `<PaginationBar page totalPages total pageSize onPageChange itemName? />` — pager bar siap pakai.
+- Build halaman compact dengan ellipsis di sekitar current page (window size 1 di kiri/kanan).
+- Mode minimal (totalPages<=1) → single-line summary.
+- Tombol first («), prev (Sebelumnya), pages, next (Berikutnya), last (»).
+- ARIA: `aria-label`, `aria-current="page"`, `disabled` saat di boundary.
+
+**AuditLogView (`src/components/app/admin/AuditLogView.tsx`):**
+- `<ScrollArea className="max-h-[600px]">` → `<div className="list-table-scroll max-h-[60vh] overflow-y-auto overflow-x-auto">` dengan TableHeader `sticky top-0 z-10 bg-card/95 backdrop-blur`.
+- Tambah `SETUP` ke `MODUL_OPTIONS` + `modulStyle` map (warna ungu #a855f7).
+- Real pagination: state `page` + `totalPages` + `total`; `useEffect` reset ke page 1 saat filter/limit/search berubah.
+- API call sekarang mengirim `page` param.
+- Default limit: 10 (sebelumnya 100); opsi: 10/25/50/100/200 baris.
+- Pager bar `<PaginationBar>` di-render di bawah tabel saat items > 0.
+- Info badge di header filter: "X total entri" (sebelumnya "X / limit baris").
+- Info di table card header: "Menampilkan X dari Y entri".
+
+**Audit Log API (`src/app/api/audit-log/route.ts`):**
+- Tambah `page` param (1-indexed) + `skip = (page-1) * limit`.
+- Response kini `{ items, total, page, limit, totalPages }` (sebelumnya hanya `{ items }`).
+- Limit di-cap 500 untuk mencegah overload.
+- `Promise.all([findMany, count])` untuk efisiensi.
+
+**UserManagement (`src/components/app/admin/UserManagement.tsx`):**
+- `<ScrollArea className="max-h-[640px]">` → `<div className="list-table-scroll max-h-[60vh] overflow-y-auto overflow-x-auto">` + TableHeader sticky.
+
+**Reports (`src/components/app/shared/Reports.tsx`):**
+- `<ScrollArea className="max-h-96">` → `<div className="list-table-scroll max-h-[60vh] overflow-y-auto overflow-x-auto">` + TableHeader sticky.
+
+**AdminDashboard (`src/components/app/admin/AdminDashboard.tsx`):**
+- Tabel Kinerja Petugas: dibungkus `<div className="list-table-scroll max-h-[50vh] overflow-y-auto overflow-x-auto">` + TableHeader sticky. (Sebelumnya tidak ada scroll, tabel panjang bisa overflow.)
+- Recent activity list: `max-h-96` → `max-h-[50vh]` + class `notif-scroll` (custom scrollbar emas).
+
+**SlaTracking (`src/components/app/shared/SlaTracking.tsx`):**
+- List SlaRow cards: dibungkus `<div className="list-table-scroll max-h-[60vh] overflow-y-auto pr-1 -mr-1">` agar list panjang tidak overflow viewport.
+
+**NotificationCenter (`src/components/app/shared/NotificationCenter.tsx`):**
+- `max-h-[600px] overflow-y-scroll notif-scroll` → `max-h-[60vh] overflow-y-auto notif-scroll` (konsisten viewport-relative, gunakan class notif-scroll yang sudah ada).
+
+**PermohonanList (`src/components/app/petugas/PermohonanList.tsx`):**
+- Pagination section bawah: dari inline `<div>` + Button outline → `<PaginationBar itemName="permohonan" />` reusable dengan styling .pager-bar.
+- Hapus import `ChevronLeft, ChevronRight` yang sekarang unused.
+
+### Part B — Setup Wizard (fitur first-run onboarding)
+
+**Prisma schema:** tidak ada perubahan — setup state disimpan di tabel `Settings` yang sudah ada (key `setup_complete` = "true" / "false", key `setup_completed_at` = ISO timestamp).
+
+**API — `src/app/api/setup/status/route.ts` (NEW, ~55 lines):**
+- `GET` public (no auth) — return `{ needed, setupComplete, hasAdmin, hasSettings, hasMasterData, userCount, adminCount, jenisCount, statusPenguasaanCount, appName, appSubtitle, kelurahan }`.
+- `needed = !setupComplete || !hasAdmin || !hasSettings` — wizard trigger ketika salah satu kondisi terpenuhi.
+
+**API — `src/app/api/setup/complete/route.ts` (NEW, ~190 lines):**
+- `POST` — menerima body `{ app, admin?, register, notifications?, footer? }`.
+- **Mode first-run** (adminCount === 0): public endpoint. Validasi data admin (nama/email/password). Hash password (bcrypt), buat User role=ADMIN, auto-login via `setSessionCookie`. Audit log `CREATE / SETUP`.
+- **Mode re-run** (admin sudah ada): wajib auth ADMIN. Skip admin creation, hanya update settings. Audit log `UPDATE / SETUP`. Jika bukan admin → HTTP 403.
+- Upsert semua settings: `app_name`, `app_subtitle`, `kelurahan`, `nama_kelurahan`, `alamat_kantor`, `alamat_kelurahan`, `telepon_kelurahan`, `email_kelurahan`, `register_prefix/digit_count/use_random`, `notify_wa_enabled/fonnte_token/email_enabled/email_provider/email_gmail_user/email_gmail_app_password`, `footer_copyright_text/about_text/credit_text/service_hours_*`, `setup_complete=true`, `setup_completed_at=ISO`.
+- Auto-seed master data kosong: `STATUS_DEFINITIONS` → StatusProses, `JENIS_SURAT_SEED` → JenisSurat, `STATUS_PENGUASAAN_SEED` → StatusPenguasaan (jika count=0).
+- Response: `{ ok, adminSkipped, adminCreated, admin, settingsCount, masterSeeded, setupComplete }`.
+
+**API client (`src/lib/api.ts`):**
+- `api.setupStatus()` → GET /api/setup/status.
+- `api.setupComplete(body)` → POST /api/setup/complete.
+
+**Store (`src/store/app-store.ts`):**
+- Tambah state `setupWizardOpen: boolean` + setter `setSetupWizardOpen(open)` agar komponen manapun (AppShell banner, SettingsManagement, page.tsx) bisa membuka wizard tanpa prop drilling.
+
+**Component (`src/components/app/shared/SetupWizard.tsx`, NEW ~720 lines):**
+- Dialog modal multi-step (6 langkah):
+  1. **Welcome** — intro + grid 4 SetupCard (Identitas, Admin, Register, Notifikasi) + status sistem real-time (setupComplete, hasAdmin, hasMasterData, userCount) + catatan keamanan.
+  2. **Identitas Kelurahan** — appName, appSubtitle, kelurahan, alamatKantor (Textarea), teleponKelurahan, emailKelurahan.
+  3. **Akun Administrator** — name, email, position, phone, password (dengan strength meter: Lemah/Sedang/Kuat + show/hide toggle), confirmPassword (dengan mismatch indicator). **Auto-skip** jika admin sudah ada atau user sudah login sebagai admin (menampilkan AdminSkippedStep dengan info banner hijau).
+  4. **Format Nomor Register** — prefix (uppercase), digitCount (4-16), useRandom switch (anti-enumerasi) + live preview nomor register.
+  5. **Notifikasi (Opsional)** — toggle WhatsApp (Fonnte token), toggle Email (Gmail user + app password + provider select).
+  6. **Review** — 4 ReviewCard (Identitas, Admin, Register, Notifikasi) dengan ReviewRow (label: value) + tombol "Simpan Konfigurasi" / "Selesaikan Setup".
+- Header gradient dengan: ikon emas, judul "Setup Wizard", badge "Langkah X / 6", progress bar emas (0-100%), step dots navigasi (klik untuk jump back ke step yang sudah selesai).
+- Footer: tombol "Sebelumnya" (kembali, skip admin step jika perlu) + "Mulai Setup"/"Lanjut"/"Simpan Konfigurasi" (gold gradient button).
+- Validasi per-step via `validateStep(step)` → toast.error jika ada field wajib kosong / format invalid.
+- On submit: panggil `api.setupComplete(body)` → refresh settings + branding di store → toast sukses → close dialog → callback `onCompleted({ adminCreated, adminSkipped })` untuk page.tsx refresh session.
+- Pre-fill app name & kelurahan dari existing settings saat wizard dibuka (untuk mode re-run).
+
+**Integration (`src/app/page.tsx`):**
+- Import `SetupWizard` + tambah `setupWizardOpen, setSetupWizardOpen` dari store.
+- On mount: `Promise.all([me, settings, branding, setupStatus])` — jika `setupStatus.needed && !me.user` → `setSetupWizardOpen(true)` (auto-open wizard di public page saat first-run).
+- Render `<SetupWizard open={setupWizardOpen} onOpenChange={setSetupWizardOpen} onCompleted={...} />` di luar AppShell (overlay global).
+- `onCompleted`: jika `adminCreated`, refresh session via `api.me()` → `setUser(meR.user)` agar auto-login langsung diterapkan.
+
+**AppShell (`src/components/app/AppShell.tsx`):**
+- Ambil `setupWizardOpen, setSetupWizardOpen` dari store (tanpa prop `onOpenSetup`).
+- Banner amber di atas content area (hanya ADMIN, ketika `settings.setup_complete !== "true"`): ikon Sparkles + "Setup wizard belum diselesaikan" + tombol gold "Buka Setup Wizard" → `setSetupWizardOpen(true)`.
+- Banner responsif (flex-col sm:flex-row), ARIA role="status" aria-live="polite".
+
+**SettingsManagement (`src/components/app/admin/SettingsManagement.tsx`):**
+- Ambil `setSetupWizardOpen` dari store.
+- Tombol "Setup Wizard" (variant outline, gold) di SectionHeader action (sebelah "Simpan Semua").
+- Card "Setup Wizard" baru di atas Section 1: ikon emas, judul + badge (Selesai hiju / Belum Selesai amber), deskripsi + timestamp `setup_completed_at`, tombol "Jalankan Ulang" / "Selesaikan Setup".
+
+**Seed (`scripts/seed.ts`):**
+- Tambah upsert `setup_complete=true` + `setup_completed_at=ISO` untuk demo data — agar wizard TIDAK auto-trigger di database yang sudah di-seed.
+- Database kosong (fresh) → tidak ada `setup_complete` row → wizard auto-trigger. ✓
+
+**Audit log module:**
+- `SETUP` ditambahkan ke `MODUL_OPTIONS` di AuditLogView (filter dropdown) + `modulStyle` map (warna ungu #a855f7).
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile, no runtime errors in `/home/z/my-project/dev.log`.
+- **API tests (curl with admin cookie)**:
+  - `GET /api/setup/status` (public) → 200 dengan `{ needed: false, setupComplete: true, hasAdmin: true, hasSettings: true, hasMasterData: true, userCount: 4, adminCount: 1, jenisCount: 5, statusPenguasaanCount: 10, appName: "SI-TRACK TANAH", ... }` ✓
+  - `POST /api/setup/complete` (admin re-run mode) → 200 `{"ok":true,"adminSkipped":true,"adminCreated":false,"admin":null,"settingsCount":22,"masterSeeded":false,"setupComplete":true}` ✓
+  - `POST /api/setup/complete` (unauthenticated, admin exists) → 403 `{"error":"Setup sudah selesai. Hanya admin yang dapat menjalankan ulang wizard."}` ✓
+  - `GET /api/audit-log?limit=10&page=1` → 200 dengan `{ items: [...10], total: 20, page: 1, limit: 10, totalPages: 2 }` ✓
+  - `GET /api/audit-log?limit=10&page=2` → 200 dengan items 11-20, `total: 20, totalPages: 2` ✓
+  - Audit log `SETUP` module tercatat: `UPDATE | Setup wizard dijalankan ulang oleh admin — konfigurasi diperbarui` ✓
+- **Agent-browser E2E tests**:
+  - Admin login → Audit Log → sticky header (position: sticky, top: 0, z-10, backdrop-blur) ✓, list-table-scroll wrapper dengan max-h-[60vh] ✓, pager bar di bawah dengan "Menampilkan 8 entri · Halaman 1 / 1" (minimal mode) ✓
+  - Limit=10 → 20 entri → pager bar menampilkan: « (first), Sebelumnya (prev), [1] [2] (page buttons), Berikutnya (next), » (last) + "Menampilkan 1–10 dari 20 entri · Halaman 1 / 2" ✓
+  - Klik page 2 → entries berubah (older) + "Menampilkan 11–20 dari 20 entri · Halaman 2 / 2" + page 2 highlighted gold, page 1 not highlighted, Sebelumnya & « enabled ✓
+  - Navigate to Pengaturan → "Setup Wizard" card dengan badge "Selesai" + tombol "Jalankan Ulang" ✓ + tombol "Setup Wizard" di SectionHeader ✓
+  - Klik "Jalankan Ulang" → Setup Wizard modal terbuka, "Selamat Datang!" step 1/6, progress bar emas, step dots navigasi ✓
+  - Klik "Mulai Setup" → step 2 "Identitas Kelurahan" dengan 6 field (Nama Aplikasi, Sub-judul, Nama Kelurahan, Alamat Kantor, Telepon, Email) ✓
+  - Klik "Lanjut" → skip step 3 (admin sudah ada) → langsung ke step 4 "Format Nomor Register" dengan Prefix, Jumlah Digit, Mode Anti-Enumerasi toggle + live preview ✓
+  - Klik "Lanjut" → step 5 "Notifikasi (Opsional)" dengan toggle WhatsApp (Fonnte) + toggle Email (Gmail) ✓
+  - Klik "Lanjut" → step 6 "Selesai — Tinjau Konfigurasi" dengan 4 ReviewCard + tombol "Simpan Konfigurasi" + info "Siap menyimpan!" ✓
+  - Clear setup_complete flag (simulate first-run) → reload → wizard AUTO-OPEN di public page (sebelum login) ✓
+  - Admin login dengan setup incomplete → banner amber "Setup wizard belum diselesaikan" di atas dashboard + tombol "Buka Setup Wizard" ✓
+  - Restore setup_complete=true → reload → banner hilang ✓
+  - UserManagement → list-table-scroll wrapper + sticky header ✓
+  - Reports → list-table-scroll wrapper + sticky header ✓
+  - AdminDashboard perPetugas table → list-table-scroll wrapper max-h-[50vh] + sticky header ✓
+  - SlaTracking → list-table-scroll wrapper max-h-[60vh] ✓
+  - NotificationCenter → max-h-[60vh] + notif-scroll ✓
+  - PermohonanList pagination → PaginationBar reusable component dengan .pager-bar styling ✓
+  - Footer sticky di bottom di semua halaman ✓
+
+## Files Changed (summary)
+- NEW: `src/components/app/shared/PaginationBar.tsx` (~110 lines)
+- NEW: `src/components/app/shared/SetupWizard.tsx` (~720 lines)
+- NEW: `src/app/api/setup/status/route.ts` (~55 lines)
+- NEW: `src/app/api/setup/complete/route.ts` (~190 lines)
+- Updated: `src/app/globals.css` (Section L expanded `.list-table-scroll` alias + Section M `.pager-bar` styling)
+- Updated: `src/app/api/audit-log/route.ts` (real pagination: page/skip/total/totalPages)
+- Updated: `src/components/app/admin/AuditLogView.tsx` (list-table-scroll + sticky header + PaginationBar + SETUP module + limit=10 default + new options)
+- Updated: `src/components/app/admin/UserManagement.tsx` (list-table-scroll + sticky header)
+- Updated: `src/components/app/shared/Reports.tsx` (list-table-scroll + sticky header)
+- Updated: `src/components/app/admin/AdminDashboard.tsx` (list-table-scroll for perPetugas + notif-scroll for recent)
+- Updated: `src/components/app/shared/SlaTracking.tsx` (list-table-scroll wrapper)
+- Updated: `src/components/app/shared/NotificationCenter.tsx` (max-h-[60vh] viewport-relative)
+- Updated: `src/components/app/petugas/PermohonanList.tsx` (PaginationBar reusable + remove unused imports)
+- Updated: `src/lib/api.ts` (setupStatus + setupComplete methods)
+- Updated: `src/store/app-store.ts` (setupWizardOpen state + setSetupWizardOpen setter)
+- Updated: `src/app/page.tsx` (auto-open wizard on first-run + SetupWizard global render)
+- Updated: `src/components/app/AppShell.tsx` (admin banner for incomplete setup + Sparkles icon import)
+- Updated: `src/components/app/admin/SettingsManagement.tsx` (Setup Wizard card + button + Badge import)
+- Updated: `scripts/seed.ts` (seed setup_complete=true + setup_completed_at for demo data)
+
+## Stage Summary
+- **Scrollbar konsisten**: Audit Log, User Management, Reports, AdminDashboard (perPetugas + recent), SlaTracking, NotificationCenter, dan PermohonanList (existing) kini semua menggunakan pattern yang sama: `<div class="list-table-scroll max-h-[60vh] overflow-y-auto">` dengan TableHeader `sticky top-0 z-10 bg-card/95 backdrop-blur`. Scrollbar emas (gradient thumb, hover/active states) konsisten di light & dark mode.
+- **Pagination real**: Audit Log API kini support `page` param dengan response `{ items, total, page, limit, totalPages }`. PaginationBar reusable component (`.pager-bar` CSS) dengan first/prev/pages/next/last buttons + ellipsis + summary text + ARIA labels. PermohonanList pagination juga di-upgrade ke komponen reusable yang sama.
+- **Setup Wizard**: fitur first-run onboarding lengkap dengan 6 langkah (Welcome → Identitas Kelurahan → Akun Admin → Format Register → Notifikasi → Review). Auto-open di public page ketika `setup_complete != true` dan tidak ada admin. Auto-skip admin step jika admin sudah ada. Admin banner di dashboard + tombol di Settings untuk re-run wizard. POST /api/setup/complete支持 mode first-run (create admin + auto-login) dan mode re-run (update settings only). Audit log SETUP module untuk semua operasi. Seed menandai setup_complete=true untuk demo data agar wizard tidak trigger di seeded DB.
+- Lint: 0 errors. Dev server: no runtime errors. Semua fitur verified end-to-end via curl API tests + agent-browser UI tests.
+
+## Unresolved Issues / Risks
+- **Setup wizard re-run tidak reset setup_complete**: by design — setelah setup selesai, wizard bisa dibuka lagi tapi tidak akan membuat admin baru (mode re-run). Admin yang ingin "reset" setup harus manual hapus setting `setup_complete` via DB.
+- **Password strength meter hanya client-side**: indikator visual Lemah/Sedang/Kuat, tidak ada enforcement server-side. Server hanya validasi `password.length >= 6`. Future: tambah policy password yang lebih ketat (mix of upper/lower/digit/symbol).
+- **Auto-login setelah first-run setup**: `setSessionCookie` dipanggil di POST /api/setup/complete. Cookie httpOnly di-set via Next.js `cookies()` API — bekerja karena route handler berjalan server-side. tapi jika ada masalah cookie SameSite di cross-origin, admin mungkin perlu login manual setelah wizard.
+- **No file upload in wizard**: logo & favicon branding tidak dikelola di wizard (masih perlu upload via Settings > Branding). Future: tambah step branding upload di wizard.
+- **PaginationBar di UserManagement tidak ditambahkan**: list pengguna biasanya kecil (< 20 orang per kelurahan), jadi scrollbar saja sudah cukup. Bisa ditambahkan nanti jika ada kelurahan dengan > 100 staff.
+- **Audit log SETUP module filter**: sudah ditambahkan ke dropdown, tapi entries lama yang ditulis sebelum Task 23 tidak punya modul SETUP (mereka tertulis sebagai AUTH/PERMOHONAN/etc.). Hanya entries baru yang akan muncul di filter SETUP.
+
+## Priority Recommendations for Next Round
+1. **Tambah branding upload step di Setup Wizard**: step tambahan antara Identitas Kelurahan dan Akun Admin untuk upload logo + favicon + login background (reuse BrandingUploader component).
+2. **Tambah SLA targets step di Setup Wizard**: konfigurasi awal SLA per status (sla_pengajuan_hours, sla_cek_admin_hours, dll) agar lurah bisa langsung monitor SLA setelah setup.
+3. **Email/WA test send di wizard step Notifikasi**: tombol "Kirim Email Test" / "Kirim WA Test" di step Notifikasi untuk validasi kredensial sebelum disimpan.
+4. **Reset setup wizard option**: tombol di Settings "Reset Setup" yang menghapus setting `setup_complete` — berguna untuk demo atau re-onboarding.
+5. **Password policy enforcement**: tambah server-side validation untuk password strength (min 8 char, mix upper/lower/digit) saat create admin via wizard.
+6. **Audit log export**: tambah tombol "Export CSV" di Audit Log page untuk download entries (berguna untuk compliance).
+7. **Pagination di Reports & SlaTracking**: tambah PaginationBar di Reports table dan SlaTracking list agar list panjang bisa di-paging (bukan hanya scroll).
+8. **Continue with previously-queued features**: PWA polish, map integration, Tanda Terima PDF polish (include riwayat tanah + status penguasaan + branding logo).

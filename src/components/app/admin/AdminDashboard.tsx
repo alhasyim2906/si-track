@@ -481,15 +481,16 @@ export function AdminDashboard() {
                 Belum ada data petugas.
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Nama Petugas</TableHead>
-                    <TableHead className="text-xs text-center">Total</TableHead>
-                    <TableHead className="text-xs text-center">Selesai</TableHead>
-                    <TableHead className="text-xs">Penyelesaian</TableHead>
-                  </TableRow>
-                </TableHeader>
+              <div className="list-table-scroll max-h-[50vh] overflow-y-auto overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 hover:bg-transparent">
+                      <TableHead className="text-xs">Nama Petugas</TableHead>
+                      <TableHead className="text-xs text-center">Total</TableHead>
+                      <TableHead className="text-xs text-center">Selesai</TableHead>
+                      <TableHead className="text-xs">Penyelesaian</TableHead>
+                    </TableRow>
+                  </TableHeader>
                 <TableBody>
                   {perPetugas.map((p) => {
                     const pct = p.total > 0 ? Math.round((p.selesai / p.total) * 100) : 0;
@@ -517,6 +518,7 @@ export function AdminDashboard() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -538,7 +540,7 @@ export function AdminDashboard() {
             </button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-1.5 max-h-96 overflow-y-auto pr-1 -mr-1">
+            <div className="space-y-1.5 max-h-[50vh] overflow-y-auto notif-scroll pr-1 -mr-1">
               {recent.length === 0 ? (
                 <div className="py-10 text-center text-sm text-muted-foreground">
                   Belum ada permohonan.

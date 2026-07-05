@@ -210,4 +210,31 @@ export const api = {
 
   // public stats
   publicStats: () => req<{ total: number; selesai: number; diproses: number; ditolak: number; thisMonth: number; completionRate: number }>("/api/public/stats"),
+
+  // setup wizard (first-run onboarding)
+  setupStatus: () =>
+    req<{
+      needed: boolean;
+      setupComplete: boolean;
+      hasAdmin: boolean;
+      hasSettings: boolean;
+      hasMasterData: boolean;
+      userCount: number;
+      adminCount: number;
+      jenisCount: number;
+      statusPenguasaanCount: number;
+      appName: string;
+      appSubtitle: string;
+      kelurahan: string;
+    }>("/api/setup/status"),
+  setupComplete: (body: any) =>
+    req<{
+      ok: boolean;
+      adminSkipped: boolean;
+      adminCreated: boolean;
+      admin: { id: string; email: string; name: string; role: string } | null;
+      settingsCount: number;
+      masterSeeded: boolean;
+      setupComplete: boolean;
+    }>("/api/setup/complete", { method: "POST", body: JSON.stringify(body) }),
 };

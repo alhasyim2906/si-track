@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import {
   LayoutDashboard, FileText, PlusCircle, BarChart3, ScrollText,
   Users, FileStack, ShieldAlert, LogOut, LogIn, Menu, Search, ChevronDown,
-  ShieldCheck, UserCog, Crown, Heart, Keyboard, Settings, Bell, Timer,
+  ShieldCheck, UserCog, Crown, Heart, Keyboard, Settings, Bell, Timer, Sparkles,
 } from "lucide-react";
 import type { AppView } from "@/lib/types";
 import { Footer } from "./Footer";
@@ -219,8 +219,14 @@ function AdminFooter({ appName }: { appName: string }) {
 /* ============================================================
    AppShell
    ============================================================ */
-export function AppShell({ children, onLoginClick }: { children: React.ReactNode; onLoginClick: () => void }) {
-  const { user, view, setView, setUser, selectPermohonan, branding, appName, appSubtitle } = useAppStore();
+export function AppShell({
+  children,
+  onLoginClick,
+}: {
+  children: React.ReactNode;
+  onLoginClick: () => void;
+}) {
+  const { user, view, setView, setUser, selectPermohonan, branding, appName, appSubtitle, settings, setSetupWizardOpen } = useAppStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdKey, setCmdKey] = useState(0);
@@ -351,6 +357,10 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
   const RoleIcon = roleIcon;
   const roleLabel = ROLE_LABELS[user.role];
   const currentLabel = VIEW_LABELS[view] || "Dashboard";
+
+  // Setup-wizard banner: show to admins when setup_complete !== "true"
+  const setupIncomplete = settings?.setup_complete !== "true";
+  const openSetup = () => setSetupWizardOpen(true);
 
   return (
     <div className="adminlte wrapper">
@@ -508,7 +518,37 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
         </nav>
 
         {/* Content area */}
-        <section className="content">{children}</section>
+        <section className="content">
+          {user.role === "ADMIN" && setupIncomplete && (
+            <div
+              className="mb-4 rounded-lg border border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-start gap-2.5">
+                <span className="w-8 h-8 rounded-md bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                    Setup wizard belum diselesaikan
+                  </p>
+                  <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80">
+                    Selesaikan konfigurasi awal sistem untuk memastikan semua pengaturan terisi dengan benar.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={openSetup}
+                className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 shrink-0"
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Buka Setup Wizard
+              </Button>
+            </div>
+          )}
+          {children}
+        </section>
 
         {/* Footer */}
         <AdminFooter appName={appName} />

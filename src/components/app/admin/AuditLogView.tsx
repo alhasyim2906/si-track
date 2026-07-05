@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ROLE_LABELS } from "@/lib/constants";
+import { PaginationBar } from "@/components/app/shared/PaginationBar";
 import { toast } from "sonner";
 import {
   ScrollText,
@@ -36,6 +37,10 @@ import {
   UserCog,
   Crown,
   User,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 
 interface AuditItem {
@@ -51,7 +56,7 @@ interface AuditItem {
   createdAt: string;
 }
 
-const MODUL_OPTIONS = ["AUTH", "PERMOHONAN", "USER", "JENIS_SURAT", "STATUS", "LAPORAN"] as const;
+const MODUL_OPTIONS = ["AUTH", "PERMOHONAN", "USER", "JENIS_SURAT", "STATUS", "LAPORAN", "SETUP"] as const;
 
 const roleIcon = (role: string) => {
   if (role === "ADMIN") return ShieldCheck;
@@ -87,6 +92,7 @@ const modulStyle = (modul: string): { color: string; bg: string; border: string 
     JENIS_SURAT: "#0d9488",
     STATUS: "#06b6d4",
     LAPORAN: "#f59e0b",
+    SETUP: "#a855f7",
   };
   const c = map[(modul || "").toUpperCase()] || "#64748b";
   return { color: c, bg: `${c}1a`, border: `${c}55` };
@@ -113,9 +119,12 @@ export function AuditLogView() {
 
   const [q, setQ] = useState("");
   const [modul, setModul] = useState<string>("all");
-  const [limit, setLimit] = useState<string>("100");
+  const [limit, setLimit] = useState<string>("10");
+  const [page, setPage] = useState(1);
 
   const [items, setItems] = useState<AuditItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
   // debounce search
@@ -130,22 +139,32 @@ export function AuditLogView() {
     };
   }, [q]);
 
+  // reset to first page whenever filter/limit/search changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQ, modul, limit]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = (await api.auditLog({
         limit,
+        page: String(page),
         q: debouncedQ || undefined,
         modul: modul !== "all" ? modul : undefined,
-      })) as { items: AuditItem[] };
+      })) as { items: AuditItem[]; total: number; totalPages: number };
       setItems(res.items || []);
+      setTotal(res.total ?? 0);
+      setTotalPages(res.totalPages ?? 1);
     } catch (e: any) {
       toast.error(e?.message || "Gagal memuat audit log");
       setItems([]);
+      setTotal(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
-  }, [limit, debouncedQ, modul]);
+  }, [limit, page, debouncedQ, modul]);
 
   useEffect(() => {
     if (allowed) load();
@@ -204,12 +223,14 @@ export function AuditLogView() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Jumlah</Label>
+              <Label className="text-xs">Baris / Halaman</Label>
               <Select value={limit} onValueChange={setLimit}>
                 <SelectTrigger className="w-full bg-input/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="10">10 baris</SelectItem>
+                  <SelectItem value="25">25 baris</SelectItem>
                   <SelectItem value="50">50 baris</SelectItem>
                   <SelectItem value="100">100 baris</SelectItem>
                   <SelectItem value="200">200 baris</SelectItem>
@@ -222,7 +243,7 @@ export function AuditLogView() {
               Filter diterapkan otomatis. Pencarian ditunda ~400ms.
             </p>
             <Badge variant="outline" className="text-[10px]">
-              {items.length} / {limit} baris
+              {total} total entri
             </Badge>
           </div>
         </CardContent>
@@ -236,7 +257,9 @@ export function AuditLogView() {
               <ScrollText className="w-4 h-4 text-primary" />
               <h3 className="text-sm font-semibold">Riwayat Aktivitas</h3>
             </div>
-            <span className="text-[11px] text-muted-foreground">Total: {items.length} entri</span>
+            <span className="text-[11px] text-muted-foreground">
+              Menampilkan {items.length} dari {total} entri
+            </span>
           </div>
 
           {loading ? (
@@ -250,10 +273,10 @@ export function AuditLogView() {
               <p className="text-sm text-muted-foreground">Belum ada aktivitas tercatat.</p>
             </div>
           ) : (
-            <ScrollArea className="max-h-[600px]">
+            <div className="list-table-scroll max-h-[60vh] overflow-y-auto overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-border/40 hover:bg-transparent">
+                  <TableRow className="border-border/40 hover:bg-transparent sticky top-0 z-10 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
                     <TableHead className="text-xs">Waktu</TableHead>
                     <TableHead className="text-xs">Pengguna</TableHead>
                     <TableHead className="text-xs">Aksi</TableHead>
@@ -322,10 +345,22 @@ export function AuditLogView() {
                   })}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {!loading && items.length > 0 && (
+        <PaginationBar
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={parseInt(limit)}
+          onPageChange={setPage}
+          itemName="entri"
+        />
+      )}
     </div>
   );
 }
