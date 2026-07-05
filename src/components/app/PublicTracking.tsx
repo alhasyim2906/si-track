@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
+import { useAppStore } from "@/store/app-store";
 import { STATUS_BY_KODE } from "@/lib/constants";
 import { Timeline, ProgressBar } from "./Timeline";
 import { StatusBadge, PriorityBadge } from "./StatusBadge";
@@ -18,6 +19,7 @@ import {
 import type { TrackingResult } from "@/lib/types";
 
 export function PublicTracking({ initialRegister, onLoginClick }: { initialRegister?: string; onLoginClick?: () => void }) {
+  const { branding, appName } = useAppStore();
   const [query, setQuery] = useState(initialRegister || "");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TrackingResult | null>(null);
@@ -76,6 +78,31 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
           </p>
         </div>
       </section>
+
+      {/* Optional hero banner (only shown if admin uploaded one) */}
+      {branding.branding_hero_banner_url && (
+        <section className="container mx-auto max-w-6xl px-4 pb-2">
+          <div className="relative overflow-hidden rounded-2xl border border-primary/30 shadow-lg shadow-primary/10">
+            <img
+              src={branding.branding_hero_banner_url}
+              alt={`Banner ${appName}`}
+              className="w-full h-[180px] sm:h-[260px] md:h-[320px] object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a1628]/85 via-[#0a1628]/40 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 text-white">
+              <p className="text-[10px] uppercase tracking-widest opacity-80 mb-1">
+                {appName}
+              </p>
+              <p className="text-base sm:text-lg font-bold leading-tight">
+                Pelayanan Publik Transparan &amp; Akuntabel
+              </p>
+              <p className="text-[11px] sm:text-xs opacity-80 mt-1">
+                Pantau proses surat tanah Anda kapan saja, di mana saja.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Search */}
       <section className="container mx-auto max-w-3xl px-4 -mt-2">

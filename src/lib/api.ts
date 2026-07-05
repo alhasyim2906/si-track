@@ -111,6 +111,23 @@ export const api = {
   updateSettings: (settings: Record<string, string>) =>
     req<{ settings: Record<string, string> }>("/api/settings", { method: "PUT", body: JSON.stringify({ settings }) }),
 
+  // branding assets (logo, favicon, app icons, login bg, hero banner)
+  getBranding: () => req<{ branding: Record<string, string> }>("/api/settings/branding"),
+  uploadBranding: (type: string, file: File) => {
+    const fd = new FormData();
+    fd.append("type", type);
+    fd.append("file", file);
+    return req<{ type: string; key: string; url: string; filename: string; branding: Record<string, string> }>(
+      "/api/settings/branding",
+      { method: "POST", body: fd }
+    );
+  },
+  deleteBranding: (type: string) =>
+    req<{ type: string; deleted: boolean; branding: Record<string, string> }>(
+      `/api/settings/branding?type=${encodeURIComponent(type)}`,
+      { method: "DELETE" }
+    ),
+
   // public stats
   publicStats: () => req<{ total: number; selesai: number; diproses: number; ditolak: number; thisMonth: number; completionRate: number }>("/api/public/stats"),
 };

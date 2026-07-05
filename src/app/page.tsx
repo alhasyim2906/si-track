@@ -21,23 +21,29 @@ import { NotificationCenter } from "@/components/app/shared/NotificationCenter";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
-  const { user, view, setUser, setView } = useAppStore();
+  const { user, view, setUser, setView, setBranding, setAppName } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);
   const [trackQuery, setTrackQuery] = useState("");
 
-  // restore session on mount
+  // restore session + branding settings on mount
   useEffect(() => {
     (async () => {
       try {
-        const r = await api.me();
-        if (r.user) setUser(r.user);
+        const [meR, setR, brandR] = await Promise.all([
+          api.me(),
+          api.settings(),
+          api.getBranding().catch(() => ({ branding: {} })),
+        ]);
+        if (meR.user) setUser(meR.user);
+        setAppName(setR.settings.app_name, setR.settings.app_subtitle);
+        setBranding(brandR.branding || {});
       } catch {
       } finally {
         setLoading(false);
       }
     })();
-  }, [setUser]);
+  }, [setUser, setBranding, setAppName]);
 
   // read ?track= from URL once
   useEffect(() => {

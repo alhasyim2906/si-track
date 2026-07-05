@@ -1,5 +1,20 @@
-// SI-TRACK TANAH brand logo (inline SVG, gold + navy)
-export function Logo({ size = 40, className = "" }: { size?: number; className?: string }) {
+// SI-TRACK TANAH brand logo — falls back to inline SVG when no custom logo URL provided
+export function Logo({ size = 40, className = "", src, alt }: { size?: number; className?: string; src?: string; alt?: string }) {
+  // Use uploaded custom logo if provided
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={alt || "Logo"}
+        width={size}
+        height={size}
+        className={`object-contain ${className}`}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
+
+  // Fallback — inline SVG brand mark (gold + navy)
   return (
     <svg
       width={size}
@@ -34,13 +49,15 @@ export function Logo({ size = 40, className = "" }: { size?: number; className?:
   );
 }
 
-export function LogoFull({ className = "" }: { className?: string }) {
+export function LogoFull({ className = "", src, appName, appSubtitle }: { className?: string; src?: string; appName?: string; appSubtitle?: string }) {
+  const name = appName || "SI-TRACK TANAH";
+  const subtitle = appSubtitle || "Kuala Pembuang II";
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <Logo size={38} />
+      <Logo size={38} src={src} alt={`${name} logo`} />
       <div className="flex flex-col leading-tight">
-        <span className="gold-gradient-text font-extrabold tracking-tight text-lg">SI-TRACK TANAH</span>
-        <span className="text-[10px] text-muted-foreground tracking-wide uppercase">Kuala Pembuang II</span>
+        <span className="gold-gradient-text font-extrabold tracking-tight text-lg">{name}</span>
+        <span className="text-[10px] text-muted-foreground tracking-wide uppercase">{subtitle}</span>
       </div>
     </div>
   );

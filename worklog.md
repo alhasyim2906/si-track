@@ -1303,3 +1303,163 @@ Project was stable after Task 11 (random register format). User requested multi-
 5. **Document viewer modal** — lightbox to preview images/PDFs without leaving the page
 6. **Bulk download as ZIP** — download all documents for a permohonan in one click
 7. Continue with previously-queued features from Task 11 recommendations
+
+---
+Task ID: 13
+Agent: main
+Task: Add logo, favicon, and other branding media upload feature. Admin can upload custom logo, favicon, PWA icons (192 & 512), login background, and hero banner — all configurable from the Settings page.
+
+## Current Project Status Assessment
+Project was stable after Task 12 (multi-upload KTP/KK and boundary photos). User requested a new branding/media upload feature. Previously, the logo was hardcoded as inline SVG, the favicon pointed to a static `/logo.svg`, and the PWA manifest was a static JSON file. This round adds a full branding asset management system: dedicated upload API, dynamic PWA manifest, reactive Zustand store, a reusable uploader component, and a new "Branding & Media" section in Settings with 6 categorized upload cards.
+
+## Work Completed
+
+### 1. Branding Upload API (`src/app/api/settings/branding/route.ts`)
+- **GET**: returns current branding settings + spec for each asset type
+- **POST** (`multipart/form-data` with `type` + `file`): saves file to `/public/branding/<type>-<8char-hash>.<ext>`, deletes previous file, upserts settings key, writes audit log, returns updated branding map
+- **DELETE** (`?type=...`): removes file from disk, clears settings key, writes audit log
+- 6 asset types defined with type-specific MIME whitelist and size limits:
+  - `logo` (SVG/PNG/JPG/WebP/GIF, 2MB) → `branding_logo_url`
+  - `favicon` (ICO/PNG/SVG/etc, 1MB) → `branding_favicon_url`
+  - `app_icon_192` (PNG/JPG/WebP, 1MB) → `branding_app_icon_192_url`
+  - `app_icon_512` (PNG/JPG/WebP, 2MB) → `branding_app_icon_512_url`
+  - `login_bg` (PNG/JPG/WebP, 5MB) → `branding_login_bg_url`
+  - `hero_banner` (PNG/JPG/WebP, 5MB) → `branding_hero_banner_url`
+- Auth: ADMIN-only for POST/DELETE; GET is public (so client can preload branding)
+- File names use `crypto.randomBytes(6)` for hash, ext derived from MIME or original filename
+- Previous file auto-deleted on re-upload (no orphaned files)
+
+### 2. Dynamic PWA Manifest Endpoint (`src/app/api/manifest/route.ts`)
+- Replaces static `/manifest.json` reference in `layout.tsx`
+- Returns manifest JSON with `name`, `short_name`, `description` driven by `app_name`/`app_subtitle` settings
+- Icons array uses `branding_app_icon_192_url` / `branding_app_icon_512_url` if set, else falls back to `/logo.svg`
+- Includes `any` + `maskable` purpose entries for proper Android adaptive icon support
+- Sends `Cache-Control: no-cache, no-store, must-revalidate` so changes show immediately
+
+### 3. Dynamic Metadata in `src/app/layout.tsx`
+- Converted to `async` server component using `generateMetadata()` for dynamic title/description/icons/manifest
+- Reads branding settings from Prisma on each request (server-side, no client flash)
+- `<head>` now injects:
+  - `<link rel="manifest" href="/api/manifest">` (dynamic)
+  - `<link rel="icon" href="{favicon or logo or /logo.svg}">` (dynamic)
+  - `<link rel="apple-touch-icon" href="{app_icon_192 or logo}">` (dynamic)
+  - `<meta name="application-name" content="{appName}">` (dynamic)
+  - `<meta name="theme-color" content="#d4af37">` (static)
+- Also exports `viewport` export with `themeColor` (Next.js 16 best practice)
+- `openGraph.images` and `twitter.images` use `app_icon_512_url` when available
+
+### 4. Reusable BrandingUploader Component (`src/components/app/shared/BrandingUploader.tsx`)
+- Drag-and-drop zone with click-to-select fallback
+- Live preview thumbnail of currently uploaded asset
+- Per-card states: idle, drag-over, uploading (with spinner + filename), has-asset (with "Ganti" hover overlay)
+- File type & size validation on client (matches server specs) with toast error
+- Upload button + delete button (with confirm dialog)
+- Recommended specs hint shown below preview (recommendation, max size, accepted MIME)
+- "Aktif" green badge when an asset is set
+- Color-coded placeholder icon backgrounds per asset type (gold/amber/blue/emerald/purple/rose)
+- Keyboard accessible (Enter/Space triggers file picker)
+- Calls `onChange(updatedBranding)` prop so parent (SettingsManagement) syncs to global Zustand store
+
+### 5. Settings UI: New "Branding & Media" Section (`SettingsManagement.tsx`)
+- New Section 5 at bottom of Settings page, after "Tampilan" section
+- Section header with `Palette` icon, descriptive subtitle, and a "Muat Ulang" (reload) button
+- **Live preview header**: shows current logo + app name + app subtitle rendered exactly as it appears in the sidebar; green "Logo kustom aktif" badge when logo uploaded, amber "Menggunakan logo default" otherwise
+- **Asset grid** (1 col mobile / 2 col sm / 3 col lg): all 6 `BrandingUploader` cards in responsive grid
+- **PWA manifest info box** (blue) explaining `/api/manifest` is dynamic and PWA icons auto-applied
+- **Favicon info box** (amber) advising user to refresh browser (Ctrl+R) after favicon upload due to browser cache
+- Loads branding via `api.getBranding()` in parallel with `api.settings()` on mount
+- `handleBrandingChange` callback updates both local state and global Zustand `setBranding()` so all Logo usages (sidebar, navbar, footer, login modal, public page) update reactively without page reload
+- `setAppName()` also synced to store on save
+
+### 6. Reactive Branding in Zustand Store (`src/store/app-store.ts`)
+- Added `branding: Record<string, string>`, `appName: string`, `appSubtitle: string` to store state
+- Added `setBranding(b)`, `setAppName(name, subtitle?)` actions
+- Defaults: `appName = "SI-TRACK TANAH"`, `appSubtitle = "Kelurahan Kuala Pembuang II"`
+
+### 7. Logo Component (`src/components/app/Logo.tsx`)
+- `Logo` now accepts optional `src` prop — renders `<img>` when set, falls back to inline SVG brand mark
+- `LogoFull` accepts `src`, `appName`, `appSubtitle` props
+- Image uses `object-contain` to preserve aspect ratio at any size
+- Alt text defaults to "Logo" or the provided `alt`
+
+### 8. AppShell Updates (`src/components/app/AppShell.tsx`)
+- Pulls `branding`, `appName`, `appSubtitle` from `useAppStore`
+- `SidebarContent` accepts `logoUrl`, `appName`, `appSubtitle` props — renders dynamic logo + name in brand-link
+- `AdminFooter` accepts `appName` prop — uses dynamic app name in copyright
+- Public header (when not logged in) uses `<LogoFull src={branding.branding_logo_url} appName={appName} appSubtitle={appSubtitle} />`
+- Mobile mini-brand in top navbar uses dynamic logo + name
+- All three Logo usages (sidebar, mobile sidebar, navbar-mini) now pass `src={branding.branding_logo_url}`
+
+### 9. PublicTracking (`src/components/app/PublicTracking.tsx`)
+- Pulls `branding` + `appName` from store
+- **New: optional hero banner section** — when `branding_hero_banner_url` is set, renders a beautiful banner between the hero text and search card with:
+  - Responsive heights (180/260/320px on mobile/sm/md)
+  - Gradient overlay (navy → transparent) for text legibility
+  - Overlay text with app name + tagline ("Pelayanan Publik Transparan & Akuntabel")
+  - Rounded corners + gold border + shadow
+- Falls back to no banner when not uploaded (current default state)
+
+### 10. LoginModal (`src/components/app/LoginModal.tsx`)
+- Pulls branding + appName + appSubtitle from store
+- Logo in dialog header uses dynamic `src`
+- Dialog title uses `Login {appName}` (e.g., "Login SI-TRACK TANAH")
+- App subtitle shown as muted caption under description
+- **Optional login background image**: when `branding_login_bg_url` is set, renders an absolutely-positioned `<div>` with `background-image` at 25% opacity behind the form (subtle branding touch)
+
+### 11. Footer (`src/components/app/Footer.tsx`)
+- Pulls branding + appName from store
+- Logo in footer uses dynamic `src`
+- Bottom copyright uses dynamic appName instead of hardcoded "SI-TRACK TANAH"
+
+### 12. API Client (`src/lib/api.ts`)
+- `getBranding()` → GET `/api/settings/branding`
+- `uploadBranding(type, file)` → POST `/api/settings/branding` with FormData
+- `deleteBranding(type)` → DELETE `/api/settings/branding?type=...`
+- All return the updated branding map for immediate store sync
+
+### 13. Page Bootstrapping (`src/app/page.tsx`)
+- On mount, fires `api.me()`, `api.settings()`, `api.getBranding()` in parallel (using `Promise.all` with `.catch` on branding so a failure doesn't block app load)
+- Sets user, app name, and branding into the global store before first paint
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile, no runtime errors
+- **API endpoint tests** (curl):
+  - `GET /api/manifest` → 200, returns valid manifest JSON with default `/logo.svg` icons
+  - `GET /api/settings/branding` → 200, returns empty branding map + spec definitions
+  - `POST /api/settings/branding` (admin, valid SVG) → 200, file saved as `/branding/logo-68f714b18da1.svg`, settings key set, audit log written
+  - `POST /api/settings/branding` (admin, 3MB PNG to logo[2MB max]) → 400, "Ukuran file melebihi batas 2MB (ukuran: 3.00MB)"
+  - `POST /api/settings/branding` (admin, PDF to logo[image-only]) → 400, "Tipe file tidak didukung untuk logo. Diterima: image/svg+xml,image/png,..."
+  - `POST /api/settings/branding` (no auth) → 403, "Akses ditolak. Hanya ADMIN..."
+  - `POST /api/settings/branding` (petugas role) → 403, "Akses ditolak. Hanya ADMIN..."
+  - `DELETE /api/settings/branding?type=logo` (admin) → 200, file removed from disk, settings cleared
+- **agent-browser QA**:
+  - Public page renders with default inline SVG logo ✓
+  - Login modal: title "Login SI-TRACK TANAH", subtitle "Kelurahan Kuala Pembuang II" ✓
+  - After admin login: sidebar shows "SI-TRACK TANAH" + "KELURAHAN KUALA PEMBUANG II" ✓
+  - Settings page → "Branding & Media" section visible with all 6 upload cards (Logo Aplikasi, Favicon, Ikon PWA 192×192, Ikon PWA 512×512, Background Halaman Login, Banner Landing Publik) ✓
+  - Live preview header shows logo + app name with "Menggunakan logo default" amber badge ✓
+  - PWA + Favicon info boxes visible ✓
+  - **End-to-end upload test**: Uploaded `/tmp/test-logo.svg` (415 bytes) via the file input → POST 200, file saved as `logo-d794d9189013.svg`, live preview image src updated to `/branding/logo-d794d9189013.svg`, sidebar logo image src updated, favicon `<link rel=icon>` href updated to the new logo URL ✓
+  - **End-to-end delete test**: Clicked delete button → confirm dialog → "Hapus Logo Aplikasi? Aset akan kembali ke default." → accepted → file removed from disk, settings cleared, preview shows placeholder again ✓
+  - Audit log entry: "Mengunggah aset branding 'logo': logo-d794d9189013.svg (0 KB)" with userName=Administrator Sistem, modul=SETTINGS, aksi=UPDATE ✓
+
+## Unresolved Issues / Risks
+- **Static `/manifest.json` still exists** in `/public/` — no longer linked from `layout.tsx` (which now uses `/api/manifest`), but kept as a fallback. Future cleanup could remove it.
+- **No image dimension validation** — server validates MIME & size but not actual pixel dimensions. A user could upload a 64×64 PNG as "app_icon_512" and it would be accepted (the manifest would still reference it, but PWA install would look pixelated).
+- **No total branding storage quota** — admin could upload many large files (capped at 5MB each) and fill disk. Low risk in practice since only ADMIN can upload and there are only 6 fixed slots.
+- **Branding files are publicly accessible** via `/branding/*` — same as document uploads. If logo/login-bg contains sensitive info (unlikely), it would leak. Consider this acceptable for branding assets which are meant to be public.
+- **Browser favicon cache** — even after uploading a new favicon, browsers (especially Chrome) aggressively cache favicons. The amber info box warns the user; a hard refresh (Ctrl+Shift+R) or restarting the browser is sometimes needed.
+- **SW not updated** — `public/sw.js` caches `/` (network-first), so manifest changes propagate. No SW change needed.
+
+## Priority Recommendations for Next Round
+1. **Image dimension validation** — use `sharp` or `image-size` to validate pixel dimensions on upload (e.g., app_icon_192 must be exactly 192×192)
+2. **Auto-resize uploaded images** — generate appropriately-sized variants from a single uploaded logo (e.g., auto-generate 192/512 from one uploaded 512 icon)
+3. **Branding reset to defaults button** — one-click "Reset all branding to default" that deletes all uploaded assets
+4. **Color theme customization** — let admin pick primary/theme colors (gold by default) via color picker
+5. **Custom CSS injection** — advanced: let admin paste custom CSS that gets injected into `<head>` for full visual customization
+6. **Email/WhatsApp templates with logo** — when sending notifications, embed the custom logo
+7. **PDF report header with logo** — current Reports PDF export uses default branding; should use uploaded logo
+8. **Tanda Terima PDF with logo** — same — embed custom logo in the printable tanda terima
+9. **Multi-language support (i18n)** — Indonesian + English toggle
+10. Continue with previously-queued features from Task 12 recommendations: server-side MIME magic-byte validation, move uploads out of public/, per-permohonan storage quota, image resize on upload, document viewer modal, bulk download as ZIP

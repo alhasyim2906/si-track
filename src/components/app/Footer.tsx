@@ -1,14 +1,16 @@
 "use client";
+import { useAppStore } from "@/store/app-store";
 import { Logo } from "./Logo";
 import { MapPin, Mail, Phone, Clock, Heart, ExternalLink, ShieldCheck } from "lucide-react";
 
 export function Footer() {
+  const { branding, appName } = useAppStore();
   return (
     <footer className="mt-auto border-t border-border/40 bg-card/30 backdrop-blur-sm">
       <div className="container mx-auto max-w-7xl px-4 py-10">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="md:col-span-1 space-y-4">
-            <Logo size={36} />
+            <Logo size={36} src={branding.branding_logo_url} alt={`${appName} logo`} />
             <p className="text-sm text-foreground/55 leading-relaxed">
               Sistem Informasi Tracking Pendaftaran Surat Tanah. Memberikan transparansi pelayanan publik bagi masyarakat Kelurahan Kuala Pembuang II.
             </p>
@@ -88,7 +90,7 @@ export function Footer() {
             © {new Date().getFullYear()} Pemerintah Kelurahan Kuala Pembuang II. Hak Cipta Dilindungi.
           </p>
           <p className="text-xs text-foreground/35 flex items-center gap-1">
-            Dibuat dengan <Heart className="w-3 h-3 text-primary/60 inline" /> oleh <span className="gold-text font-semibold">SI-TRACK TANAH</span> · v1.0
+            Dibuat dengan <Heart className="w-3 h-3 text-primary/60 inline" /> oleh <span className="gold-text font-semibold">{appName}</span> · v1.0
           </p>
         </div>
       </div>

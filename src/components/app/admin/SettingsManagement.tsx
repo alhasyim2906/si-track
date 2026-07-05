@@ -32,7 +32,17 @@ import {
   Globe,
   ShieldCheck,
   Shuffle,
+  Image as ImageIcon,
+  Palette,
+  Monitor,
+  Smartphone,
+  Star,
+  Mountain,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
+import { BrandingUploader, type BrandingAssetSpec } from "@/components/app/shared/BrandingUploader";
+import { Logo } from "@/components/app/Logo";
 
 /* ============================================================
    Default values for all settings keys
@@ -92,6 +102,72 @@ const REGISTER_FIELDS: FieldDef[] = [
 const APPEARANCE_FIELDS: FieldDef[] = [
   { key: "app_name", label: "Nama Aplikasi", icon: Type, type: "text", placeholder: "SI-TRACK TANAH" },
   { key: "app_subtitle", label: "Subjudul", icon: LayoutTemplate, type: "text", placeholder: "Kelurahan Kuala Pembuang II" },
+];
+
+/* ============================================================
+   Branding asset specs — drives the Branding section UI
+   ============================================================ */
+const BRANDING_SPECS: BrandingAssetSpec[] = [
+  {
+    type: "logo",
+    label: "Logo Aplikasi",
+    description: "Logo utama yang tampil di sidebar, header, dan tanda terima.",
+    recommended: "SVG / PNG transparan, rasio 1:1, min 64×64px",
+    accept: "image/svg+xml,image/png,image/jpeg,image/webp,image/gif",
+    maxMb: 2,
+    previewClass: "aspect-square w-full",
+    iconBg: "bg-primary/10 border border-primary/20",
+  },
+  {
+    type: "favicon",
+    label: "Favicon",
+    description: "Ikon kecil pada tab browser dan bookmark.",
+    recommended: "ICO / PNG / SVG, 16×16 atau 32×32px",
+    accept: "image/svg+xml,image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg,image/webp",
+    maxMb: 1,
+    previewClass: "aspect-square w-full max-w-[120px] mx-auto",
+    iconBg: "bg-amber-500/10 border border-amber-500/30",
+  },
+  {
+    type: "app_icon_192",
+    label: "Ikon PWA 192×192",
+    description: "Ikon aplikasi saat diinstal di Android / desktop (kecil).",
+    recommended: "PNG 192×192px",
+    accept: "image/png,image/jpeg,image/webp",
+    maxMb: 1,
+    previewClass: "aspect-square w-full max-w-[150px] mx-auto",
+    iconBg: "bg-blue-500/10 border border-blue-500/30",
+  },
+  {
+    type: "app_icon_512",
+    label: "Ikon PWA 512×512",
+    description: "Ikon aplikasi resolusi tinggi (splash screen, Play Store).",
+    recommended: "PNG 512×512px",
+    accept: "image/png,image/jpeg,image/webp",
+    maxMb: 2,
+    previewClass: "aspect-square w-full",
+    iconBg: "bg-emerald-500/10 border border-emerald-500/30",
+  },
+  {
+    type: "login_bg",
+    label: "Background Halaman Login",
+    description: "Gambar latar untuk modal login petugas (opsional).",
+    recommended: "Lanskap, min 1280×720px",
+    accept: "image/png,image/jpeg,image/webp",
+    maxMb: 5,
+    previewClass: "aspect-video w-full",
+    iconBg: "bg-purple-500/10 border border-purple-500/30",
+  },
+  {
+    type: "hero_banner",
+    label: "Banner Landing Publik",
+    description: "Banner besar di halaman pelacakan publik (opsional).",
+    recommended: "Lanskap, min 1600×500px",
+    accept: "image/png,image/jpeg,image/webp",
+    maxMb: 5,
+    previewClass: "aspect-[3/1] w-full",
+    iconBg: "bg-rose-500/10 border border-rose-500/30",
+  },
 ];
 
 /* ============================================================
@@ -167,11 +243,12 @@ function SettingsSkeleton() {
    Main SettingsManagement component
    ============================================================ */
 export function SettingsManagement() {
-  const { can } = useAppStore();
+  const { can, setBranding, setAppName } = useAppStore();
   const allowed = can("manage_settings");
 
   const [settings, setSettings] = useState<Record<string, string>>(DEFAULTS);
   const [initialSettings, setInitialSettings] = useState<Record<string, string>>(DEFAULTS);
+  const [branding, setBrandingState] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -180,20 +257,33 @@ export function SettingsManagement() {
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await api.settings();
+      const [r, b] = await Promise.all([api.settings(), api.getBranding()]);
       const merged = { ...DEFAULTS, ...r.settings };
       setSettings(merged);
       setInitialSettings(merged);
+      setBrandingState(b.branding || {});
+      setBranding(b.branding || {});
+      // sync app name to global store so LogoFull uses the latest
+      setAppName(merged.app_name, merged.app_subtitle);
     } catch {
       toast.error("Gagal memuat pengaturan");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setBranding, setAppName]);
 
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  // Called whenever a branding asset is uploaded / deleted
+  const handleBrandingChange = useCallback(
+    (newBranding: Record<string, string>) => {
+      setBrandingState(newBranding);
+      setBranding(newBranding);
+    },
+    [setBranding]
+  );
 
   // Check if settings have changed
   const hasChanges = Object.keys(settings).some(
@@ -220,6 +310,7 @@ export function SettingsManagement() {
       const merged = { ...DEFAULTS, ...r.settings };
       setSettings(merged);
       setInitialSettings(merged);
+      setAppName(merged.app_name, merged.app_subtitle);
       toast.success("Pengaturan berhasil disimpan");
     } catch (e: any) {
       toast.error(e?.message || "Gagal menyimpan pengaturan");
@@ -249,6 +340,7 @@ export function SettingsManagement() {
       const merged = { ...DEFAULTS, ...r.settings };
       setSettings(merged);
       setInitialSettings(merged);
+      setAppName(merged.app_name, merged.app_subtitle);
       toast.success("Pengaturan berhasil disimpan");
     } catch (e: any) {
       toast.error(e?.message || "Gagal menyimpan pengaturan");
@@ -491,6 +583,106 @@ export function SettingsManagement() {
               )}
               Simpan
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 5: Branding & Media */}
+      <Card className="glass-card border-primary/15">
+        <CardContent className="p-6 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Palette className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-base leading-tight">Branding &amp; Media</h3>
+                <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                  Unggah logo, favicon, dan aset gambar lainnya. Aset akan langsung tampil di seluruh aplikasi setelah unggah berhasil.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => {
+                loadSettings();
+                toast.success("Pratinjau branding dimuat ulang");
+              }}
+            >
+              <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Muat Ulang
+            </Button>
+          </div>
+          <Separator className="opacity-50" />
+
+          {/* Live preview header — shows how logo + app name render in the sidebar */}
+          <div className="p-4 rounded-lg bg-primary/5 border border-primary/15">
+            <p className="text-[11px] text-muted-foreground mb-3 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              Pratinjau Live — Logo &amp; Nama Aplikasi
+            </p>
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-2.5">
+                <Logo size={38} src={branding.branding_logo_url} alt="Logo" />
+                <div className="flex flex-col leading-tight">
+                  <span className="gold-gradient-text font-extrabold tracking-tight text-lg">
+                    {settings.app_name || "SI-TRACK TANAH"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground tracking-wide uppercase">
+                    {settings.app_subtitle || "Kuala Pembuang II"}
+                  </span>
+                </div>
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {branding.branding_logo_url ? (
+                  <span className="inline-flex items-center gap-1 text-green-600">
+                    <Sparkles className="w-3 h-3" /> Logo kustom aktif
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-amber-600">
+                    <Palette className="w-3 h-3" /> Menggunakan logo default
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Asset grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {BRANDING_SPECS.map((spec) => (
+              <BrandingUploader
+                key={spec.type}
+                spec={spec}
+                url={branding[`branding_${spec.type}_url`]}
+                onChange={handleBrandingChange}
+              />
+            ))}
+          </div>
+
+          {/* PWA manifest note */}
+          <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+            <div className="flex items-start gap-2">
+              <Smartphone className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+              <div className="text-[11px] leading-snug text-muted-foreground">
+                <span className="font-semibold text-foreground">Catatan PWA:</span> Ikon PWA 192×192 dan 512×512
+                digunakan saat aplikasi diinstal di perangkat (Add to Home Screen). Manifest dihasilkan
+                dinamis dari <span className="font-mono text-blue-500">/api/manifest</span> dan ikon akan
+                otomatis dipakai setelah unggah.
+              </div>
+            </div>
+          </div>
+
+          {/* Favicon note */}
+          <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+            <div className="flex items-start gap-2">
+              <Star className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+              <div className="text-[11px] leading-snug text-muted-foreground">
+                <span className="font-semibold text-foreground">Catatan Favicon:</span> Setelah mengunggah
+                favicon, refresh halaman (Ctrl+R) agar browser memuat ikon baru. Cache browser mungkin
+                menyimpan favicon lama selama beberapa jam.
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

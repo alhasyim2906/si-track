@@ -11,7 +11,7 @@ import { Loader2, LogIn, ShieldCheck, UserCog, Crown, X } from "lucide-react";
 import { Logo } from "./Logo";
 
 export function LoginModal({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const setUser = useAppStore((s) => s.setUser);
+  const { setUser, branding, appName, appSubtitle } = useAppStore();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -46,14 +46,26 @@ export function LoginModal({ open, onOpenChange }: { open: boolean; onOpenChange
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card navy-glow border-primary/30 sm:max-w-md">
+      <DialogContent className="glass-card navy-glow border-primary/30 sm:max-w-md overflow-hidden">
+        {/* Optional login background image */}
+        {branding.branding_login_bg_url && (
+          <div
+            className="absolute inset-0 -z-10 bg-cover bg-center opacity-25"
+            style={{ backgroundImage: `url(${branding.branding_login_bg_url})` }}
+            aria-hidden
+          />
+        )}
         <DialogHeader>
           <div className="flex justify-center mb-2">
-            <Logo size={56} />
+            <Logo size={56} src={branding.branding_logo_url} alt={`${appName} logo`} />
           </div>
-          <DialogTitle className="text-center text-xl gold-gradient-text font-extrabold">Login Petugas</DialogTitle>
+          <DialogTitle className="text-center text-xl gold-gradient-text font-extrabold">
+            Login {appName}
+          </DialogTitle>
           <DialogDescription className="text-center text-xs">
             Masuk sebagai Admin, Petugas, atau Lurah untuk mengelola permohonan surat tanah.
+            <br />
+            <span className="text-[10px] opacity-80">{appSubtitle}</span>
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-3">

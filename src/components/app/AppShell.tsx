@@ -99,6 +99,9 @@ function SidebarContent({
   userName,
   roleLabel,
   roleIcon: RoleIcon,
+  logoUrl,
+  appName,
+  appSubtitle,
 }: {
   role: string;
   view: AppView;
@@ -108,6 +111,9 @@ function SidebarContent({
   userName: string;
   roleLabel: string;
   roleIcon: any;
+  logoUrl?: string;
+  appName: string;
+  appSubtitle: string;
 }) {
   const sections = getSections(role);
   return (
@@ -120,12 +126,12 @@ function SidebarContent({
           setView("dashboard");
           onNavigate?.();
         }}
-        aria-label="SI-TRACK TANAH"
+        aria-label={appName}
       >
-        <Logo size={36} />
+        <Logo size={36} src={logoUrl} alt={`${appName} logo`} />
         <span className="flex flex-col leading-tight">
-          <span className="gold-gradient-text font-extrabold text-base">SI-TRACK TANAH</span>
-          <span className="brand-sub">Kuala Pembuang II</span>
+          <span className="gold-gradient-text font-extrabold text-base">{appName}</span>
+          <span className="brand-sub">{appSubtitle}</span>
         </span>
       </a>
 
@@ -184,13 +190,13 @@ function SidebarContent({
 }
 
 /* ----- AdminLTE minimal footer (dark navy bar with copyright + version) ----- */
-function AdminFooter() {
+function AdminFooter({ appName }: { appName: string }) {
   return (
     <footer className="main-footer">
       <div className="mf-inner">
         <span>
           © {new Date().getFullYear()} Pemerintah Kelurahan Kuala Pembuang II ·{" "}
-          <span className="gold-text font-semibold">SI-TRACK TANAH</span> v1.0
+          <span className="gold-text font-semibold">{appName}</span> v1.0
         </span>
         <span className="hidden sm:inline-flex items-center gap-1">
           Dibuat dengan <Heart className="w-3 h-3" style={{ color: "#d4af37" }} /> untuk pelayanan publik
@@ -204,7 +210,7 @@ function AdminFooter() {
    AppShell
    ============================================================ */
 export function AppShell({ children, onLoginClick }: { children: React.ReactNode; onLoginClick: () => void }) {
-  const { user, view, setView, setUser, selectPermohonan } = useAppStore();
+  const { user, view, setView, setUser, selectPermohonan, branding, appName, appSubtitle } = useAppStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdKey, setCmdKey] = useState(0);
@@ -302,7 +308,7 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
           <div className="container mx-auto max-w-7xl px-4">
             <div className="flex h-16 items-center justify-between gap-3">
               <button onClick={() => setView("public")} className="shrink-0">
-                <LogoFull />
+                <LogoFull src={branding.branding_logo_url} appName={appName} appSubtitle={appSubtitle} />
               </button>
               <div className="flex items-center gap-1.5">
                 <Button
@@ -348,6 +354,9 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
           userName={user.name}
           roleLabel={roleLabel}
           roleIcon={RoleIcon}
+          logoUrl={branding.branding_logo_url}
+          appName={appName}
+          appSubtitle={appSubtitle}
         />
       </aside>
 
@@ -367,6 +376,9 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
               userName={user.name}
               roleLabel={roleLabel}
               roleIcon={RoleIcon}
+              logoUrl={branding.branding_logo_url}
+              appName={appName}
+              appSubtitle={appSubtitle}
             />
             <div className="mt-auto p-3 border-t border-white/10">
               <button
@@ -401,8 +413,8 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
 
           {/* Mini brand (mobile only) */}
           <div className="navbar-brand-mini">
-            <Logo size={26} />
-            <span className="gold-gradient-text">SI-TRACK TANAH</span>
+            <Logo size={26} src={branding.branding_logo_url} alt={`${appName} logo`} />
+            <span className="gold-gradient-text">{appName}</span>
           </div>
 
           {/* Breadcrumb / current page title */}
@@ -489,7 +501,7 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
         <section className="content">{children}</section>
 
         {/* Footer */}
-        <AdminFooter />
+        <AdminFooter appName={appName} />
       </div>
 
       {/* Command Palette (Cmd+K) — key changes on each open to reset internal state */}
