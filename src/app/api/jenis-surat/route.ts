@@ -4,7 +4,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 
 export async function GET() {
-  const items = await db.jenisSurat.findMany({ orderBy: { createdAt: "asc" } });
+  const items = await db.jenisSurat.findMany({
+    orderBy: { createdAt: "asc" },
+    include: { _count: { select: { permohonan: true } } },
+  });
   return NextResponse.json({ items });
 }
 

@@ -1,15 +1,16 @@
 /**
- * Notification dispatcher — Email (SMTP via fetch) + WhatsApp (Fonnte API).
+ * Notification dispatcher — Email (Gmail SMTP / SMTP-API / log) + WhatsApp (Fonnte API).
  *
  * Fonnte is a popular Indonesian WhatsApp gateway (https://fonnte.com).
  * Send a POST to https://api.fonnte.com/send with `Authorization: <token>`
  * and form-data fields `target` (phone), `message` (text).
  *
- * Email sending uses a minimal SMTP-style HTTP gateway OR an inline SMTP
- * client. Because Node's net module in Next.js route handlers is awkward,
- * we expose a pluggable email transport: when `email_provider` = "smtp_api"
- * we POST JSON to an external SMTP-to-HTTP bridge (configurable URL).
- * For local/dev convenience without an SMTP server, we simply log the email.
+ * Email sending supports three transports:
+ *   1. `gmail` — direct SMTP to smtp.gmail.com:465 using nodemailer.
+ *      Requires an App Password (16-char) since Google disabled plain password auth.
+ *      Docs: https://support.google.com/accounts/answer/185833
+ *   2. `smtp_api` — POST JSON to an external SMTP-to-HTTP bridge (Mailgun, SendGrid, …).
+ *   3. `log` — dev mode, just prints to server console.
  */
 
 import { db } from "@/lib/db";
@@ -149,17 +150,17 @@ export async function sendWhatsApp(
 }
 
 /* ------------------------------------------------------------------ */
-/* Email — pluggable transport                                         */
+/* Email — pluggable transport (Gmail SMTP / SMTP-API / log)            */
 /* ------------------------------------------------------------------ */
 /**
  * Send an email. Strategy:
- *   1. If `notify_email_provider` === "smtp_api" and `notify_email_api_url`
- *      is set → POST JSON {from, to, subject, html} to that URL (assumes
- *      an external SMTP-to-HTTP bridge like the SMTP2GO / Mailgun / SendGrid
- *      REST API). The bridge URL receives the API key via `Authorization`
- *      header if `notify_email_api_key` is set.
- *   2. Otherwise → log to server console (dev mode) and return success.
- *      This lets admins test the full flow without an SMTP server.
+ *   1. `gmail` — direct SMTP via nodemailer to smtp.gmail.com:465 (SSL).
+ *      Uses `notify_email_gmail_user` + `notify_email_gmail_app_password`.
+ *      Sender display name comes from `notify_email_from_name` (defaults to
+ *      the kelurahan name).
+ *   2. `smtp_api` — POST JSON {from, to, subject, html} to an external
+ *      SMTP-to-HTTP bridge URL (Mailgun, SendGrid, Resend, SMTP2GO, …).
+ *   3. `log` — dev mode, just prints to server console.
  */
 export async function sendEmail(
   settings: Record<string, string>,
@@ -171,8 +172,57 @@ export async function sendEmail(
     return { channel: "email", success: false, error: "Alamat email penerima tidak tersedia" };
   }
   const provider = settings.notify_email_provider || "log";
-  const from = settings.notify_email_from || settings.email_kelurahan || "no-reply@sitrac.local";
 
+  // Build the From header. For Gmail we MUST use the Gmail account address
+  // as the envelope sender — the display name is configurable.
+  const fromName = settings.notify_email_from_name || settings.nama_kelurahan || "SI-TRACK TANAH";
+  const gmailUser = settings.notify_email_gmail_user || "";
+  const fromGmail = gmailUser || settings.notify_email_from || settings.email_kelurahan || "no-reply@sitrac.local";
+  const from = settings.notify_email_from || (gmailUser ? `${fromName} <${gmailUser}>` : settings.email_kelurahan || "no-reply@sitrac.local");
+
+  // ===== Gmail SMTP via nodemailer =====
+  if (provider === "gmail") {
+    if (!gmailUser) {
+      return { channel: "email", success: false, error: "Email Google (Gmail) belum dikonfigurasi — isi Gmail User di pengaturan." };
+    }
+    if (!settings.notify_email_gmail_app_password) {
+      return { channel: "email", success: false, error: "App Password Google belum diisi. Buat di https://myaccount.google.com/apppasswords" };
+    }
+    try {
+      // Lazy import so the dependency only loads when Gmail is actually used.
+      const nodemailer = await import("nodemailer");
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true, // true for 465, false for other ports (587 = STARTTLS)
+        auth: {
+          user: gmailUser,
+          pass: settings.notify_email_gmail_app_password,
+        },
+      });
+      const info = await transporter.sendMail({
+        from: `${fromName} <${gmailUser}>`,
+        to,
+        subject,
+        html,
+        text: html.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, ""),
+      });
+      return { channel: "email", success: true, recipient: to, error: undefined };
+    } catch (e: any) {
+      // Common Gmail errors: 535-5.7.1 = bad app password, EAUTH = auth failed
+      const msg = e?.message || "Gagal mengirim email via Gmail SMTP";
+      let hint = msg;
+      if (/535|5\.7\.1|EAUTH|invalid login|Username and Password not accepted/i.test(msg)) {
+        hint = "Autentikasi Gmail gagal — periksa Gmail User & App Password. Pastikan 2FA aktif & gunakan App Password 16 karakter (bukan password biasa).";
+      } else if (/EAUTH/i.test(msg) === false && /connect|ETIMEDOUT|ENOTFOUND|ECONNREFUSED/i.test(msg)) {
+        hint = "Tidak dapat terhubung ke smtp.gmail.com — periksa koneksi internet / firewall.";
+      }
+      return { channel: "email", success: false, error: hint, recipient: to };
+    }
+  }
+
+  // ===== SMTP API bridge =====
   if (provider === "smtp_api" && settings.notify_email_api_url) {
     try {
       const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -205,7 +255,7 @@ export async function sendEmail(
   }
 
   // Provider = "log" — dev mode, just print to server log
-  console.log(`[EMAIL:LOG-MODE] To: ${to} | From: ${from} | Subject: ${subject}`);
+  console.log(`[EMAIL:LOG-MODE] To: ${to} | From: ${fromGmail} | Subject: ${subject}`);
   console.log(`[EMAIL:LOG-MODE] Body: ${html.slice(0, 500)}...`);
   return { channel: "email", success: true, recipient: to };
 }

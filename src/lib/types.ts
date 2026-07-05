@@ -86,6 +86,48 @@ export interface RevisiDokumenItem {
   createdAt: string;
 }
 
+// ===== SLA tracking =====
+export type SlaStatus = "on_track" | "warning" | "breach";
+
+export interface SlaItem {
+  id: string;
+  nomorRegister: string;
+  pemohonNama: string;
+  pemohonNik: string;
+  jenisSurat: string;
+  statusSaatIni: string;
+  statusNama: string;
+  statusWarna: string;
+  prioritas: string;
+  // Stage entered at — derived from latest RiwayatProses row matching current status
+  statusEnteredAt: string;
+  // SLA target for the current stage, in hours (from Settings: sla_<kode_lowercase>_hours)
+  slaHours: number;
+  // Elapsed hours in the current stage
+  elapsedHours: number;
+  // Remaining hours (negative when breached)
+  remainingHours: number;
+  // Progress percentage of SLA window consumed (0–100+)
+  progressPct: number;
+  // Derived bucket
+  slaStatus: SlaStatus;
+  // Whole-permohonan age in days (createdAt → now)
+  ageDays: number;
+  createdAt: string;
+  petugas: string | null;
+  // Last riwayat catatan (latest entry) for context
+  lastCatatan: string | null;
+}
+
+export interface SlaSummary {
+  total: number;
+  onTrack: number;
+  warning: number;
+  breach: number;
+  avgDays: number;
+  breachRate: number;
+}
+
 export interface DashboardStats {
   role: string;
   stats: {
@@ -120,4 +162,5 @@ export type AppView =
   | "notifikasi"
   | "notifikasi-center"
   | "profil"
-  | "pengaturan";
+  | "pengaturan"
+  | "sla";

@@ -20,6 +20,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   FileStack,
@@ -33,6 +43,10 @@ import {
   ListChecks,
   CheckCircle2,
   AlertTriangle,
+  Pencil,
+  Trash2,
+  Lock,
+  Power,
 } from "lucide-react";
 
 interface JenisSuratItem {
@@ -44,6 +58,7 @@ interface JenisSuratItem {
   butuhTtdCamat: boolean;
   isActive: boolean;
   createdAt: string;
+  _count?: { permohonan: number };
 }
 
 interface StatusProsesItem {
@@ -59,6 +74,8 @@ interface StatusProsesItem {
   isActive: boolean;
 }
 
+type Mode = "create" | "edit";
+
 export function JenisSuratManagement() {
   const { can } = useAppStore();
   const allowed = can("manage_jenis");
@@ -68,7 +85,12 @@ export function JenisSuratManagement() {
   const [loading, setLoading] = useState(false);
 
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>("create");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState<JenisSuratItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState({
     kode: "",
@@ -76,6 +98,7 @@ export function JenisSuratManagement() {
     deskripsi: "",
     butuhPengukuran: true,
     butuhTtdCamat: false,
+    isActive: true,
   });
 
   const load = useCallback(async () => {
@@ -98,12 +121,29 @@ export function JenisSuratManagement() {
   }, [allowed, load]);
 
   const openCreate = () => {
+    setMode("create");
+    setEditingId(null);
     setForm({
       kode: "",
       nama: "",
       deskripsi: "",
       butuhPengukuran: true,
       butuhTtdCamat: false,
+      isActive: true,
+    });
+    setOpen(true);
+  };
+
+  const openEdit = (j: JenisSuratItem) => {
+    setMode("edit");
+    setEditingId(j.id);
+    setForm({
+      kode: j.kode, // read-only in dialog
+      nama: j.nama,
+      deskripsi: j.deskripsi || "",
+      butuhPengukuran: j.butuhPengukuran,
+      butuhTtdCamat: j.butuhTtdCamat,
+      isActive: j.isActive,
     });
     setOpen(true);
   };
@@ -111,27 +151,80 @@ export function JenisSuratManagement() {
   const normalizeKode = (raw: string) => raw.toUpperCase().replace(/\s+/g, "_").replace(/[^A-Z0-9_]/g, "");
 
   const handleSubmit = async () => {
-    const kode = normalizeKode(form.kode);
-    if (!kode || !form.nama.trim()) {
-      toast.error("Kode dan Nama wajib diisi");
-      return;
+    if (mode === "create") {
+      const kode = normalizeKode(form.kode);
+      if (!kode || !form.nama.trim()) {
+        toast.error("Kode dan Nama wajib diisi");
+        return;
+      }
+      setSaving(true);
+      try {
+        await api.createJenisSurat({
+          kode,
+          nama: form.nama.trim(),
+          deskripsi: form.deskripsi.trim() || undefined,
+          butuhPengukuran: form.butuhPengukuran,
+          butuhTtdCamat: form.butuhTtdCamat,
+        });
+        toast.success(`Jenis surat "${kode}" berhasil ditambahkan`);
+        setOpen(false);
+        await load();
+      } catch (e: any) {
+        toast.error(e?.message || "Gagal menambahkan jenis surat");
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      // edit mode
+      if (!editingId) return;
+      if (!form.nama.trim()) {
+        toast.error("Nama wajib diisi");
+        return;
+      }
+      setSaving(true);
+      try {
+        await api.updateJenisSurat(editingId, {
+          nama: form.nama.trim(),
+          deskripsi: form.deskripsi.trim() || null,
+          butuhPengukuran: form.butuhPengukuran,
+          butuhTtdCamat: form.butuhTtdCamat,
+          isActive: form.isActive,
+        });
+        toast.success(`Jenis surat "${form.kode}" berhasil diperbarui`);
+        setOpen(false);
+        await load();
+      } catch (e: any) {
+        toast.error(e?.message || "Gagal memperbarui jenis surat");
+      } finally {
+        setSaving(false);
+      }
     }
-    setSaving(true);
+  };
+
+  const handleToggleActive = async (j: JenisSuratItem) => {
+    // Quick toggle without opening dialog
     try {
-      await api.createJenisSurat({
-        kode,
-        nama: form.nama.trim(),
-        deskripsi: form.deskripsi.trim() || undefined,
-        butuhPengukuran: form.butuhPengukuran,
-        butuhTtdCamat: form.butuhTtdCamat,
-      });
-      toast.success(`Jenis surat "${kode}" berhasil ditambahkan`);
-      setOpen(false);
+      await api.updateJenisSurat(j.id, { isActive: !j.isActive });
+      toast.success(`Jenis surat "${j.kode}" ${!j.isActive ? "diaktifkan" : "dinonaktifkan"}`);
       await load();
     } catch (e: any) {
-      toast.error(e?.message || "Gagal menambahkan jenis surat");
+      toast.error(e?.message || "Gagal mengubah status");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.deleteJenisSurat(deleteTarget.id);
+      toast.success(`Jenis surat "${deleteTarget.kode}" berhasil dihapus`);
+      setDeleteTarget(null);
+      await load();
+    } catch (e: any) {
+      const msg = e?.message || "Gagal menghapus jenis surat";
+      toast.error(msg);
     } finally {
-      setSaving(false);
+      setDeleting(false);
     }
   };
 
@@ -182,8 +275,13 @@ export function JenisSuratManagement() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {items.map((j) => (
-            <Card key={j.id} className="glass-card border-primary/15 hover:gold-border transition-all">
-              <CardContent className="p-5 space-y-3">
+            <Card
+              key={j.id}
+              className={`glass-card border-primary/15 hover:gold-border transition-all flex flex-col ${
+                !j.isActive ? "opacity-60" : ""
+              }`}
+            >
+              <CardContent className="p-5 space-y-3 flex-1 flex flex-col">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="font-bold text-base leading-tight line-clamp-2 break-words">{j.nama}</h3>
@@ -224,6 +322,53 @@ export function JenisSuratManagement() {
                     label="Butuh TTD Camat"
                     on={j.butuhTtdCamat}
                   />
+                </div>
+
+                {(j._count?.permohonan ?? 0) > 0 && (
+                  <div className="text-[10px] text-muted-foreground flex items-center gap-1 pt-1">
+                    <AlertTriangle className="w-3 h-3 text-amber-500" />
+                    Digunakan oleh{" "}
+                    <span className="font-semibold text-foreground">{j._count?.permohonan}</span>{" "}
+                    permohonan — tidak dapat dihapus
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-2 mt-auto pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openEdit(j)}
+                    className="h-8 text-xs flex-1 min-w-[5rem]"
+                  >
+                    <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleToggleActive(j)}
+                    title={j.isActive ? "Nonaktifkan" : "Aktifkan"}
+                    className="h-8 text-xs px-2.5"
+                  >
+                    <Power className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDeleteTarget(j)}
+                    disabled={(j._count?.permohonan ?? 0) > 0}
+                    title={
+                      (j._count?.permohonan ?? 0) > 0
+                        ? `Tidak dapat dihapus — masih digunakan oleh ${j._count?.permohonan} permohonan`
+                        : "Hapus jenis surat"
+                    }
+                    className="h-8 text-xs px-2.5 border-red-500/30 text-red-500 hover:bg-red-500/10 hover:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {(j._count?.permohonan ?? 0) > 0 ? (
+                      <Lock className="w-3.5 h-3.5" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -301,33 +446,45 @@ export function JenisSuratManagement() {
         </CardContent>
       </Card>
 
-      {/* Add Dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* Create / Edit Dialog */}
+      <Dialog open={open} onOpenChange={(o) => !saving && setOpen(o)}>
         <DialogContent className="glass-card navy-glow border-primary/20 max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileStack className="w-4 h-4 text-primary" /> Tambah Jenis Surat
+              <FileStack className="w-4 h-4 text-primary" />
+              {mode === "create" ? "Tambah Jenis Surat" : "Edit Jenis Surat"}
             </DialogTitle>
             <DialogDescription>
-              Tentukan kode, nama, dan kebutuhan alur kerja untuk jenis surat baru.
+              {mode === "create"
+                ? "Tentukan kode, nama, dan kebutuhan alur kerja untuk jenis surat baru."
+                : `Perbarui informasi jenis surat "${form.kode}". Kode tidak dapat diubah.`}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs">Kode *</Label>
+              <Label className="text-xs">Kode {mode === "create" ? "*" : "(tidak dapat diubah)"}</Label>
               <div className="relative">
                 <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
                   value={form.kode}
-                  onChange={(e) => setForm({ ...form, kode: e.target.value })}
+                  onChange={(e) =>
+                    mode === "create" && setForm({ ...form, kode: e.target.value })
+                  }
                   placeholder="SURAT_KETERANGAN_TANAH"
                   className="pl-8 font-mono bg-input/50 uppercase"
+                  disabled={mode === "edit"}
                 />
               </div>
-              <p className="text-[10px] text-muted-foreground">
-                Otomatis kapital &amp; spasi diganti underscore. Contoh: SURAT_KETERANGAN_TANAH
-              </p>
+              {mode === "create" ? (
+                <p className="text-[10px] text-muted-foreground">
+                  Otomatis kapital &amp; spasi diganti underscore. Contoh: SURAT_KETERANGAN_TANAH
+                </p>
+              ) : (
+                <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                  <Lock className="w-3 h-3" /> Kode merupakan kunci unik dan tidak dapat diubah setelah dibuat.
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Nama Jenis Surat *</Label>
@@ -377,6 +534,24 @@ export function JenisSuratManagement() {
                 />
               </div>
             </div>
+
+            {mode === "edit" && (
+              <div className="flex items-center justify-between rounded-lg border border-border/40 p-3 bg-input/20">
+                <div className="flex items-center gap-2">
+                  <Power className="w-4 h-4 text-primary" />
+                  <div>
+                    <Label className="text-sm font-medium">Status Aktif</Label>
+                    <p className="text-[10px] text-muted-foreground">
+                      Jenis surat nonaktif tidak dapat dipilih saat membuat permohonan baru
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={form.isActive}
+                  onCheckedChange={(v) => setForm({ ...form, isActive: v })}
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -389,11 +564,39 @@ export function JenisSuratManagement() {
               className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
             >
               {saving ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />}
-              Simpan Jenis Surat
+              {mode === "create" ? "Simpan Jenis Surat" : "Simpan Perubahan"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !deleting && !o && setDeleteTarget(null)}>
+        <AlertDialogContent className="glass-card navy-glow border-red-500/30">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-4 h-4" /> Hapus Jenis Surat?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Anda akan menghapus jenis surat{" "}
+              <span className="font-semibold text-foreground">{deleteTarget?.nama}</span>{" "}
+              <span className="font-mono text-xs">({deleteTarget?.kode})</span>.
+              Tindakan ini tidak dapat dibatalkan. Permohonan yang sudah ada tidak akan terpengaruh.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1.5" />}
+              Hapus Permanen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

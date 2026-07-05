@@ -56,6 +56,11 @@ import {
   PanelBottom,
   MapPin,
   Info,
+  Timer,
+  Gauge,
+  CalendarClock,
+  AlertTriangle,
+  TrendingUp,
 } from "lucide-react";
 import { BrandingUploader, type BrandingAssetSpec } from "@/components/app/shared/BrandingUploader";
 import { Logo } from "@/components/app/Logo";
@@ -85,6 +90,10 @@ const DEFAULTS: Record<string, string> = {
   notify_fonnte_token: "",
   notify_email_provider: "log",
   notify_email_from: "",
+  notify_email_from_name: "",
+  // Google Gmail SMTP config (Task 19)
+  notify_email_gmail_user: "",
+  notify_email_gmail_app_password: "",
   notify_email_api_url: "",
   notify_email_api_key: "",
   notify_tpl_selesai_subject: "Surat Tanah Anda Telah Selesai — {nomor_register}",
@@ -109,6 +118,18 @@ const DEFAULTS: Record<string, string> = {
   footer_show_service_hours: "true",
   footer_show_links: "true",
   footer_show_contact: "true",
+  // ===== SLA defaults (Task 19) — target hours per status stage =====
+  sla_warning_threshold_pct: "80",
+  sla_pengajuan_hours: "24",
+  sla_cek_admin_hours: "48",
+  sla_verifikasi_lapangan_hours: "72",
+  sla_pengukuran_hours: "72",
+  sla_pembuatan_surat_hours: "48",
+  sla_ttd_lurah_hours: "24",
+  sla_ttd_camat_hours: "48",
+  sla_revisi_hours: "168",
+  sla_total_target_hours: "336", // 14 days overall target
+  sla_alert_atasan_enabled: "true",
 };
 
 /* ============================================================
@@ -940,6 +961,15 @@ export function SettingsManagement() {
         saving={saving}
         onSaveSection={handleSaveSection}
       />
+
+      {/* ===== Section 7: SLA (Service Level Agreement) ===== */}
+      <SlaSection
+        settings={settings}
+        updateSetting={updateSetting}
+        activeSection={activeSection}
+        saving={saving}
+        onSaveSection={handleSaveSection}
+      />
     </div>
   );
 }
@@ -953,6 +983,9 @@ const NOTIFY_FIELDS = [
   "notify_fonnte_token",
   "notify_email_provider",
   "notify_email_from",
+  "notify_email_from_name",
+  "notify_email_gmail_user",
+  "notify_email_gmail_app_password",
   "notify_email_api_url",
   "notify_email_api_key",
   "notify_tpl_selesai_subject",
@@ -986,6 +1019,7 @@ function NotifySection({
 }) {
   const [showToken, setShowToken] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showAppPwd, setShowAppPwd] = useState(false);
   const [testingWa, setTestingWa] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
   const [testTarget, setTestTarget] = useState("");
@@ -997,6 +1031,20 @@ function NotifySection({
   const waEnabled = (settings.notify_wa_enabled ?? "true") === "true";
   const fonnteTokenSet = !!(settings.notify_fonnte_token || "").trim();
   const emailProvider = settings.notify_email_provider || "log";
+  const gmailUserSet = !!(settings.notify_email_gmail_user || "").trim();
+  const gmailPwdSet = !!(settings.notify_email_gmail_app_password || "").trim();
+  const gmailReady = gmailUserSet && gmailPwdSet;
+
+  // Auto-fill from-name with kelurahan name on first Gmail setup
+  const handleGmailPreset = () => {
+    if (!settings.notify_email_from_name && settings.nama_kelurahan) {
+      updateSetting("notify_email_from_name", settings.nama_kelurahan);
+    }
+    if (settings.notify_email_provider !== "gmail") {
+      updateSetting("notify_email_provider", "gmail");
+    }
+    toast.success("Preset Gmail diterapkan. Lengkapi Gmail User & App Password.");
+  };
 
   const handleTest = async (channel: "wa" | "email") => {
     if (channel === "wa" && !fonnteTokenSet) {
@@ -1142,10 +1190,27 @@ function NotifySection({
 
         {/* ===== Email config ===== */}
         <div className="p-4 rounded-lg border border-blue-500/15 bg-blue-500/[0.03]">
-          <div className="flex items-center gap-2 mb-3">
-            <Server className="w-4 h-4 text-blue-500" />
-            <p className="text-sm font-semibold">Konfigurasi Email (SMTP)</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Server className="w-4 h-4 text-blue-500" />
+              <p className="text-sm font-semibold">Konfigurasi Email</p>
+            </div>
+            {/* Quick preset buttons */}
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={handleGmailPreset}
+                className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
+                  emailProvider === "gmail"
+                    ? "bg-red-500/15 text-red-600 border-red-500/40"
+                    : "bg-background/60 text-foreground/70 border-border hover:border-red-500/40 hover:text-red-600"
+                }`}
+              >
+                <Mail className="w-3 h-3" /> Preset Gmail
+              </button>
+            </div>
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Provider Email</Label>
@@ -1156,21 +1221,131 @@ function NotifySection({
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="log">Log (Dev — tidak benar-benar mengirim)</SelectItem>
+                  <SelectItem value="gmail">Google Mail (Gmail SMTP — smtp.gmail.com)</SelectItem>
                   <SelectItem value="smtp_api">SMTP API Bridge (HTTP → SMTP)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Email Pengirim (From)</Label>
+              <Label className="text-xs">Nama Pengirim (From Name)</Label>
               <Input
-                type="email"
-                value={settings.notify_email_from ?? ""}
-                onChange={(e) => updateSetting("notify_email_from", e.target.value)}
-                placeholder="noreply@kelurahan.go.id"
+                value={settings.notify_email_from_name ?? ""}
+                onChange={(e) => updateSetting("notify_email_from_name", e.target.value)}
+                placeholder={settings.nama_kelurahan || "Kelurahan Kuala Pembuang II"}
               />
             </div>
           </div>
 
+          {/* Gmail-specific config */}
+          {emailProvider === "gmail" && (
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Mail className="w-3 h-3 text-red-500" /> Gmail User (Email Google)
+                  </Label>
+                  <Input
+                    type="email"
+                    value={settings.notify_email_gmail_user ?? ""}
+                    onChange={(e) => updateSetting("notify_email_gmail_user", e.target.value)}
+                    placeholder="kelurahan.kpii@gmail.com"
+                    className={gmailUserSet ? "border-green-500/40" : ""}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Key className="w-3 h-3 text-red-500" /> App Password (16 karakter)
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type={showAppPwd ? "text" : "password"}
+                      value={settings.notify_email_gmail_app_password ?? ""}
+                      onChange={(e) => updateSetting("notify_email_gmail_app_password", e.target.value)}
+                      placeholder="abcd efgh ijkl mnop"
+                      className={`font-mono text-xs flex-1 ${gmailPwdSet ? "border-green-500/40" : ""}`}
+                      maxLength={32}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setShowAppPwd((s) => !s)}
+                    >
+                      {showAppPwd ? <Eye className="w-3.5 h-3.5" /> : <Key className="w-3.5 h-3.5" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Gmail status banner */}
+              <div className={`p-2.5 rounded-lg border text-[11px] leading-snug flex items-start gap-2 ${
+                gmailReady
+                  ? "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400"
+                  : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+              }`}>
+                {gmailReady ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                ) : (
+                  <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                )}
+                <div>
+                  {gmailReady ? (
+                    <span>
+                      <span className="font-semibold">Gmail siap digunakan.</span> Pastikan akun Google telah
+                      mengaktifkan Verifikasi 2-Langkah (2FA). Email akan dikirim dari{" "}
+                      <span className="font-mono">{settings.notify_email_gmail_user}</span>.
+                    </span>
+                  ) : (
+                    <span>
+                      <span className="font-semibold">Belum lengkap.</span> Isi Gmail User & App Password untuk
+                      mulai mengirim email otomatis. Buat App Password di{" "}
+                      <a
+                        href="https://myaccount.google.com/apppasswords"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline text-red-500"
+                      >
+                        myaccount.google.com/apppasswords
+                      </a>{" "}
+                      (syarat: 2FA aktif).
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Step-by-step Gmail setup */}
+              <details className="text-[11px] text-muted-foreground border border-border/40 rounded-lg p-2.5 bg-input/10">
+                <summary className="cursor-pointer font-semibold text-foreground/80 flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-blue-500" /> Panduan Setup Gmail (klik untuk buka)
+                </summary>
+                <ol className="list-decimal ml-5 mt-2 space-y-1 leading-snug">
+                  <li>
+                    Login ke{" "}
+                    <a href="https://myaccount.google.com" target="_blank" rel="noreferrer" className="text-blue-500 underline">
+                      myaccount.google.com
+                    </a>{" "}
+                    dengan akun Gmail kelurahan.
+                  </li>
+                  <li>Aktifkan <span className="font-semibold">Verifikasi 2-Langkah (2-Step Verification)</span> di menu Keamanan.</li>
+                  <li>
+                    Buka{" "}
+                    <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer" className="text-blue-500 underline">
+                      App Passwords
+                    </a>{" "}
+                    → buat app bernama "SI-TRACK TANAH" → salin password 16 karakter.
+                  </li>
+                  <li>Tempel App Password 16 karakter di kolom di atas (tanpa spasi).</li>
+                  <li>Klik <span className="font-semibold">Simpan</span>, lalu <span className="font-semibold">Test Email</span> di bawah.</li>
+                </ol>
+                <p className="mt-2 text-amber-600">
+                  Catatan: Jangan gunakan password Gmail biasa — Google akan menolak. App Password wajib digunakan.
+                </p>
+              </details>
+            </div>
+          )}
+
+          {/* smtp_api specific */}
           {emailProvider === "smtp_api" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
               <div className="space-y-1.5 sm:col-span-2">
@@ -1208,11 +1383,27 @@ function NotifySection({
               </p>
             </div>
           )}
+
+          {/* Email From (only for smtp_api / log) */}
+          {emailProvider !== "gmail" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Email Pengirim (From)</Label>
+                <Input
+                  type="email"
+                  value={settings.notify_email_from ?? ""}
+                  onChange={(e) => updateSetting("notify_email_from", e.target.value)}
+                  placeholder="noreply@kelurahan.go.id"
+                />
+              </div>
+            </div>
+          )}
+
           {emailProvider === "log" && (
             <p className="text-[11px] text-amber-600 mt-3 leading-snug flex items-start gap-1.5">
               <TestTube2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
               <span>
-                <span className="font-semibold">Mode Log aktif:</span> Email tidak benar-benar dikirim — body email hanya dicetak di server log. Berguna untuk development. Untuk produksi, ganti ke <span className="font-semibold">SMTP API Bridge</span>.
+                <span className="font-semibold">Mode Log aktif:</span> Email tidak benar-benar dikirim — body email hanya dicetak di server log. Berguna untuk development. Untuk produksi, gunakan <span className="font-semibold">Gmail</span> (gratis, paling mudah) atau <span className="font-semibold">SMTP API Bridge</span>.
               </span>
             </p>
           )}
@@ -1254,7 +1445,12 @@ function NotifySection({
                 variant="outline"
                 size="sm"
                 onClick={() => handleTest("email")}
-                disabled={testingEmail || !emailEnabled}
+                disabled={testingEmail || !emailEnabled || (emailProvider === "gmail" && !gmailReady)}
+                title={
+                  emailProvider === "gmail" && !gmailReady
+                    ? "Lengkapi Gmail User & App Password sebelum menguji"
+                    : undefined
+                }
                 className="border-blue-500/40 text-blue-600 hover:bg-blue-500/10"
               >
                 {testingEmail ? (
@@ -1426,5 +1622,236 @@ function TemplateEditor({
         className="text-xs font-mono leading-relaxed resize-y"
       />
     </div>
+  );
+}
+
+/* ============================================================
+   Section 7 — SLA (Service Level Agreement) Tracking
+   ============================================================ */
+const SLA_FIELDS = [
+  "sla_warning_threshold_pct",
+  "sla_pengajuan_hours",
+  "sla_cek_admin_hours",
+  "sla_verifikasi_lapangan_hours",
+  "sla_pengukuran_hours",
+  "sla_pembuatan_surat_hours",
+  "sla_ttd_lurah_hours",
+  "sla_ttd_camat_hours",
+  "sla_revisi_hours",
+  "sla_total_target_hours",
+  "sla_alert_atasan_enabled",
+];
+
+interface SlaStageDef {
+  key: string;
+  label: string;
+  kode: string;
+  warna: string;
+  icon: any;
+}
+
+const SLA_STAGES: SlaStageDef[] = [
+  { key: "sla_pengajuan_hours", label: "Pengajuan Diterima", kode: "PENGAJUAN", warna: "#3b82f6", icon: FileDigit },
+  { key: "sla_cek_admin_hours", label: "Cek Administrasi", kode: "CEK_ADMIN", warna: "#0891b2", icon: CheckCircle2 },
+  { key: "sla_verifikasi_lapangan_hours", label: "Verifikasi Lapangan", kode: "VERIFIKASI_LAPANGAN", warna: "#0d9488", icon: MapPin },
+  { key: "sla_pengukuran_hours", label: "Pengukuran Tanah", kode: "PENGUKURAN", warna: "#ca8a04", icon: Ruler },
+  { key: "sla_pembuatan_surat_hours", label: "Pembuatan Surat", kode: "PEMBUATAN_SURAT", warna: "#d4af37", icon: FileText },
+  { key: "sla_ttd_lurah_hours", label: "TTD Lurah", kode: "TTD_LURAH", warna: "#eab308", icon: ShieldCheck },
+  { key: "sla_ttd_camat_hours", label: "TTD Camat", kode: "TTD_CAMAT", warna: "#f59e0b", icon: Stamp },
+  { key: "sla_revisi_hours", label: "Perbaikan Dokumen (REVISI)", kode: "REVISI", warna: "#f97316", icon: AlertTriangle },
+];
+
+function SlaSection({
+  settings,
+  updateSetting,
+  activeSection,
+  saving,
+  onSaveSection,
+}: {
+  settings: Record<string, string>;
+  updateSetting: (key: string, value: string) => void;
+  activeSection: string | null;
+  saving: boolean;
+  onSaveSection: (keys: string[]) => void;
+}) {
+  const warningPct = parseInt(settings.sla_warning_threshold_pct || "80");
+  const totalTargetHours = parseInt(settings.sla_total_target_hours || "336");
+  const totalTargetDays = Math.round((totalTargetHours / 24) * 10) / 10;
+  const alertEnabled = (settings.sla_alert_atasan_enabled ?? "true") === "true";
+
+  // Helper: format hours → "1 hari 2 jam"
+  const fmt = (h: number) => {
+    const d = Math.floor(h / 24);
+    const r = h % 24;
+    if (d > 0 && r > 0) return `${d} hari ${r} jam`;
+    if (d > 0) return `${d} hari`;
+    return `${r} jam`;
+  };
+
+  return (
+    <Card className="glass-card border-primary/15">
+      <CardContent className="p-6 space-y-5">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+              <Timer className="w-4 h-4 text-amber-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base leading-tight">SLA (Service Level Agreement)</h3>
+              <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                Atur target waktu penyelesaian per tahapan. Lurah/Atasan dapat memantau permohonan yang melebihi SLA
+                pada menu <span className="font-semibold">Pelacakan SLA</span>.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => onSaveSection(SLA_FIELDS)}
+            disabled={saving}
+          >
+            {saving && activeSection === "sla_warning_threshold_pct" ? (
+              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5 mr-1.5" />
+            )}
+            Simpan
+          </Button>
+        </div>
+        <Separator className="opacity-50" />
+
+        {/* Global SLA config */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/[0.03] space-y-2">
+            <div className="flex items-center gap-2">
+              <Gauge className="w-4 h-4 text-amber-500" />
+              <p className="text-xs font-semibold">Ambang Batas Peringatan</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-snug">
+              Persentase SLA yang tercapai sebelum permohonan ditandai &quot;warning&quot; (mendekati terlambat).
+            </p>
+            <div className="flex items-center gap-3">
+              <Input
+                type="number"
+                min={50}
+                max={100}
+                value={settings.sla_warning_threshold_pct ?? "80"}
+                onChange={(e) => updateSetting("sla_warning_threshold_pct", e.target.value)}
+                className="w-20"
+              />
+              <span className="text-sm font-semibold">%</span>
+              <div className="flex-1 h-2 bg-muted/30 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-green-500 via-amber-500 to-red-500"
+                  style={{ width: `${warningPct}%` }}
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground">
+              Contoh: 80% berarti permohonan yang telah menghabiskan 80%+ SLA tahapan akan ditandai <span className="text-amber-500 font-semibold">warning</span>, di atas 100% = <span className="text-red-500 font-semibold">breach (terlambat)</span>.
+            </p>
+          </div>
+
+          <div className="p-3 rounded-lg border border-primary/20 bg-primary/[0.03] space-y-2">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-primary" />
+              <p className="text-xs font-semibold">Target Total Penyelesaian</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-snug">
+              Target keseluruhan waktu pemrosesan dari pengajuan hingga selesai.
+            </p>
+            <div className="flex items-center gap-3">
+              <Input
+                type="number"
+                min={24}
+                step={24}
+                value={settings.sla_total_target_hours ?? "336"}
+                onChange={(e) => updateSetting("sla_total_target_hours", e.target.value)}
+                className="w-24"
+              />
+              <span className="text-sm font-semibold">jam</span>
+              <span className="text-xs text-muted-foreground">≈ {fmt(totalTargetHours)} ({totalTargetDays} hari)</span>
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                <Bell className="w-3 h-3" /> Notifikasi Atasan saat SLA breach
+              </p>
+              <Switch
+                checked={alertEnabled}
+                onCheckedChange={(v) => updateSetting("sla_alert_atasan_enabled", v ? "true" : "false")}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Per-stage SLA grid */}
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <p className="text-sm font-semibold">Target SLA per Tahapan</p>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3 leading-snug">
+            Tentukan berapa lama maksimum sebuah permohonan boleh berada di setiap tahapan. Jika melebihi target,
+            Lurah/Atasan akan melihat indikator <span className="text-red-500 font-semibold">SLA Terlambat</span>.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {SLA_STAGES.map((stage) => {
+              const Icon = stage.icon;
+              const val = parseInt(settings[stage.key] || "0");
+              return (
+                <div
+                  key={stage.key}
+                  className="rounded-lg border border-border/40 bg-input/10 p-3 space-y-1.5"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${stage.warna}1a`, border: `1px solid ${stage.warna}55` }}
+                    >
+                      <Icon className="w-3.5 h-3.5" style={{ color: stage.warna }} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold truncate">{stage.label}</p>
+                      <p className="text-[9px] font-mono text-muted-foreground">{stage.kode}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={settings[stage.key] ?? ""}
+                      onChange={(e) => updateSetting(stage.key, e.target.value)}
+                      className="h-8 text-xs w-20"
+                    />
+                    <span className="text-[11px] text-muted-foreground">jam</span>
+                    <span className="ml-auto text-[10px] text-muted-foreground">{val ? fmt(val) : "—"}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Info box */}
+        <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+          <div className="flex items-start gap-2">
+            <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+            <div className="text-[11px] leading-snug text-muted-foreground">
+              <span className="font-semibold text-foreground">Bagaimana SLA dihitung?</span> Sistem mengambil
+              timestamp saat permohonan masuk ke tahapan saat ini (dari Riwayat Proses), lalu membandingkannya dengan
+              waktu sekarang. Selisih dibandingkan dengan target di tabel di atas. Status:
+              <span className="text-green-500 font-semibold"> On-Track</span> (≤ 80% SLA terpakai) ·
+              <span className="text-amber-500 font-semibold"> Warning</span> (80–100%) ·
+              <span className="text-red-500 font-semibold"> Breach</span> (&gt; 100% / melebihi target).
+              <br />
+              Lurah/Atasan dapat memantau di menu <span className="font-semibold">Pelacakan SLA</span> pada sidebar.
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

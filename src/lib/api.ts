@@ -1,5 +1,5 @@
 // SI-TRACK TANAH — client-side API helpers
-import type { AppUser } from "@/lib/types";
+import type { AppUser, SlaItem, SlaSummary } from "@/lib/types";
 
 async function req<T = any>(url: string, opts: RequestInit = {}): Promise<T> {
   const res = await fetch(url, {
@@ -82,7 +82,21 @@ export const api = {
   // master
   jenisSurat: () => req<{ items: any[] }>("/api/jenis-surat"),
   createJenisSurat: (body: any) => req<{ item: any }>("/api/jenis-surat", { method: "POST", body: JSON.stringify(body) }),
+  updateJenisSurat: (id: string, body: any) =>
+    req<{ item: any }>(`/api/jenis-surat/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteJenisSurat: (id: string) =>
+    req<{ ok: boolean }>(`/api/jenis-surat/${id}`, { method: "DELETE" }),
   statusProses: () => req<{ items: any[] }>("/api/status-proses"),
+
+  // SLA tracking (atasan/admin)
+  sla: (filter?: "all" | "warning" | "breach") => {
+    const q = new URLSearchParams();
+    if (filter) q.set("filter", filter);
+    const qs = q.toString();
+    return req<{ summary: SlaSummary; items: SlaItem[] }>(
+      `/api/sla${qs ? `?${qs}` : ""}`
+    );
+  },
 
   // users
   users: () => req<{ items: any[] }>("/api/users"),

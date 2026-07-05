@@ -1880,3 +1880,142 @@ Added 3 new fields to the `Dokumen` model:
 6. **Pemohon delete own upload (within time window)**: Allow pemohon to delete their own revision uploads within 1 hour of upload (before petugas verification)
 7. **Multi-revision rounds**: Track which "round" of revision each upload belongs to (in case petugas requests revision multiple times). Add `revisionRound` field to Dokumen.
 8. **Continue with previously-queued features**: dashboard comparison charts, PWA polish, map integration, PDF export polish, server-side MIME validation for all uploads, move uploads out of public/ to S3-compatible storage
+
+---
+Task ID: 19
+Agent: main
+Task: Jenis Surat Tanah tidak dapat di edit/di hapus → enable edit/delete; tambahkan konfigurasi email google (Gmail SMTP); tambahkan fitur pelacakan SLA agar lurah/atasan dapat memantau melebihi dari aturan yang tertuang.
+
+## Current Project Status Assessment
+Project was stable after Task 18 (revision upload by pemohon). User reported three new requirements:
+1. Jenis Surat Tanah could not be edited/deleted (only create was possible) — needed edit & delete capability with referential-integrity protection
+2. Add Google Mail (Gmail) configuration so the system can actually send emails via smtp.gmail.com using App Password
+3. Add SLA (Service Level Agreement) tracking so Lurah/Atasan can monitor permohonan that exceed the regulated time targets per stage
+
+## Work Completed
+
+### Part A — Jenis Surat Edit/Delete (`/api/jenis-surat/[id]`)
+**Files:**
+- NEW: `src/app/api/jenis-surat/[id]/route.ts` (PUT + DELETE)
+- Updated: `src/app/api/jenis-surat/route.ts` — GET now includes `_count.permohonan`
+- Updated: `src/components/app/admin/JenisSuratManagement.tsx` — added Edit dialog + Delete confirmation + Power toggle
+- Updated: `src/lib/api.ts` — `updateJenisSurat(id, body)` + `deleteJenisSurat(id)`
+
+**Behavior:**
+- `PUT /api/jenis-surat/[id]` (ADMIN only): updates nama/deskripsi/butuhPengukuran/butuhTtdCamat/isActive. Rejects `kode` change with HTTP 400 ("Kode jenis surat tidak dapat diubah setelah dibuat (kunci unik)."). Writes UPDATE audit log.
+- `DELETE /api/jenis-surat/[id]` (ADMIN only): if `_count.permohonan > 0` → HTTP 409 with helpful error ("Tidak dapat menghapus jenis surat X karena masih digunakan oleh N permohonan. Nonaktifkan (set isActive=false) sebagai gantinya."). Otherwise deletes + writes DELETE audit log.
+- UI: each card now has 3 action buttons (Edit ✏️, Power toggle on/off, Delete 🗑️). Delete button is disabled (with Lock icon) when the jenis has permohonan references. A warning message at the bottom of each card shows "Digunakan oleh N permohonan — tidak dapat dihapus" when applicable.
+- Edit dialog: kode field is disabled (read-only) with lock icon + amber hint "Kode merupakan kunci unik dan tidak dapat diubah setelah dibuat." Other fields (nama, deskripsi, switches for pengukuran/camat/aktif) are editable.
+- Delete confirmation uses AlertDialog with red theme ("Hapus Permanen" button).
+
+### Part B — Google Email (Gmail SMTP) Configuration
+**Files:**
+- Updated: `src/lib/notify.ts` — `sendEmail()` now supports 3 providers: `log`, `gmail`, `smtp_api`
+- Updated: `src/components/app/admin/SettingsManagement.tsx`:
+  - DEFAULTS: added `notify_email_from_name`, `notify_email_gmail_user`, `notify_email_gmail_app_password`
+  - NOTIFY_FIELDS: added 2 new keys
+  - NotifySection: provider select now has "Google Mail (Gmail SMTP — smtp.gmail.com)" option; "Preset Gmail" quick-fill button; Gmail-specific config block (Gmail User + App Password with show/hide); status banner (green when ready / amber when incomplete); collapsible `<details>` setup guide with step-by-step instructions and links to myaccount.google.com/apppasswords; "Test Email" button disabled when provider=gmail but creds missing
+- Installed: `nodemailer@9.0.3` + `@types/nodemailer@8.0.1` (dev)
+
+**Gmail SMTP details:**
+- Provider = `gmail`: lazy-imports `nodemailer`, creates transport with `service: "gmail"`, `host: "smtp.gmail.com"`, `port: 465`, `secure: true`, auth user = `notify_email_gmail_user`, pass = `notify_email_gmail_app_password`
+- Sends with `from: "${fromName} <${gmailUser}>"`, plain-text fallback generated from HTML
+- Helpful error messages:
+  - Missing Gmail User → "Email Google (Gmail) belum dikonfigurasi — isi Gmail User di pengaturan."
+  - Missing App Password → "App Password Google belum diisi. Buat di https://myaccount.google.com/apppasswords"
+  - Auth failure (535/5.7.1/EAUTH) → "Autentikasi Gmail gagal — periksa Gmail User & App Password. Pastikan 2FA aktif & gunakan App Password 16 karakter (bukan password biasa)."
+  - Network errors → "Tidak dapat terhubung ke smtp.gmail.com — periksa koneksi internet / firewall."
+- From Name defaults to `nama_kelurahan` setting (e.g. "Kelurahan Kuala Pembuang II")
+
+### Part C — SLA Tracking Feature
+**Files:**
+- NEW: `src/app/api/sla/route.ts` — `GET /api/sla?filter=all|warning|breach` (ADMIN+ATASAN)
+- NEW: `src/components/app/shared/SlaTracking.tsx` — full SLA dashboard component (~480 lines)
+- Updated: `src/lib/types.ts` — added `SlaItem`, `SlaSummary`, `SlaStatus` types + `"sla"` AppView
+- Updated: `src/lib/api.ts` — added `sla(filter)` method
+- Updated: `src/components/app/admin/SettingsManagement.tsx`:
+  - DEFAULTS: 11 new SLA keys (`sla_warning_threshold_pct`, 8 per-stage hours, `sla_total_target_hours`, `sla_alert_atasan_enabled`)
+  - NEW SlaSection component (Section 7): warning threshold %, total target hours, per-stage grid (8 stages with colored icons), info box explaining how SLA is computed
+- Updated: `src/components/app/AppShell.tsx` — added Timer icon import, "Pelacakan SLA" nav item (ADMIN+ATASAN), `sla` in VIEW_LABELS, `sla` in menu group of getSections
+- Updated: `src/app/page.tsx` — added `case "sla"` to renderView switch
+
+**SLA calculation:**
+- For each in-progress permohonan (not SELESAI/DITOLAK):
+  - `statusEnteredAt` = createdAt of the latest RiwayatProses row matching current status (fallback: latest riwayat, or permohonan.createdAt)
+  - `elapsedHours` = (now - statusEnteredAt) / 3600000
+  - `slaHours` = from Settings `sla_<kode_lowercase>_hours` (fallback to built-in defaults: PENGAJUAN=24h, CEK_ADMIN=48h, VERIFIKASI_LAPANGAN=72h, PENGUKURAN=72h, PEMBUATAN_SURAT=48h, TTD_LURAH=24h, TTD_CAMAT=48h, REVISI=168h)
+  - `progressPct` = (elapsedHours / slaHours) × 100 (rounded to 1 decimal)
+  - `slaStatus`:
+    - `breach` if elapsedHours ≥ slaHours
+    - `warning` if progressPct ≥ warningPct (default 80)
+    - `on_track` otherwise
+  - `ageDays` = (now - permohonan.createdAt) in days
+- Summary: total, onTrack, warning, breach counts + avgDays + breachRate (%)
+- Default filter `all` returns all; `warning` returns only warning; `breach` returns only breach
+- Sort: breach first → warning → on_track; within each group by elapsedHours desc (oldest first)
+
+**SlaTracking component UI:**
+- 4 summary cards (Total, On-Track, Mendekati Terlambat, Terlambat with pulse animation when >0)
+- Red breach alert banner with "Lihat yang Terlambat" button (when breach > 0)
+- 3 secondary stat cards (avg age days, breach rate %, perlu perhatian count)
+- Filter chips: Semua / Mendekati Terlambat / Terlambat (Breach) with live counts
+- Each permohonan row: nomor register, SLA status badge (green/amber/red), status tahapan badge, prioritas, age, pemohon info, jenis surat, petugas, status entered date, SLA progress bar with 80% warning marker, elapsed/target/sisa-or-terlambat text, last catatan, click-to-detail
+- Info box at bottom explains SLA computation + link to Pengaturan > SLA
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile, no runtime errors
+- **API tests** (curl):
+  - `GET /api/jenis-surat` → returns items with `_count.permohonan` ✓
+  - `PUT /api/jenis-surat/[id]` with valid fields → 200 with updated item ✓
+  - `PUT /api/jenis-surat/[id]` with kode change → 400 "Kode jenis surat tidak dapat diubah setelah dibuat (kunci unik)." ✓
+  - `DELETE /api/jenis-surat/[id]` with permohonan references → 409 with helpful error + permohonanCount ✓
+  - `GET /api/sla` → returns summary {total:6, onTrack:5, warning:0, breach:1, avgDays:2.5, breachRate:16.7} + 6 items, Maryam at top as breach ✓
+  - `POST /api/settings/notify/test` with provider=log → 200 OK (log mode) ✓
+  - Switched provider to gmail (no creds) → test returns `{ok:false, error:"Email Google (Gmail) belum dikonfigurasi — isi Gmail User di pengaturan."}` ✓
+  - Reverted to log ✓
+- **Agent-browser E2E tests**:
+  - Admin login → Dashboard → "Pelacakan SLA" nav item visible → click → SLA page renders with 4 summary cards, breach alert banner ("1 permohonan melebihi SLA!"), filter chips with breach count badge, 6 permohonan rows with Maryam as breach at top
+  - Click "Terlambat (Breach)" filter → only 1 row (Maryam) shows ✓
+  - Navigate to Jenis Surat → 6 cards each with Edit/Power/Delete buttons → 5 cards have disabled Delete with "Tidak dapat dihapus — masih digunakan oleh N permohonan" tooltip + Lock icon → 6th card (no permohonan) has enabled Delete
+  - Click Edit → dialog opens with kode disabled (read-only) + amber hint, all other fields editable + "Status Aktif" switch (only in edit mode) ✓
+  - Click Delete on enabled card → AlertDialog opens with "Hapus Jenis Surat?" title + "Hapus Permanen" red button → Cancel works ✓
+  - Navigate to Pengaturan → scroll → "Konfigurasi Email" section with "Preset Gmail" quick button + provider select with "Google Mail (Gmail SMTP — smtp.gmail.com)" option ✓
+  - Click "Preset Gmail" → Gmail-specific block appears: Gmail User input, App Password input with show/hide, status banner "Belum lengkap", collapsible "Panduan Setup Gmail" with step-by-step ✓
+  - Scroll further → "SLA (Service Level Agreement)" section renders with "Ambang Batas Peringatan" (80% with gradient bar), "Target Total Penyelesaian" (336 jam ≈ 14 hari), per-stage grid (8 stages with colored icons), info box ✓
+  - Logout → Login as Lurah → "Pelacakan SLA" nav visible → click → SLA page renders correctly with breach banner + Maryam row ✓
+
+## Files Changed (summary)
+- NEW: `src/app/api/jenis-surat/[id]/route.ts` (~110 lines)
+- NEW: `src/app/api/sla/route.ts` (~165 lines)
+- NEW: `src/components/app/shared/SlaTracking.tsx` (~480 lines)
+- Updated: `src/app/api/jenis-surat/route.ts` (GET includes _count)
+- Updated: `src/lib/notify.ts` (sendEmail supports gmail provider via nodemailer)
+- Updated: `src/lib/types.ts` (SlaItem, SlaSummary, SlaStatus, "sla" AppView)
+- Updated: `src/lib/api.ts` (updateJenisSurat, deleteJenisSurat, sla methods + SlaItem/SlaSummary imports)
+- Updated: `src/components/app/admin/JenisSuratManagement.tsx` (Edit dialog, Delete AlertDialog, Power toggle, _count badge)
+- Updated: `src/components/app/admin/SettingsManagement.tsx` (Gmail config UI + SlaSection + new defaults + icons)
+- Updated: `src/components/app/AppShell.tsx` (Timer icon, sla nav item, sla view label, sla in menu group)
+- Updated: `src/app/page.tsx` (sla case in renderView + SlaTracking import)
+- Installed: `nodemailer@9.0.3`, `@types/nodemailer@8.0.1`
+
+## Stage Summary
+- **Jenis Surat Tanah** can now be EDITED (nama, deskripsi, butuhPengukuran, butuhTtdCamat, isActive) and DELETED (when no permohonan references it). Kode is immutable. When references exist, delete is blocked with HTTP 409 and a helpful message; admins can soft-deactivate (toggle isActive=false) instead. Each card shows the permohonan reference count.
+- **Google Email (Gmail SMTP)** configuration is now available in Pengaturan → Notifikasi → Konfigurasi Email. Admin selects "Google Mail" provider → fills Gmail User + App Password (16-char) → system sends emails directly via smtp.gmail.com:465 using nodemailer. Includes step-by-step setup guide, status banner (ready/incomplete), and clear error messages for auth failures. Test Email button is disabled until creds are filled.
+- **SLA Tracking** feature is live. Admin/Lurah (ATASAN) can navigate to "Pelacakan SLA" in sidebar to see all in-progress permohonan with their SLA status (On-Track / Warning / Breach), elapsed vs target hours, progress bar with 80% warning marker, breach alert banner, summary cards, and filter chips. SLA targets are configurable per-stage in Pengaturan → SLA section (8 stages + warning threshold + total target + alert toggle). One permohonan (Maryam, TTD_LURAH, 119% SLA) shows as breach in test data.
+- Lint: 0 errors. No runtime errors. All 3 features verified end-to-end via agent-browser.
+
+## Unresolved Issues / Risks
+- **Nodemailer cold-start latency**: First Gmail send lazy-imports nodemailer (~200-500ms). Subsequent sends are fast. Acceptable trade-off vs. always-loading nodemailer for all requests.
+- **App Password storage**: stored in plaintext in Settings table. Same as the existing Fonnte token. Acceptable for the threat model (admin-only access, server-side DB). Future enhancement: encrypt secrets at rest.
+- **SLA "warning threshold" is global, not per-stage**: a single 80% threshold applies to all stages. If different stages need different thresholds, future enhancement: add `sla_<kode>_warning_pct` keys.
+- **No automatic SLA breach notifications**: SLA breach is visible on the dashboard but doesn't auto-fire an email/WA to the Lurah. The `sla_alert_atasan_enabled` setting is wired up but not yet consumed by a background job. Future enhancement: add a cron/minijob that scans for new breaches and dispatches `dispatchPermohonanNotification` with a new "SLA_BREACH" trigger.
+- **SLA is computed on-demand (no caching)**: each GET /api/sla iterates all in-progress permohonan + their riwayat. Fine for hundreds of records; for thousands, consider caching with TTL or a materialized "current_stage_entered_at" column on Permohonan.
+
+## Priority Recommendations for Next Round
+1. **Auto-notify Lurah on SLA breach**: Implement a background job (or piggyback on the cron webDevReview) that detects new SLA breaches and creates an in-app notification for the Lurah + optionally an email (using the new Gmail provider!)
+2. **Materialize `statusEnteredAt` on Permohonan**: Add a column to track when the current status was entered, updated on every status change. This avoids the N+1 riwayat lookup in /api/sla.
+3. **SLA breach history**: Track each breach event (when it crossed 100%) in a new table so the Lurah can see "this permohonan breached SLA 3 times across 2 stages".
+4. **Jenis Surat reorder**: Add drag-and-drop reordering of jenis surat (currently sorted by createdAt).
+5. **Per-stage SLA warning threshold**: Allow different warning thresholds per stage (e.g., 70% for TTD_LURAH but 90% for PEMBUATAN_SURAT).
+6. **Gmail send quota monitor**: Track daily email send count to stay under Gmail's 500/day limit; show a warning in the admin dashboard.

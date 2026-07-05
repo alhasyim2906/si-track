@@ -18,6 +18,7 @@ import { JenisSuratManagement } from "@/components/app/admin/JenisSuratManagemen
 import { SettingsManagement } from "@/components/app/admin/SettingsManagement";
 import { ProfileSettings } from "@/components/app/shared/ProfileSettings";
 import { NotificationCenter } from "@/components/app/shared/NotificationCenter";
+import { SlaTracking } from "@/components/app/shared/SlaTracking";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
@@ -104,6 +105,8 @@ export default function Home() {
         return <PermohonanDetail />;
       case "laporan":
         return <Reports />;
+      case "sla":
+        return user.role === "ADMIN" || user.role === "ATASAN" ? <SlaTracking /> : <PublicTracking />;
       case "audit-log":
         return user.role === "ADMIN" ? <AuditLogView /> : <PublicTracking />;
       case "users":
