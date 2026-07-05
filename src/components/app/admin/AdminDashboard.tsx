@@ -4,10 +4,10 @@ import { useEffect, useState, useMemo, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 import { SectionHeader } from "@/components/app/StatCard";
+import { SmallBox } from "@/components/app/SmallBox";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { STATUS_BY_KODE } from "@/lib/constants";
 import type { DashboardStats } from "@/lib/types";
-import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -73,45 +73,6 @@ function relativeTime(date: string): string {
   const mon = Math.floor(day / 30);
   if (mon < 12) return `${mon} bulan lalu`;
   return `${Math.floor(mon / 12)} tahun lalu`;
-}
-
-/* ============================================================
-   AdminLTE 4 — Small Box widget (signature dashboard widget)
-   Module-level component (satisfies react-hooks/static-components).
-   ============================================================ */
-type SmallBoxVariant = "primary" | "success" | "info" | "warning" | "danger" | "gold";
-
-function SmallBox({
-  number,
-  label,
-  icon: Icon,
-  variant,
-  onClick,
-}: {
-  number: number | string;
-  label: string;
-  icon: any;
-  variant: SmallBoxVariant;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={cn("alte-small-box", `sb-${variant}`)}
-      onClick={onClick}
-    >
-      <div className="sb-inner">
-        <div className="sb-text">
-          <div className="sb-number">{number}</div>
-          <div className="sb-label">{label}</div>
-        </div>
-      </div>
-      <Icon className="sb-icon" />
-      <span className="sb-footer">
-        More info <span className="sb-arrow">›</span>
-      </span>
-    </button>
-  );
 }
 
 interface ChartTooltipProps {

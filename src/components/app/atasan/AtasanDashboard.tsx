@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
-import { StatCard, SectionHeader } from "@/components/app/StatCard";
+import { SectionHeader } from "@/components/app/StatCard";
+import { SmallBox } from "@/components/app/SmallBox";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { STATUS_BY_KODE } from "@/lib/constants";
 import type { DashboardStats } from "@/lib/types";
@@ -129,39 +130,41 @@ export function AtasanDashboard() {
         icon={ShieldCheck}
       />
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard
+      {/* Stat Small Box widgets (AdminLTE 4 style) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <SmallBox
+          number={pending.length}
           label="Menunggu Persetujuan Saya"
-          value={pending.length}
           icon={PenTool}
-          accent="#eab308"
-          hint="Perlu ditindaklanjuti"
+          variant="warning"
+          footerText="Perlu ditindaklanjuti"
           onClick={() => {
             if (pending[0]) selectPermohonan(pending[0].id);
             else setView("permohonan");
           }}
         />
-        <StatCard
+        <SmallBox
+          number={stats.selesai}
           label="Surat Selesai"
-          value={stats.selesai}
           icon={CheckCircle2}
-          accent="#16a34a"
+          variant="success"
+          footerText="Total selesai"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={stats.diproses}
           label="Total Diproses"
-          value={stats.diproses}
           icon={Loader}
-          accent="#0891b2"
+          variant="info"
+          footerText="Sedang berjalan"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={`${stats.avgDays}h`}
           label="Rata-rata Penyelesaian"
-          value={`${stats.avgDays} hari`}
           icon={Clock}
-          accent="#d4af37"
-          hint="Dari pengajuan sampai selesai"
+          variant="gold"
+          footerText="Dari pengajuan sampai selesai"
         />
       </div>
 
@@ -189,7 +192,7 @@ export function AtasanDashboard() {
           {pending.length === 0 ? (
             <div className="py-14 flex flex-col items-center justify-center text-center gap-3">
               <div className="w-14 h-14 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center">
-                <CheckCircle2 className="w-7 h-7 text-green-400" />
+                <CheckCircle2 className="w-7 h-7 text-green-600" />
               </div>
               <div>
                 <p className="font-semibold">Tidak ada permohonan yang menunggu persetujuan</p>
@@ -326,11 +329,11 @@ export function AtasanDashboard() {
               </div>
               <div className="flex items-center justify-between py-1.5 border-b border-border/60">
                 <span className="text-xs text-muted-foreground">Selesai</span>
-                <span className="font-bold text-green-400">{stats.selesai}</span>
+                <span className="font-bold text-green-600">{stats.selesai}</span>
               </div>
               <div className="flex items-center justify-between py-1.5 border-b border-border/60">
                 <span className="text-xs text-muted-foreground">Ditolak</span>
-                <span className="font-bold text-red-400">{stats.ditolak}</span>
+                <span className="font-bold text-red-600">{stats.ditolak}</span>
               </div>
               <div className="flex items-center justify-between py-1.5">
                 <span className="text-xs text-muted-foreground">Rata-rata</span>

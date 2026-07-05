@@ -9,6 +9,7 @@ import { StatusBadge, PriorityBadge } from "@/components/app/StatusBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -21,6 +22,7 @@ import { toast } from "sonner";
 import {
   PlusCircle, Search, FileText, ChevronLeft, ChevronRight,
   Inbox, Loader2, Eye, Hash, User, Calendar, Files, MessageSquare,
+  Download, X, CheckSquare,
 } from "lucide-react";
 
 const PER_PAGE_OPTIONS = ["10", "20", "50"];
@@ -50,6 +52,9 @@ export function PermohonanList() {
   const [limit, setLimit] = useState<string>("10");
   const [page, setPage] = useState(1);
 
+  // bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // debounce search input
   useEffect(() => {
     const t = setTimeout(() => {
@@ -72,6 +77,8 @@ export function PermohonanList() {
       const r = await api.listPermohonan(params);
       setItems(r.items || []);
       setTotal(r.total || 0);
+      // clear selection when page/filter changes
+      setSelectedIds(new Set());
     } catch (e: any) {
       setError(e.message || "Gagal memuat data");
       toast.error(e.message || "Gagal memuat data permohonan");
@@ -85,6 +92,71 @@ export function PermohonanList() {
   }, [fetchList]);
 
   const totalPages = Math.max(1, Math.ceil(total / Number(limit || 10)));
+
+  // ---- bulk selection helpers ----
+  const allOnPageSelected = items.length > 0 && items.every((it) => selectedIds.has(it.id));
+  const someOnPageSelected = items.some((it) => selectedIds.has(it.id));
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) {
+        // deselect all on this page
+        items.forEach((it) => next.delete(it.id));
+      } else {
+        // select all on this page
+        items.forEach((it) => next.add(it.id));
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  // ---- CSV export (selected items) ----
+  const exportSelectedCsv = () => {
+    const selected = items.filter((it) => selectedIds.has(it.id));
+    if (selected.length === 0) {
+      toast.error("Tidak ada item terpilih untuk diekspor");
+      return;
+    }
+    const headers = [
+      "Nomor Register", "Nama Pemohon", "NIK", "Jenis Surat",
+      "Status", "Prioritas", "Dibuat", "Selesai", "Keperluan",
+    ];
+    const rows = selected.map((it) => [
+      it.nomorRegister,
+      it.pemohonNama,
+      it.pemohonNik,
+      it.jenisSurat?.nama || "-",
+      it.statusNama || it.statusSaatIni,
+      it.prioritas || "NORMAL",
+      it.createdAt ? new Date(it.createdAt).toLocaleDateString("id-ID") : "-",
+      it.tanggalSelesai ? new Date(it.tanggalSelesai).toLocaleDateString("id-ID") : "-",
+      (it.keperluan || "-").replace(/[\n\r,]/g, " "),
+    ]);
+    const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map((r) => r.map(escape).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `permohonan-terpilih-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`${selected.length} permohonan diekspor ke CSV`);
+  };
 
   return (
     <div className="container mx-auto max-w-7xl px-4 py-6 space-y-5">
@@ -215,6 +287,45 @@ export function PermohonanList() {
         </Card>
       )}
 
+      {/* Bulk action bar (appears when items are selected) */}
+      {selectedIds.size > 0 && (
+        <Card className="glass-card border-primary/40 navy-glow animate-fade-in-up">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0">
+                  <CheckSquare className="w-4.5 h-4.5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">
+                    {selectedIds.size} permohonan terpilih
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Pilih item untuk ekspor massal ke CSV
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={exportSelectedCsv}
+                  className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export CSV ({selectedIds.size})
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={clearSelection}
+                >
+                  <X className="w-3.5 h-3.5" /> Batal Pilih
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Table (desktop) */}
       {!loading && !error && items.length > 0 && (
         <>
@@ -223,7 +334,14 @@ export function PermohonanList() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-border/60 hover:bg-transparent">
-                    <TableHead className="pl-4">Nomor Register</TableHead>
+                    <TableHead className="w-[44px] pl-4">
+                      <Checkbox
+                        checked={allOnPageSelected ? true : someOnPageSelected ? "indeterminate" : false}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Pilih semua di halaman ini"
+                      />
+                    </TableHead>
+                    <TableHead>Nomor Register</TableHead>
                     <TableHead>Pemohon</TableHead>
                     <TableHead>Jenis Surat</TableHead>
                     <TableHead>Status</TableHead>
@@ -233,54 +351,64 @@ export function PermohonanList() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((it) => (
-                    <TableRow
-                      key={it.id}
-                      className="cursor-pointer border-border/40"
-                      onClick={() => selectPermohonan(it.id)}
-                    >
-                      <TableCell className="pl-4">
-                        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2 py-1 rounded-md border border-primary/30 bg-primary/5 text-primary font-semibold">
-                          <Hash className="w-3 h-3" />
-                          {it.nomorRegister}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-sm">{it.pemohonNama}</span>
-                          <span className="text-[11px] text-muted-foreground font-mono">{it.pemohonNik}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
-                        {it.jenisSurat?.nama || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge kode={it.statusSaatIni} nama={it.statusNama} size="sm" />
-                      </TableCell>
-                      <TableCell>
-                        {it.prioritas && it.prioritas !== "NORMAL" ? (
-                          <PriorityBadge prioritas={it.prioritas} />
-                        ) : (
-                          <span className="text-[11px] text-muted-foreground">Normal</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(it.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-right pr-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            selectPermohonan(it.id);
-                          }}
-                        >
-                          <Eye className="w-3.5 h-3.5" /> Detail
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {items.map((it) => {
+                    const isSelected = selectedIds.has(it.id);
+                    return (
+                      <TableRow
+                        key={it.id}
+                        className={"cursor-pointer border-border/40 " + (isSelected ? "bg-primary/8" : "")}
+                        onClick={() => selectPermohonan(it.id)}
+                      >
+                        <TableCell className="pl-4" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSelectOne(it.id)}
+                            aria-label={`Pilih ${it.nomorRegister}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] px-2 py-1 rounded-md border border-primary/30 bg-primary/5 text-primary font-semibold">
+                            <Hash className="w-3 h-3" />
+                            {it.nomorRegister}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-sm">{it.pemohonNama}</span>
+                            <span className="text-[11px] text-muted-foreground font-mono">{it.pemohonNik}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                          {it.jenisSurat?.nama || "-"}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge kode={it.statusSaatIni} nama={it.statusNama} size="sm" />
+                        </TableCell>
+                        <TableCell>
+                          {it.prioritas && it.prioritas !== "NORMAL" ? (
+                            <PriorityBadge prioritas={it.prioritas} />
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">Normal</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatDate(it.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-right pr-4">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              selectPermohonan(it.id);
+                            }}
+                          >
+                            <Eye className="w-3.5 h-3.5" /> Detail
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
@@ -288,18 +416,28 @@ export function PermohonanList() {
 
           {/* Card list (mobile) */}
           <div className="md:hidden space-y-3">
-            {items.map((it) => (
+            {items.map((it) => {
+              const isSelected = selectedIds.has(it.id);
+              return (
               <Card
                 key={it.id}
-                className="glass-card border-primary/15 cursor-pointer hover:gold-border transition-all"
+                className={"glass-card border-primary/15 cursor-pointer hover:gold-border transition-all " + (isSelected ? "border-primary/40 bg-primary/5" : "")}
                 onClick={() => selectPermohonan(it.id)}
               >
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="inline-flex items-center gap-1.5 font-mono text-[10px] px-2 py-1 rounded-md border border-primary/30 bg-primary/5 text-primary font-semibold">
-                      <Hash className="w-3 h-3" />
-                      {it.nomorRegister}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelectOne(it.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Pilih ${it.nomorRegister}`}
+                      />
+                      <span className="inline-flex items-center gap-1.5 font-mono text-[10px] px-2 py-1 rounded-md border border-primary/30 bg-primary/5 text-primary font-semibold">
+                        <Hash className="w-3 h-3" />
+                        {it.nomorRegister}
+                      </span>
+                    </div>
                     <StatusBadge kode={it.statusSaatIni} nama={it.statusNama} size="sm" />
                   </div>
                   <div>
@@ -328,7 +466,8 @@ export function PermohonanList() {
                   )}
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
 
           {/* Pagination */}

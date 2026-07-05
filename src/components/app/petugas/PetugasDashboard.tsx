@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
-import { StatCard, SectionHeader } from "@/components/app/StatCard";
+import { SectionHeader } from "@/components/app/StatCard";
+import { SmallBox } from "@/components/app/SmallBox";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import type { DashboardStats } from "@/lib/types";
 import {
@@ -154,46 +155,46 @@ export function PetugasDashboard() {
         </CardContent>
       </Card>
 
-      {/* Workflow stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-        <StatCard
+      {/* Workflow Small Box widgets (AdminLTE 4 style) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+        <SmallBox
+          number={counts.PENGAJUAN || 0}
           label="Permohonan Baru"
-          value={counts.PENGAJUAN || 0}
           icon={FilePlus2}
-          accent="#3b82f6"
-          hint="Perlu didaftarkan"
+          variant="primary"
+          footerText="Perlu didaftarkan"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={counts.CEK_ADMIN || 0}
           label="Cek Administrasi"
-          value={counts.CEK_ADMIN || 0}
           icon={ClipboardCheck}
-          accent="#0891b2"
-          hint="Verifikasi dokumen"
+          variant="info"
+          footerText="Verifikasi dokumen"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={counts.PENGUKURAN || 0}
           label="Pengukuran"
-          value={counts.PENGUKURAN || 0}
           icon={Ruler}
-          accent="#ca8a04"
-          hint="Ukur bidang tanah"
+          variant="warning"
+          footerText="Ukur bidang tanah"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={counts.PEMBUATAN_SURAT || 0}
           label="Draft Surat"
-          value={counts.PEMBUATAN_SURAT || 0}
           icon={FileText}
-          accent="#d4af37"
-          hint="Penyusunan surat"
+          variant="gold"
+          footerText="Penyusunan surat"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={waitingApproval}
           label="Menunggu Persetujuan"
-          value={waitingApproval}
           icon={PenTool}
-          accent="#eab308"
-          hint="TTD Lurah/Camat"
+          variant="warning"
+          footerText="TTD Lurah/Camat"
           onClick={() => setView("permohonan")}
         />
       </div>
@@ -282,11 +283,11 @@ export function PetugasDashboard() {
             <div className="mt-3 grid grid-cols-3 gap-3 pt-3 border-t border-border">
               <div className="text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Diproses</p>
-                <p className="text-lg font-bold text-cyan-400">{stats.diproses}</p>
+                <p className="text-lg font-bold text-cyan-600">{stats.diproses}</p>
               </div>
               <div className="text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Selesai</p>
-                <p className="text-lg font-bold text-green-400">{stats.selesai}</p>
+                <p className="text-lg font-bold text-green-600">{stats.selesai}</p>
               </div>
               <div className="text-center">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Rata-rata</p>

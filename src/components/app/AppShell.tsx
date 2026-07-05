@@ -1,11 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAppStore } from "@/store/app-store";
 import { api } from "@/lib/api";
 import { ROLE_LABELS } from "@/lib/constants";
 import { LogoFull, Logo } from "./Logo";
 import { NotificationsBell } from "./NotificationsBell";
 import { CommandPalette } from "./shared/CommandPalette";
+import { KeyboardShortcutsHelp } from "./shared/KeyboardShortcutsHelp";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,7 +21,7 @@ import { toast } from "sonner";
 import {
   LayoutDashboard, FileText, PlusCircle, BarChart3, ScrollText,
   Users, FileStack, LogOut, LogIn, Menu, Search, ChevronDown,
-  ShieldCheck, UserCog, Crown, Heart,
+  ShieldCheck, UserCog, Crown, Heart, Keyboard,
 } from "lucide-react";
 import type { AppView } from "@/lib/types";
 import { Footer } from "./Footer";
@@ -202,19 +203,76 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdKey, setCmdKey] = useState(0);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const gPressedRef = useRef(false);
 
-  // Global Cmd+K / Ctrl+K listener
+  // Global keyboard shortcuts:
+  //   ⌘K / Ctrl+K  → Command Palette
+  //   ?            → Keyboard Shortcuts Help
+  //   g then d/p/b/l/u → quick navigation (g prefix)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // ⌘K / Ctrl+K — Command Palette
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setCmdKey((k) => k + 1);
         setCmdOpen((v) => !v);
+        return;
+      }
+
+      // Only handle single-key shortcuts when NOT typing in an input/textarea/select
+      const target = e.target as HTMLElement;
+      const isTyping =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+      if (isTyping) return;
+
+      // ? → Help modal (Shift+/ produces "?")
+      if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setHelpOpen(true);
+        return;
+      }
+
+      // g-prefix navigation (g then a second key)
+      if (e.key === "g" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        gPressedRef.current = true;
+        // reset after 800ms if no second key
+        setTimeout(() => {
+          gPressedRef.current = false;
+        }, 800);
+        return;
+      }
+
+      if (gPressedRef.current) {
+        gPressedRef.current = false;
+        const role = user?.role;
+        let nextView: AppView | null = null;
+        switch (e.key) {
+          case "d": nextView = "dashboard"; break;
+          case "p": nextView = "permohonan"; break;
+          case "b":
+            if (role === "ADMIN" || role === "PETUGAS") nextView = "permohonan-baru";
+            break;
+          case "l":
+            if (role === "ADMIN" || role === "ATASAN") nextView = "laporan";
+            break;
+          case "u":
+            if (role === "ADMIN") nextView = "users";
+            break;
+        }
+        if (nextView) {
+          e.preventDefault();
+          setView(nextView);
+        }
       }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, []);
+  }, [user, setView]);
 
   const handleLogout = async () => {
     try {
@@ -364,6 +422,16 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
               </kbd>
             </button>
 
+            <button
+              type="button"
+              className="navbar-btn hidden sm:inline-flex"
+              onClick={() => setHelpOpen(true)}
+              aria-label="Pintasan keyboard"
+              title="Pintasan keyboard (?)"
+            >
+              <Keyboard className="w-4 h-4" />
+            </button>
+
             <NotificationsBell />
 
             <DropdownMenu>
@@ -428,6 +496,9 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
         selectPermohonan={selectPermohonan}
         onLogout={handleLogout}
       />
+
+      {/* Keyboard Shortcuts Help (? key) */}
+      <KeyboardShortcutsHelp open={helpOpen} onOpenChange={setHelpOpen} />
     </div>
   );
 }

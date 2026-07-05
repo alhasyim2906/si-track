@@ -455,3 +455,90 @@ Stage Summary:
 - Key design decision: instead of editing every dashboard component, the AdminLTE light theme is achieved ENTIRELY via CSS variable overrides scoped to `.adminlte`. Any shadcn component (Card, Input, Select, Table, Dropdown, Badge, Button, etc.) inside the admin wrapper automatically renders in light theme. This minimizes code churn and risk.
 - Key design decision: the full marketing Footer component is replaced inside admin by a minimal `AdminFooter` (single dark bar with copyright + version + "Dibuat dengan ❤" line) to match the AdminLTE convention. The full Footer is still used on the public landing page.
 - Lint: 0 errors. Dev server: compiles clean, all routes 200. VLM visual rating: 9/10 AdminLTE resemblance.
+
+---
+Task ID: 8
+Agent: main (webDevReview round)
+Task: QA + visual consistency (SmallBox across all dashboards) + bulk selection in PermohonanList + keyboard shortcuts help
+
+## Current Project Status Assessment
+App stable from Task 7-b (AdminLTE 4 redesign). Dev server clean, lint 0 errors, all routes 200. This round focused on: (1) visual consistency across all 3 role dashboards, (2) new high-impact bulk-action feature, (3) keyboard UX enhancement.
+
+## Work Completed
+
+### QA Findings (agent-browser)
+- Admin dashboard: 8 SmallBox widgets render correctly on light AdminLTE theme
+- Public page: dark navy theme untouched, no regressions
+- All API routes return 200 (dashboard, permohonan, notifikasi, auth)
+
+### Visual Consistency — SmallBox widgets across all dashboards
+1. **Extracted shared SmallBox component** (`src/components/app/SmallBox.tsx`):
+   - Module-level component with props: number, label, icon, variant (primary/success/info/warning/danger/gold), footerText (default "More info"), onClick
+   - Reused by AdminDashboard, PetugasDashboard, AtasanDashboard — eliminates duplication, ensures visual consistency
+   - AdminDashboard.tsx: removed local SmallBox definition, now imports from shared file
+
+2. **PetugasDashboard** (`PetugasDashboard.tsx`):
+   - Replaced 5 StatCards with 5 SmallBox widgets (Permohonan Baru→primary, Cek Administrasi→info, Pengukuran→warning, Draft Surat→gold, Menunggu Persetujuan→warning)
+   - Each has contextual footerText (e.g. "Perlu didaftarkan", "Verifikasi dokumen")
+   - Responsive grid: 1 col mobile → 2 col sm → 3 col lg → 5 col xl
+   - Fixed light-theme contrast: text-cyan-400→text-cyan-600, text-green-400→text-green-600
+
+3. **AtasanDashboard** (`AtasanDashboard.tsx`):
+   - Replaced 4 StatCards with 4 SmallBox widgets (Menunggu Persetujuan→warning, Surat Selesai→success, Total Diproses→info, Rata-rata Penyelesaian→gold)
+   - Fixed light-theme contrast: text-green-400→text-green-600, text-red-400→text-red-600, CheckCircle2 text-green-400→text-green-600
+
+### New Feature — Bulk Selection + CSV Export in PermohonanList
+4. **PermohonanList** (`PermohonanList.tsx`):
+   - Added Checkbox column to desktop table (select-all header checkbox with indeterminate state) + checkbox on each mobile card
+   - `selectedIds` Set state tracks selection across page; auto-clears on page/filter change
+   - `toggleSelectAll()` / `toggleSelectOne(id)` / `clearSelection()` helpers
+   - **Bulk action bar** (animated fade-in-up, navy-glow): appears when ≥1 item selected, shows count ("N permohonan terpilih") + "Export CSV (N)" gold button + "Batal Pilih" outline button
+   - **CSV export** (`exportSelectedCsv`): generates CSV with BOM (Excel-compatible), columns: Nomor Register, Nama Pemohon, NIK, Jenis Surat, Status, Prioritas, Dibuat, Selesai, Keperluan; proper escaping of quotes/commas; downloads as `permohonan-terpilih-YYYY-MM-DD.csv`
+   - Selected rows get `bg-primary/8` highlight on desktop + `border-primary/40 bg-primary/5` on mobile
+   - Checkbox click uses `e.stopPropagation()` to prevent row navigation when toggling
+
+### New Feature — Keyboard Shortcuts Help Modal
+5. **KeyboardShortcutsHelp** (`src/components/app/shared/KeyboardShortcutsHelp.tsx`):
+   - Dialog with 9 shortcuts grouped into 3 sections (UMUM / NAVIGASI / AKSI CEPAT)
+   - Each shortcut: icon + label + styled kbd keys
+   - Shortcuts: ⌘K (search), ? (help), Esc (close), G+D (dashboard), G+P (permohonan), G+B (baru), G+L (laporan), G+U (users), N (notifications)
+
+6. **AppShell** (`AppShell.tsx`):
+   - Added `?` key listener → opens KeyboardShortcutsHelp dialog (ignored when typing in input/textarea/select)
+   - Added `g`-prefix navigation: press `g` then `d/p/b/l/u` to jump to views (role-filtered)
+   - Added Keyboard icon button in navbar (hidden on mobile) to open help
+   - gPressedRef with 800ms timeout for the g-prefix two-key sequence
+   - All shortcuts ignore when focus is in input/textarea/select/contentEditable
+
+## Verification Results
+- `bun run lint`: **0 errors**
+- Dev server: compiles clean (✓ Compiled in 1276ms), all routes 200
+- agent-browser QA:
+  - Admin dashboard: 8 SmallBox widgets ✓
+  - PetugasDashboard: 5 SmallBox widgets (blue/cyan/yellow/gold) ✓ — VLM 8/10 AdminLTE consistency
+  - AtasanDashboard: 4 SmallBox widgets ✓
+  - PermohonanList bulk selection: checkbox click → bulk bar appears with "Export CSV (1)" ✓ — VLM 8/10 clarity
+  - Keyboard help: `?` key opens dialog with all 9 shortcuts ✓
+- All 3 dashboards now share identical SmallBox widget styling for visual consistency
+
+## Files Changed (6)
+- `src/components/app/SmallBox.tsx` — NEW shared SmallBox component
+- `src/components/app/shared/KeyboardShortcutsHelp.tsx` — NEW keyboard shortcuts help dialog
+- `src/components/app/AppShell.tsx` — added ? / g-prefix keyboard shortcuts + help button + KeyboardShortcutsHelp
+- `src/components/app/admin/AdminDashboard.tsx` — import SmallBox from shared (removed local def)
+- `src/components/app/petugas/PetugasDashboard.tsx` — 5 StatCards → 5 SmallBox + light-theme contrast fixes
+- `src/components/app/atasan/AtasanDashboard.tsx` — 4 StatCards → 4 SmallBox + light-theme contrast fixes
+- `src/components/app/petugas/PermohonanList.tsx` — bulk selection + CSV export + bulk action bar
+
+## Unresolved Issues / Risks
+- Bulk selection is per-page only (resets on page change). Cross-page selection would require a different UX pattern (selected IDs persisted across pages). Current behavior is intentional to avoid confusion.
+- Keyboard `g`-prefix navigation requires two key presses within 800ms — may need user education (covered by the help modal).
+- CSV export is client-side only (no server-side Excel generation). For large datasets, a server-side export endpoint would be better.
+
+## Priority Recommendations for Next Round
+1. **Cross-page bulk selection** — persist selected IDs across pagination using a "select all matching filter" pattern
+2. **Dashboard date-range filter for Petugas/Atasan** (currently only Admin has year filter)
+3. **WhatsApp/email notification integration** (currently dashboard-only notifications)
+4. **PWA manifest + service worker** for offline public tracking
+5. **Enhanced chart interactivity** (click-to-filter on pie/bar segments)
+6. **Server-side PDF report generation** with jsPDF instead of window.print()
