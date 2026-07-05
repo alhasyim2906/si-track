@@ -3,10 +3,11 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
-import { StatCard, SectionHeader } from "@/components/app/StatCard";
+import { SectionHeader } from "@/components/app/StatCard";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { STATUS_BY_KODE } from "@/lib/constants";
 import type { DashboardStats } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -72,6 +73,45 @@ function relativeTime(date: string): string {
   const mon = Math.floor(day / 30);
   if (mon < 12) return `${mon} bulan lalu`;
   return `${Math.floor(mon / 12)} tahun lalu`;
+}
+
+/* ============================================================
+   AdminLTE 4 — Small Box widget (signature dashboard widget)
+   Module-level component (satisfies react-hooks/static-components).
+   ============================================================ */
+type SmallBoxVariant = "primary" | "success" | "info" | "warning" | "danger" | "gold";
+
+function SmallBox({
+  number,
+  label,
+  icon: Icon,
+  variant,
+  onClick,
+}: {
+  number: number | string;
+  label: string;
+  icon: any;
+  variant: SmallBoxVariant;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn("alte-small-box", `sb-${variant}`)}
+      onClick={onClick}
+    >
+      <div className="sb-inner">
+        <div className="sb-text">
+          <div className="sb-number">{number}</div>
+          <div className="sb-label">{label}</div>
+        </div>
+      </div>
+      <Icon className="sb-icon" />
+      <span className="sb-footer">
+        More info <span className="sb-arrow">›</span>
+      </span>
+    </button>
+  );
 }
 
 interface ChartTooltipProps {
@@ -168,64 +208,62 @@ export function AdminDashboard() {
         }
       />
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-        <StatCard
+      {/* Stat widgets — AdminLTE 4 small-box style */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <SmallBox
+          number={stats.total}
           label="Total Permohonan"
-          value={stats.total}
           icon={FileText}
-          accent="#3b82f6"
+          variant="primary"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={stats.diproses}
           label="Diproses"
-          value={stats.diproses}
           icon={Loader}
-          accent="#0891b2"
+          variant="info"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={stats.menungguPengukuran}
           label="Menunggu Pengukuran"
-          value={stats.menungguPengukuran}
           icon={Ruler}
-          accent="#ca8a04"
+          variant="warning"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={stats.menungguLurah}
           label="Menunggu Lurah"
-          value={stats.menungguLurah}
           icon={PenTool}
-          accent="#eab308"
+          variant="gold"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={stats.menungguCamat}
           label="Menunggu Camat"
-          value={stats.menungguCamat}
           icon={Stamp}
-          accent="#f59e0b"
+          variant="warning"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={stats.selesai}
           label="Selesai"
-          value={stats.selesai}
           icon={CheckCircle2}
-          accent="#16a34a"
+          variant="success"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={stats.ditolak}
           label="Ditolak"
-          value={stats.ditolak}
           icon={XCircle}
-          accent="#dc2626"
+          variant="danger"
           onClick={() => setView("permohonan")}
         />
-        <StatCard
+        <SmallBox
+          number={`${stats.avgDays}h`}
           label="Rata-rata Penyelesaian"
-          value={`${stats.avgDays}h`}
           icon={Clock}
-          accent="#d4af37"
-          hint={`${stats.avgDays} hari rata-rata`}
-          compact
+          variant="primary"
         />
       </div>
 
@@ -363,7 +401,7 @@ export function AdminDashboard() {
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="text-center">{p.total}</TableCell>
-                        <TableCell className="text-center text-green-400 font-semibold">{p.selesai}</TableCell>
+                        <TableCell className="text-center text-green-600 font-semibold">{p.selesai}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2 min-w-[120px]">
                             <div className="flex-1 h-2 rounded-full bg-secondary/60 overflow-hidden">

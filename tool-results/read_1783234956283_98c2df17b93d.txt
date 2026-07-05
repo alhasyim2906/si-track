@@ -1,0 +1,430 @@
+     1→     1→# SI-TRACK TANAH — Worklog
+     2→     2→
+     3→     3→Project: Sistem Informasi Tracking Pendaftaran Surat Tanah
+     4→     4→Client: Kelurahan Kuala Pembuang II
+     5→     5→Stack: Next.js 16 (App Router) + TypeScript + Tailwind 4 + shadcn/ui + Prisma (SQLite)
+     6→     6→Theme: Dark navy/blackish blue with gold accents
+     7→     7→
+     8→     8→## Current Project Status (Phase 7 — Visual Polish & New Features)
+     9→     9→
+    10→    10→**Status**: Production-ready with enhanced visual quality and new features. All core flows verified. Lint: 0 errors. Server compiles clean.
+    11→    11→
+    12→    12→**VLM Visual Quality Scores**:
+    13→    13→- Public landing page: 8/10 (up from 7/10)
+    14→    14→- Stats banner section: 8/10 (up from 6/10)
+    15→    15→- Admin dashboard: 8/10
+    16→    16→- Permohonan list: 8/10
+    17→    17→- User management: 8/10
+    18→    18→- Audit log: 8/10
+    19→    19→
+    20→    20→**Demo credentials**: admin@kpii.go.id/admin123, petugas@kpii.go.id/petugas123, lurah@kpii.go.id/lurah123
+    21→    21→
+    22→    22→---
+    23→    23→Task ID: 1
+    24→    24→Agent: main
+    25→    25→Task: Project foundation — schema, theme, auth lib, seed data
+    26→    26→
+    27→    27→Work Log:
+    28→    28→- Explored existing project scaffold (Next.js 16, shadcn/ui, Prisma SQLite)
+    29→    29→- Designing data model: User (3 roles), JenisSurat, Permohonan, Dokumen, RiwayatProses, Notifikasi, AuditLog, StatusProses, Settings
+    30→    30→- Register format: KPII-TNH-YYYY-NNNNNN
+    31→    31→- Workflow stages: PENGAJUAN -> CEK_ADMIN -> VERIFIKASI_LAPANGAN -> PENGUKURAN (optional) -> PEMBUATAN_SURAT -> TTD_LURAH -> TTD_CAMAT (optional) -> SELESAI. Special: REVISI, DITOLAK.
+    32→    32→
+    33→    33→Stage Summary:
+    34→    34→- Foundation being laid. Next: schema push, seed, API routes, frontend.
+    35→    35→
+    36→    36→---
+    37→    37→Task ID: 3-a
+    38→    38→Agent: full-stack-developer (dashboards)
+    39→    39→Task: Build AdminDashboard, PetugasDashboard, AtasanDashboard
+    40→    40→
+    41→    41→Work Log:
+    42→    42→- Read worklog + all infrastructure files (api, constants, types, app-store, StatusBadge, Timeline, StatCard, Logo, dashboard API route).
+    43→    43→- Confirmed dashboard API response shape: stats, counts, monthly, statusDist, perPetugas, recent, pendingApprovals.
+    44→    44→- Created src/components/app/admin/AdminDashboard.tsx — 8 StatCards (Total, Diproses, Pengukuran, Lurah, Camat, Selesai, Ditolak, avgDays), year Select (current year - 4) re-fetching api.dashboard(year), recharts bar chart (monthly, gold #d4af37 + green #16a34a), donut chart (status dist using STATUS_BY_KODE colors), per-petugas table with gold gradient progress bar, recent permohonan list with mono register badges + StatusBadge + relative time + click-to-detail.
+    45→    45→- Created src/components/app/petugas/PetugasDashboard.tsx — "Tugas Saya" quick actions card with gold gradient CTA to permohonan-baru and glass card to permohonan, 5 workflow StatCards (PENGAJUAN, CEK_ADMIN, PENGUKURAN, PEMBUATAN_SURAT, TTD_LURAH+TTD_CAMAT), recent permohonan list, 6-month bar chart "Aktivitas Terakhir" + 3 mini stats footer (diproses, selesai, avgDays).
+    46→    46→- Created src/components/app/atasan/AtasanDashboard.tsx — 4 StatCards (pending count, selesai, diproses, avgDays), pendingApprovals grid (2-col on md) with each item showing register, pemohon, jenis surat, status badge, creator, date, catatan, "Lihat Detail" CTA → selectPermohonan; empty state "Tidak ada permohonan yang menunggu persetujuan"; donut chart status dist; "Lama Penyelesaian" hero card with gold-gradient avgDays number; "Statistik Pelayanan" card.
+    47→    47→- All components: "use client", container mx-auto max-w-7xl px-4 py-6, glass-card / gold-text / gold-border utilities, Loader2 spinner while loading, toast.error on fetch failure.
+    48→    48→- Refactored fetch pattern into useCallback + minimal useEffect (avoids react-hooks/set-state-in-effect lint rule).
+    49→    49→- Ran `bun run lint`: my 3 files pass cleanly (remaining errors are in AppShell.tsx & NotificationsBell.tsx, not in scope).
+    50→    50→
+    51→    51→Stage Summary:
+    52→    52→- Files created:
+    53→    53→  - src/components/app/admin/AdminDashboard.tsx
+    54→    54→  - src/components/app/petugas/PetugasDashboard.tsx
+    55→    55→  - src/components/app/atasan/AtasanDashboard.tsx
+    56→    56→- Key decisions: recharts used directly (ResponsiveContainer + BarChart/PieChart) for full styling control; STATUS_BY_KODE colors drive pie slices; gold gradient buttons per design system; click-to-detail via selectPermohonan; relative time computed inline (no date-fns needed); per-petugas progress bar uses same gold gradient as ProgressBar component for visual consistency.
+    57→    57→- All three dashboards share consistent container/spacing/loading patterns and the dark-navy + gold theme.
+    58→    58→
+    59→    59→---
+    60→    60→Task ID: 3-c
+    61→    61→Agent: full-stack-developer (reports & admin views)
+    62→    62→Task: Build Reports, AuditLogView, UserManagement, JenisSuratManagement
+    63→    63→
+    64→    64→Work Log:
+    65→    65→- Read worklog + infra (api.ts, constants.ts, types.ts, app-store.ts, StatCard, StatusBadge) and confirmed API response shapes against backend route handlers (laporan, audit-log, users, jenis-surat, status-proses).
+    66→    66→- Created `/src/components/app/shared/Reports.tsx` (ADMIN+ATASAN):
+    67→    67→  * SectionHeader + glass-card filter (date range, status Select from STATUS_DEFINITIONS, optional petugas text).
+    68→    68→  * Quick periode buttons: Hari Ini / Bulan Ini / Tahun Ini (set from/to accordingly).
+    69→    69→  * Default filter = current month (first day → today).
+    70→    70→  * 5 StatCards (Total/Selesai/Diproses/Ditolak blue/green/cyan/red + Rata-rata Waktu gold) reading summary.*.
+    71→    71→  * Results Table in ScrollArea (max-h-96): nomor register (mono badge), pemohon (nama+NIK), jenis surat, StatusBadge, PriorityBadge, petugas, dibuat, selesai, Aksi "Detail" → selectPermohonan(id).
+    72→    72→  * Export CSV (Blob download, BOM for Excel) + Export PDF (opens styled hidden window, window.print()). Empty + loading states.
+    73→    73→- Created `/src/components/app/admin/AuditLogView.tsx` (ADMIN only):
+    74→    74→  * Filter: search Input (q) with 400ms debounce, modul Select (Semua + AUTH/PERMOHONAN/USER/JENIS_SURAT/STATUS/LAPORAN), limit Select (50/100/200). Auto-apply on change.
+    75→    75→  * Table in ScrollArea (max-h-[600px]): Waktu, Pengguna (avatar + role icon badge colored per role), Aksi (badge colored by prefix: LOGIN/LOGOUT=blue, CREATE=green, UPDATE=amber, DELETE=red, STATUS_CHANGE=cyan, APPROVE=gold), Modul badge, Detail (truncated + title tooltip), IP (mono).
+    76→    76→  * Total count badge; empty + loading states.
+    77→    77→- Created `/src/components/app/admin/UserManagement.tsx` (ADMIN only):
+    78→    78→  * SectionHeader + "Tambah Pengguna" gold button (UserPlus) → Dialog.
+    79→    79→  * Table: avatar initial, Nama+email+self badge, Role badge with icon (ADMIN=ShieldCheck gold, PETUGAS=UserCog blue, ATASAN=Crown amber), Jabatan, NIP, Telepon, Status Switch (optimistic toggle → updateUser), Login Terakhir, Aksi (Edit → Dialog, Delete → AlertDialog).
+    80→    80→  * Shared Add/Edit Dialog: email/name/role/position/nip/phone/password(required on create, optional on edit)/isActive Switch. Validation: email format, name+role+password, password ≥6 chars. Toast feedback + refresh.
+    81→    81→  * Cannot delete self: Tooltip "Tidak dapat menghapus akun sendiri", delete button disabled. Self-switch also disabled.
+    82→    82→- Created `/src/components/app/admin/JenisSuratManagement.tsx` (ADMIN only):
+    83→    83→  * SectionHeader + "Tambah Jenis" gold button → Dialog.
+    84→    84→  * Card grid (1/2/3 cols responsive): nama, kode (mono badge), deskripsi, isActive badge, two ToggleBadges "Butuh Pengukuran" (Ruler) & "Butuh TTD Camat" (Stamp) ON/OFF.
+    85→    85→  * Add Dialog: kode (auto-uppercase, spaces→underscore, sanitized), nama, deskripsi textarea, butuhPengukuran Switch (default true), butuhTtdCamat Switch (default false). Validation kode+nama.
+    86→    86→  * Secondary section: Master Status Proses (api.statusProses()) as read-only grid — urutan, color dot with glow, nama, kode, "Khusus"/"Final" badges. Sorted by urutan.
+    87→    87→- All four components: "use client", wrapped in container mx-auto max-w-7xl px-4 py-6 space-y-5, glass-card border-primary/15, gold buttons via gradient, sonner toast, lucide icons, responsive mobile-first, ScrollArea for long tables, loading + empty states. Access guarded by useAppStore.can(...).
+    88→    88→- Ran `bun run lint`: 3 errors reported — ALL in pre-existing files (AppShell.tsx NavLinks-in-render, NotificationsBell.tsx setState-in-effect). Zero errors in the 4 new files.
+    89→    89→- Dev server log: final `✓ Compiled in 352ms` — my 4 files resolve cleanly. Remaining "module not found" entries are for PermohonanDetail/PermohonanList/PermohonanForm/dashboards (other agents' scope, Task 3-a/3-b).
+    90→    90→
+    91→    91→Stage Summary:
+    92→    92→- Reports & Admin views (Task 3-c) COMPLETE. 4 files created:
+    93→    93→  • src/components/app/shared/Reports.tsx
+    94→    94→  • src/components/app/admin/AuditLogView.tsx
+    95→    95→  • src/components/app/admin/UserManagement.tsx
+    96→    96→  • src/components/app/admin/JenisSuratManagement.tsx
+    97→    97→- All imports in page.tsx for these 4 resolve; no new lint errors introduced.
+    98→    98→- Access control enforced client-side via useAppStore.can(); backend routes also enforce roles (defense in depth).
+    99→    99→- CSV + PDF export fully client-side (no extra deps). Print PDF uses a styled popup window.
+   100→   100→- Ready for integration once sibling tasks (3-a dashboards, 3-b permohonan) deliver their components so the full SPA renders without module-not-found.
+   101→   101→
+   102→   102→---
+   103→   103→Task ID: 3-b
+   104→   104→Agent: full-stack-developer (permohonan mgmt)
+   105→   105→Task: Build PermohonanList, PermohonanForm, PermohonanDetail
+   106→   106→
+   107→   107→Work Log:
+   108→   108→- Read worklog.md + 9 infrastructure files (api.ts, constants.ts, types.ts, app-store.ts, StatusBadge.tsx, Timeline.tsx, StatCard.tsx, Logo.tsx) + shadcn/ui primitives (Tabs, Select, Table, Dialog, AlertDialog, Card, Button, Input, Textarea, Separator, Skeleton, ScrollArea, Badge).
+   109→   109→- Verified page.tsx already wires 3 views (permohonan, permohonan-baru, permohonan-detail) to the new components; no router changes needed.
+   110→   110→- Created `src/components/app/petugas/PermohonanList.tsx`:
+   111→   111→  * SectionHeader "Daftar Permohonan" + gold "Daftar Baru" button gated on `can("create_permohonan")`.
+   112→   112→  * Filters bar (glass-card): debounced search (400ms), status Select (All + STATUS_DEFINITIONS), per-page Select (10/20/50), active-filter chips with reset.
+   113→   113→  * Responsive: shadcn Table on md+, card list on mobile. Columns: Nomor Register (mono gold-border), Pemohon (nama+NIK), Jenis Surat, StatusBadge, PriorityBadge, Dibuat, Detail button.
+   114→   114→  * Pagination (prev/next + page info using total/limit), empty state, loading skeletons, error retry.
+   115→   115→  * Row click OR Detail button → `selectPermohonan(id)`.
+   116→   116→- Created `src/components/app/petugas/PermohonanForm.tsx` (CREATE only):
+   117→   117→  * Back button → setView("permohonan").
+   118→   118→  * 3 glass-card sections with custom SectionTitle headers: Jenis Surat & Prioritas, Data Pemohon (2-col grid), Data Tanah (2-col + batas sub-grid + keperluan textarea).
+   119→   119→  * Loads jenis surat list via `api.jenisSurat()`, filters active items, shows butuhPengukuran/butuhTtdCamat as info badges when jenis selected.
+   120→   120→  * prioritas Select (NORMAL/TINGGI/MENDESAK), statusPenguasaan Select (Milik Sendiri/Warisan/Girik/Sewa/Lainnya).
+   121→   121→  * Validation: jenisSuratId, pemohonNik (min 8), pemohonNama, keperluan required → toast.error if missing.
+   122→   122→  * Sticky submit bar with gold gradient "Simpan & Buat Nomor Register" → `api.createPermohonan` → `selectPermohonan(created.id)` + toast.success.
+   123→   123→  * Input masking: NIK numeric ≤16, RT/RW numeric ≤3, HP numeric/plus ≤15.
+   124→   124→- Created `src/components/app/shared/PermohonanDetail.tsx` (all roles):
+   125→   125→  * Fetches `api.getPermohonan(id)`, full loading skeleton + error state with retry.
+   126→   126→  * Header glass-card with gold top bar: nomorRegister (mono gold badge), StatusBadge lg, PriorityBadge, pemohonNama big, jenisSurat, keperluan, creator, dates, ProgressBar (right column on lg), red alert box for DITOLAK, orange alert box for REVISI.
+   127→   127→  * 5 Tabs (Linimasa | Data | Dokumen | QR Code | Riwayat) with badge count on Dokumen tab.
+   128→   128→  * Linimasa: Timeline (stages from buildStages, currentIndex from stages.indexOf, riwayat mapped) + Aksi Proses card (sticky on lg) with conditional actions:
+   129→   129→    - "Lanjut ke Tahap Berikutnya" + catatan Input → PETUGAS/ADMIN when canAdvance & !REVISI.
+   130→   130→    - "Setujui & Tanda Tangani" → ATASAN/ADMIN when TTD_LURAH.
+   131→   131→    - "Sahkan & Selesaikan" → ATASAN/ADMIN when TTD_CAMAT.
+   132→   132→    - "Minta Perbaikan (Revisi)" → Dialog with catatan Textarea → PETUGAS/ADMIN (non-final).
+   133→   133→    - "Tolak Permohonan" → destructive Dialog with alasanDitolak → PETUGAS/ADMIN (non-final).
+   134→   134→    - "Kembalikan ke Proses" → changeStatus(CEK_ADMIN) when REVISI.
+   135→   135→    - "Hapus Permohonan" → AlertDialog confirm → ADMIN only.
+   136→   136→  * Data tab: 3 cards (Data Pemohon, Data Tanah, Keperluan & Jenis Surat) using DLRow definition list; "Edit" button opens Dialog with full edit form (pemohon + tanah + prioritas + keperluan) → `api.updatePermohonan` → refresh.
+   137→   137→  * Dokumen tab: upload area (jenisDokumen Select + file Input + gold Upload button, 10MB limit) gated on `can("upload_dokumen")`; list of uploaded dokumen with jenisDokumen badge, namaFile, date, size, download link (filePath), delete button (PETUGAS/ADMIN); ScrollArea with max-h for long lists.
+   138→   138→  * QR Code tab: lazy-loads `api.getQr(id)` on tab open, shows QR image (data URL) on white card, tracking URL, Download QR (PNG), Salin URL (navigator.clipboard with copied state), reload button, info note. QR is invalidated after status change.
+   139→   139→  * Riwayat tab: shadcn Table (waktu, status badge, petugas name+position, catatan), ScrollArea with max-h.
+   140→   140→  * All mutations re-fetch detail + toast success/error. Uses `toast` from sonner, AlertDialog for destructive confirm, Dialog for edit/revisi/tolak.
+   141→   141→- Verified with `bun run lint`: my 3 new files produce ZERO lint errors (pre-existing errors in AppShell.tsx and NotificationsBell.tsx are outside this task's scope).
+   142→   142→- Dev log shows successful compilation after files were created (earlier "module not found" errors were from before the files existed).
+   143→   143→
+   144→   144→Stage Summary:
+   145→   145→- 3 production-ready "use client" components delivered, fully wired into page.tsx, with strict TypeScript, dark-navy + gold theme, glass-card / gold-gradient-text / navy-glow / gold-border utilities, shadcn/ui primitives, lucide icons, sonner toasts.
+   146→   146→- PermohonanList: filter+search+paginate+responsive table/card list.
+   147→   147→- PermohonanForm: 3-section create form with validation and sticky submit bar.
+   148→   148→- PermohonanDetail: rich 5-tab detail page with full workflow actions (advance/approve-lurah/approve-camat/revisi/tolak/restore/delete), edit dialog, dokumen upload, QR code with download/copy, riwayat table — all role-aware via `useAppStore.can()` and `user.role`.
+   149→   149→- Other agents can now build the remaining admin/petugas/atasan dashboards, Reports, AuditLogView, UserManagement, JenisSuratManagement — those imports in page.tsx still resolve pending their work.
+   150→   150→
+   151→   151→---
+   152→   152→Task ID: 4
+   153→   153→Agent: main
+   154→   154→Task: Integration, lint fixes, and end-to-end browser verification
+   155→   155→
+   156→   156→Work Log:
+   157→   157→- Fixed 3 lint errors: extracted NavLinks to top-level component in AppShell.tsx (react-hooks/static-components); restructured NotificationsBell effect to use .then() callbacks (react-hooks/set-state-in-effect).
+   158→   158→- `bun run lint` now passes with 0 errors.
+   159→   159→- Verified dev server compiles clean and serves / with 200.
+   160→   160→- agent-browser end-to-end verification:
+   161→   161→  1. Public tracking page renders (hero, search, example registers, "Cara Melacak" steps, footer). No errors.
+   162→   162→  2. Clicked example register KPII-TNH-2026-000001 → tracking result shown with "Suparman", full riwayat table (Pengajuan/Cek Administrasi/Verifikasi Lapangan), timeline.
+   163→   163→  3. Login modal opens; quick-filled Admin creds; login success → Admin dashboard with stats (Total 5, Diproses 2, Menunggu Pengukuran 1, Menunggu Lurah 1, Selesai 1, Ditolak 1), per-petugas table, recent list, notifications bell (5 unread).
+   164→   164→  4. Permohonan detail (Maryam, TTD_LURAH) → tabs (Linimasa/Data/Dokumen/QR Code/Riwayat), action buttons (Lanjut/Setujui & TTD/Revisi/Tolak/Hapus).
+   165→   165→  5. QR Code tab → QR generated with Download/Salin URL/Muat ulang.
+   166→   166→  6. New permohonan form → filled jenis surat + NIK + nama + keperluan → "Simpan & Buat Nomor Register" → created "Pak Darmaji" and navigated to detail. No errors.
+   167→   167→- Footer positioning verified: flex-col + main flex-1 keeps footer at bottom on short pages and pushes naturally on long pages.
+   168→   168→
+   169→   169→Stage Summary:
+   170→   170→- App is production-usable and fully interactive end-to-end. Public tracking, 3-role login, dashboards, permohonan CRUD, timeline, QR, dokumen, reports, audit log, user mgmt, jenis surat mgmt all wired and verified.
+   171→   171→- No runtime errors or hydration issues observed.
+   172→   172→- Demo credentials: admin@kpii.go.id/admin123, petugas@kpii.go.id/petugas123, lurah@kpii.go.id/lurah123.
+   173→   173→- Remaining: create the mandatory 15-min webDevReview cron job.
+   174→   174→
+   175→   175→---
+   176→   176→Task ID: 6 (cron review round 1)
+   177→   177→Agent: main (webDevReview)
+   178→   178→Task: QA via agent-browser, fix visual bugs, add new features (public stats, FAQ, tanda terima)
+   179→   179→
+   180→   180→## Current Project Status Assessment
+   181→   181→App was production-usable from Task 4 (all core flows verified). This round focused on visual polish + new public-facing features. Lint stayed clean (0 errors) throughout. Dev server stable on port 3000.
+   182→   182→
+   183→   183→## Work Completed
+   184→   184→
+   185→   185→### QA Findings (agent-browser + VLM visual review)
+   186→   186→- All views render without runtime errors (public, 3 dashboards, permohonan list/detail/form, reports, audit, users, jenis-surat).
+   187→   187→- Nav click "bug" was a false alarm — agent-browser ref staleness; navigation works correctly (verified via JS eval with proper wait for re-render).
+   188→   188→- VLM visual review (6 screenshots) identified: chart legend overlap (AdminDashboard), text truncation (JenisSurat cards), sparse tables (no zebra/hover), low muted-text contrast, inconsistent spacing.
+   189→   189→
+   190→   190→### Bug Fixes
+   191→   191→1. **AdminDashboard charts** (`AdminDashboard.tsx`): Replaced recharts built-in `<Legend>` (which overlapped) with custom legend rendered BELOW each chart. Bar chart legend = 2 inline items; Pie chart legend = 2-col grid with color dots + count values. Equalized chart heights (h-64 bar / h-52 pie + legend). Fixed "7 hari" stat card clipping by using `compact` + value `${avgDays}h` with hint.
+   192→   192→2. **JenisSurat card truncation** (`JenisSuratManagement.tsx`): Changed `truncate` → `line-clamp-2 break-words` on card title so long names wrap instead of clipping.
+   193→   193→3. **Global table polish** (`globals.css`): Added zebra striping (`nth-child(even)` gold 3.5% overlay), gold-tinted row hover (8%), increased row padding (0.7rem). Applied globally via `[data-slot]` selectors so all tables benefit.
+   194→   194→4. **Muted text contrast** (`globals.css`): Bumped `--muted-foreground` from `oklch(0.72 0.02 80)` → `oklch(0.78 0.025 80)` in both `:root` and `.dark` for better WCAG AA on navy.
+   195→   195→5. **Public hero spacing** (`PublicTracking.tsx`): Reduced `pt-14 pb-10` → `pt-10 pb-8`, added `leading-relaxed` to subtext, centered example registers (`justify-center`), added `animate-fade-in-up` entrance animation.
+   196→   196→
+   197→   197→### New Features
+   198→   198→6. **Public transparency stats banner** (new `PublicSections.tsx` + `/api/public/stats`): 4-counter card (Total / Selesai / Diproses / Tingkat Penyelesaian %) shown on landing page below search. No auth required. Includes "bulan ini" count.
+   199→   199→7. **Dokumen yang Diperlukan section** (`PublicSections.tsx`): 6-card grid (KTP, KK, SPPT PBB, Bukti Penguasaan, Surat Pernyataan, Foto Lokasi) + 3 info cards (Lokasi Kantor, Jam Layanan, Biaya Layanan Gratis).
+   200→   200→8. **FAQ accordion** (`PublicSections.tsx`): 6 Q&A items covering: what is SI-TRACK, how to track, required docs, processing time, what to do on "Perbaikan Dokumen", surat pickup. Uses shadcn Accordion.
+   201→   201→9. **Printable Tanda Terima** (new `TandaTerima.tsx` + integrated into `PermohonanDetail.tsx`): Formal government receipt with letterhead (Logo + PEMERINTAH KABUPATEN SERUYAN / KELURAHAN KUALA PEMBUANG II), title, nomor register box + QR code, Data Pemohon + Data Tanah definition lists, keperluan, signature footer (Pemohon/Petugas Penerima/date), bottom disclaimer. "Cetak Tanda Terima" button (Printer icon, PETUGAS/ADMIN only) opens Dialog with scrollable preview + "Cetak / Print" button calling `window.print()`. Print CSS (`@media print` in globals.css) flips glass-card to white+gold-border, hides nav/header/footer/buttons.
+   202→   202→10. **Global enhancements** (`globals.css`): Added `.card-hover` lift, `.animate-fade-in-up`, `.tabular-nums`, `*:focus-visible` gold ring for accessibility, `.print-only` utility.
+   203→   203→
+   204→   204→## Verification Results
+   205→   205→- `bun run lint`: 0 errors.
+   206→   206→- agent-browser verified: public page shows stats banner + requirements + FAQ; admin dashboard charts render with custom legends (no overlap); tanda terima dialog opens with full receipt content (scrollable, 1690px content in 546px viewport), all sections present (letterhead, title, register+QR, data pemohon, data tanah, signature footer).
+   207→   207→- VLM re-review: public page 8/10, admin dashboard 8/10 (legend fix confirmed), tanda terima content complete.
+   208→   208→- Dev server: all routes 200, no runtime errors.
+   209→   209→
+   210→   210→## Unresolved Issues / Risks
+   211→   211→- Tanda Terima print output not physically tested (window.print() opens browser print dialog — can't automate). The @media print CSS is in place but real print preview should be manually verified by user.
+   212→   212→- The VLM suggested making ALL status badges gold-only — intentionally NOT done: semantic colors (green=selesai, red=ditolak, amber=menunggu) are important for quick status scanning UX. Kept as-is.
+   213→   213→- Reports PDF export uses popup window + window.print() — functional but basic.
+   214→   214→
+   215→   215→## Priority Recommendations for Next Round
+   216→   216→1. **Profile/Account settings page** — let users change their own password (currently only admin can reset).
+   217→   217→2. **Dashboard date-range filter for petugas/atasan** (currently only admin has year filter).
+   218→   218→3. **Permohonan list bulk actions** (bulk status change, bulk export).
+   219→   219→4. **Search/global command palette** (Cmd+K) for quick navigation.
+   220→   220→5. **PWA manifest + service worker** for offline tracking (mentioned as optional in original spec).
+   221→   221→6. **WhatsApp/email notification integration** (currently dashboard-only notifications).
+   222→   222→
+   223→   223→---
+   224→   224→Task ID: 7-a
+   225→   225→Agent: full-stack-developer
+   226→   226→Task: Build Profile/Account Settings feature
+   227→   227→
+   228→   228→Work Log:
+   229→   229→- Read worklog.md and all infrastructure files (types.ts, api.ts, app-store.ts, auth.ts, audit.ts, schema.prisma, AppShell.tsx, page.tsx, StatCard.tsx) to understand patterns.
+   230→   230→- Added `"profil"` to AppView union type in `/src/lib/types.ts`.
+   231→   231→- Added `profile()` and `updateProfile()` methods to `/src/lib/api.ts` (GET and PUT /api/auth/profile).
+   232→   232→- Added `edit_profile` case to `/src/store/app-store.ts` can() function (returns true for all logged-in users).
+   233→   233→- Created backend API endpoint `/src/app/api/auth/profile/route.ts`:
+   234→   234→  * GET — returns current user profile (id, email, name, role, position, nip, phone, avatar) using `getCurrentUser()` from auth.
+   235→   235→  * PUT — updates profile fields (name, phone, position) and/or changes password.
+   236→   236→  * Password change requires both currentPassword and newPassword, min 6 chars for new password.
+   237→   237→  * Verifies current password using `verifyPassword()` (bcrypt compare) before allowing change.
+   238→   238→  * Hashes new password with `hashPassword()` before saving.
+   239→   239→  * Returns updated user info on success.
+   240→   240→  * Logs to audit trail via `writeAudit()` with UPDATE aksi, AUTH modul, listing which fields changed.
+   241→   241→- Created frontend component `/src/components/app/shared/ProfileSettings.tsx`:
+   242→   242→  * "use client" component with SectionHeader "Pengaturan Akun" + UserCog icon.
+   243→   243→  * Two-column grid (md:grid-cols-2) with glass-card border-primary/15 styling:
+   244→   244→    - Informasi Profil: editable Nama, Jabatan, Telepon; read-only NIP, Email; Role with icon badge.
+   245→   245→    - Ubah Password: current password, new password (min 6 chars hint), confirm password; all with show/hide toggle buttons.
+   246→   246→  * Gold gradient buttons for both "Simpan Profil" and "Simpan Password".
+   247→   247→  * Loading skeleton on initial load, Loader2 spinner on save buttons.
+   248→   248→  * Toast feedback (success/error) via sonner.
+   249→   249→  * Updates Zustand store user on profile save so header reflects new name immediately.
+   250→   250→  * Password fields clear on successful save.
+   251→   251→  * Real-time validation hints (password min length, confirm mismatch).
+   252→   252→- Added "profil" view case in `/src/app/page.tsx` renderView() → returns `<ProfileSettings />`.
+   253→   253→- Added "Profil" nav item with UserCog icon in AppShell.tsx navItems array (after Dashboard, available to all 3 roles).
+   254→   254→- Added "Pengaturan Akun" option in user dropdown menu (with UserCog icon, before "Keluar" separator).
+   255→   255→- Ran `bun run lint`: 0 errors in my files (3 pre-existing errors in CommandPalette.tsx, outside task scope).
+   256→   256→- Dev server compiles cleanly, all routes 200.
+   257→   257→
+   258→   258→Stage Summary:
+   259→   259→- Files created:
+   260→   260→  • /src/app/api/auth/profile/route.ts (backend API)
+   261→   261→  • /src/components/app/shared/ProfileSettings.tsx (frontend component)
+   262→   262→- Files modified:
+   263→   263→  • /src/lib/types.ts (added "profil" to AppView)
+   264→   264→  • /src/lib/api.ts (added profile + updateProfile methods)
+   265→   265→  • /src/store/app-store.ts (added edit_profile permission)
+   266→   266→  • /src/app/page.tsx (added profil view case + import)
+   267→   267→  • /src/components/app/AppShell.tsx (added Profil nav item + Pengaturan Akun dropdown option)
+   268→   268→- Feature complete: all logged-in users can view/edit their profile (name, phone, position) and change their password with current password verification. Audit trail logged for all profile changes.
+   269→   269→
+   270→   270→---
+   271→   271→Task ID: 7-b
+   272→   272→Agent: full-stack-developer
+   273→   273→Task: Build Command Palette (Cmd+K) for quick navigation
+   274→   274→
+   275→   275→Work Log:
+   276→   276→- Read worklog.md and all infrastructure files (command.tsx, app-store.ts, api.ts, types.ts, constants.ts, AppShell.tsx, StatusBadge.tsx) to understand the component API, store hooks, and styling patterns.
+   277→   277→- Created `/src/components/app/shared/CommandPalette.tsx`:
+   278→   278→  * "use client" component using shadcn/ui CommandDialog (CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut, CommandSeparator).
+   279→   279→  * **Navigation commands**: Quick jump to Dashboard, Permohonan, Daftar Baru, Laporan, Jenis Surat, Pengguna, Audit Log, Profil, Notifikasi, Lacak Surat (Public). Filtered by user role using same roles as AppShell navItems.
+   280→   280→  * **Quick search**: Debounced (300ms) search for permohonan by register number or pemohon name using `api.listPermohonan({ search, limit: "5", page: "1" })`. Shows top 5 results with gold mono register badge, pemohon name, and status badge. On select, calls `selectPermohonan(id)` to navigate to detail.
+   281→   281→  * **Quick actions**: "Daftar Permohonan Baru" (gated on `can("create_permohonan")`), "Keluar (Logout)".
+   282→   282→  * Custom glass-card + navy-glow styling with `bg-background/95 backdrop-blur-md`.
+   283→   283→  * Gold accent for selected items (`data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary`).
+   284→   284→  * Search results show: nomor register (mono gold badge), pemohon name, status badge with dynamic colors.
+   285→   285→  * Navigation items show: icon + label, with keyboard shortcut hints (⌘D, ⌘P, ⌘L, ⌘T).
+   286→   286→  * Footer hint bar: ↑↓ navigasi, ↵ pilih, esc tutup.
+   287→   287→  * Empty/loading states: "Mencari..." with Loader2 spinner, "Tidak ditemukan" for no results, hint for min 2 chars.
+   288→   288→  * State reset handled via `key` prop in AppShell — increments `cmdKey` each time palette opens, remounting with fresh state (avoids set-state-in-effect lint rule).
+   289→   289→  * Derived `effectiveQuery` (only when >= 2 chars) and `visibleResults` (derived from effectiveQuery + searchResults) to avoid set-state-in-effect for clearing results.
+   290→   290→  * Debounced search uses setTimeout with setState only inside the callback (passes lint).
+   291→   291→- Integrated into `/src/components/app/AppShell.tsx`:
+   292→   292→  * Added `cmdOpen` and `cmdKey` state variables.
+   293→   293→  * Global keyboard listener (Cmd+K on Mac / Ctrl+K on Windows) with useEffect + document.addEventListener.
+   294→   294→  * Search trigger button in header (next to NotificationsBell, for logged-in users): Search icon + "Cari..." text + ⌘K kbd badge. Hidden on mobile (sm:flex).
+   295→   295→  * CommandPalette rendered at end of AppShell with `key={cmdKey}` for clean state reset on each open.
+   296→   296→  * Passes setView, selectPermohonan, and handleLogout to CommandPalette.
+   297→   297→- Ran `bun run lint`: 0 errors across all files.
+   298→   298→- Dev server compiles cleanly.
+   299→   299→
+   300→   300→Stage Summary:
+   301→   301→- Files created:
+   302→   302→  • /src/components/app/shared/CommandPalette.tsx
+   303→   303→- Files modified:
+   304→   304→  • /src/components/app/AppShell.tsx (added CommandPalette import, cmdOpen/cmdKey state, Cmd+K listener, search trigger button, CommandPalette render)
+   305→   305→- Feature complete: Cmd+K / Ctrl+K opens command palette with quick navigation (role-filtered), permohonan search (debounced, top 5 results), and quick actions (new permohonan, logout). Consistent dark navy + gold theme.
+   306→   306→
+   307→   307→---
+   308→   308→Task ID: 7
+   309→   309→Agent: main
+   310→   310→Task: Visual polish, new features (Profile Settings, Command Palette), and QA
+   311→   311→
+   312→   312→## Current Project Status Assessment
+   313→   313→App was production-usable from Phase 6 (all core flows verified, public stats/FAQ/tanda terima added). This round focused on: (1) visual quality improvements based on VLM QA feedback, (2) new high-impact features, (3) enhanced animations/micro-interactions.
+   314→   314→
+   315→   315→## Work Completed
+   316→   316→
+   317→   317→### QA Findings (agent-browser + VLM visual review — 7 screenshots)
+   318→   318→- All views render without runtime errors
+   319→   319→- VLM rated public landing page 7/10 (contrast issues, spacing inconsistencies)
+   320→   320→- VLM rated stats banner 6/10 (weak contrast, inconsistent icon styling)
+   321→   321→- Admin dashboard charts lacked data labels on bars/pie segments
+   322→   322→- Footer was basic 3-column layout lacking visual richness
+   323→   323→- Text contrast issues: muted-foreground text too dim on navy background
+   324→   324→- Missing hover states and micro-interactions on cards
+   325→   325→
+   326→   326→### Visual Polish Fixes
+   327→   327→1. **Public Landing Page** (`PublicTracking.tsx`):
+   328→   328→   - Enhanced hero section: larger badge, better spacing (pt-12 pb-10), added 3rd ambient glow blob
+   329→   329→   - Improved subtitle contrast: `text-foreground/70` instead of `text-muted-foreground`
+   330→   330→   - Search card: added gold gradient top bar, larger inputs (h-12), "Lacak Sekarang" with shadow
+   331→   331→   - Example register buttons: styled as proper badges with border + hover effects
+   332→   332→   - QR icon now larger with better visibility
+   333→   333→
+   334→   334→2. **Empty State Steps** (`PublicTracking.tsx`):
+   335→   335→   - Each step now has unique accent color (blue → teal → gold → green)
+   336→   336→   - Larger icon containers (14x14 rounded-2xl) with color-tinted backgrounds
+   337→   337→   - Arrow connectors between steps on desktop (lg:block)
+   338→   338→   - Group hover scale effect on icons
+   339→   339→   - Petugas login card: gold gradient top line, icon in container, gold CTA button
+   340→   340→
+   341→   341→3. **Tracking Result** (`PublicTracking.tsx`):
+   342→   342→   - Status hero: thicker top bar (h-2), pulse-gold animation on status icon
+   343→   343→   - Better badge sizing (px-2.5 py-1)
+   344→   344→   - Added "Progres Keseluruhan" label + "Tahap X dari Y" indicator above progress bar
+   345→   345→   - Fade-in-up animation on the result card
+   346→   346→
+   347→   347→4. **Stats Banner** (`PublicSections.tsx`):
+   348→   348→   - Icon in container with border (like other sections)
+   349→   349→   - Subtitle "Data real-time dari sistem SI-TRACK TANAH"
+   350→   350→   - Period badge now in a styled container with bg + border
+   351→   351→   - Stat cards: larger (p-4 rounded-xl), colored value text, hover border transition
+   352→   352→   - Icon hover scale effect on all stat items
+   353→   353→
+   354→   354→5. **Requirements Section** (`PublicSections.tsx`):
+   355→   355→   - Icon containers with hover scale (group-hover:scale-110)
+   356→   356→   - Info cards (Lokasi/Jam/Biaya): upgraded from p-3 rounded-lg to p-4 rounded-xl with card-hover + group effects
+   357→   357→   - Better text contrast using `text-foreground/55`
+   358→   358→
+   359→   359→6. **FAQ Section** (`PublicSections.tsx`):
+   360→   360→   - Icon in container matching other section headers
+   361→   361→   - Better padding (p-4 sm:p-6)
+   362→   362→   - Answer text uses `text-foreground/60` for better readability
+   363→   363→
+   364→   364→7. **Footer** (`Footer.tsx`):
+   365→   365→   - Expanded to 4-column grid (was 3)
+   366→   366→   - Added "Resmi & Terpercaya" badge with ShieldCheck icon
+   367→   367→   - Added "Tautan" column with navigation links
+   368→   368→   - Added "Minggu & Hari Libur: Tutup" in service hours
+   369→   369→   - Section headers now have icons (MapPin, Clock, ExternalLink)
+   370→   370→   - "Dibuat dengan ❤" heart icon in copyright line
+   371→   371→   - Better text contrast with `text-foreground/55`
+   372→   372→
+   373→   373→8. **Dashboard Charts** (`AdminDashboard.tsx`):
+   374→   374→   - Bar chart: added data labels on top of bars (position: "top", colored per series)
+   375→   375→   - Pie chart: added percentage labels on slices, increased radius (55→85 inner, 80→85 outer)
+   376→   376→   - Increased pie chart height (h-52 → h-56)
+   377→   377→
+   378→   378→9. **StatCard** (`StatCard.tsx`):
+   379→   379→   - Hover shadow effect (`hover:shadow-lg hover:shadow-primary/5`)
+   380→   380→   - Gradient top bar now fades (`${accent}80, transparent`)
+   381→   381→   - Colored value text for non-gold accents
+   382→   382→   - Better label contrast (`text-foreground/50`)
+   383→   383→   - Tabular-nums on values for alignment
+   384→   384→
+   385→   385→10. **SectionHeader** (`StatCard.tsx`):
+   386→   386→    - Added `animate-fade-in-up` for entrance animation
+   387→   387→    - Better subtitle contrast
+   388→   388→
+   389→   389→11. **Global CSS** (`globals.css`):
+   390→   390→    - New animations: `animate-fade-in`, `animate-scale-in`, `animate-slide-up`
+   391→   391→    - Smooth table row transitions
+   392→   392→    - Button active press effect (`scale(0.98)`)
+   393→   393→    - `.hover-underline` utility for animated underline on hover
+   394→   394→
+   395→   395→### New Features
+   396→   396→12. **Profile/Account Settings** (new `ProfileSettings.tsx` + `/api/auth/profile` route):
+   397→   397→    - GET/PUT endpoint for profile data and password change
+   398→   398→    - Two-section UI: Informasi Profil (editable name, phone, position; readonly email, role, NIP) + Ubah Password (with current/new/confirm, validation, show/hide toggles)
+   399→   399→    - Audit trail logging for all profile changes
+   400→   400→    - Zustand store update on save (header reflects name changes immediately)
+   401→   401→    - Nav item "Profil" added for all roles + dropdown menu "Pengaturan Akun"
+   402→   402→
+   403→   403→13. **Command Palette** (new `CommandPalette.tsx`):
+   404→   404→    - Cmd+K / Ctrl+K keyboard shortcut
+   405→   405→    - Navigation commands (role-filtered): Dashboard, Permohonan, Daftar Baru, Laporan, etc.
+   406→   406→    - Quick search: debounced search for permohonan by register/name (5 results max)
+   407→   407→    - Quick actions: "Daftar Permohonan Baru" (role-gated), "Keluar" (destructive)
+   408→   408→    - Search trigger button in header with ⌘K badge
+   409→   409→    - Clean state reset via key prop remounting
+   410→   410→
+   411→   411→## Verification Results
+   412→   412→- `bun run lint`: 0 errors
+   413→   413→- Dev server: compiles clean, all routes 200
+   414→   414→- API endpoints verified: Homepage, Public Stats, Tracking, Login, Profile (all 200)
+   415→   415→- VLM re-review: public page 8/10 (up from 7/10), stats section 8/10 (up from 6/10)
+   416→   416→- Note: OOM issues in sandbox environment prevented extended browser testing (Next.js + Chrome memory pressure)
+   417→   417→
+   418→   418→## Unresolved Issues / Risks
+   419→   419→- OOM kills Next.js server when Chrome browser is also running in sandbox (4GB RAM limit). This is an environment constraint, not an application bug.
+   420→   420→- Tanda Terima print output not physically tested (window.print() opens browser print dialog — can't automate).
+   421→   421→- Reports PDF export uses popup window + window.print() — functional but basic.
+   422→   422→
+   423→   423→## Priority Recommendations for Next Round
+   424→   424→1. **Dashboard date-range filter for Petugas/Atasan** (currently only Admin has year filter)
+   425→   425→2. **Permohonan list bulk actions** (bulk status change, bulk export)
+   426→   426→3. **PWA manifest + service worker** for offline tracking (mentioned as optional in original spec)
+   427→   427→4. **WhatsApp/email notification integration** (currently dashboard-only notifications)
+   428→   428→5. **Enhanced chart interactivity** (click-to-filter on pie/bar segments)
+   429→   429→6. **Data export improvements** (proper PDF generation with jsPDF instead of window.print)
+   430→   430→

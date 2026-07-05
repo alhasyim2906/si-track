@@ -1,77 +1,202 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useAppStore } from "@/store/app-store";
 import { api } from "@/lib/api";
 import { ROLE_LABELS } from "@/lib/constants";
 import { LogoFull, Logo } from "./Logo";
-import { LoginModal } from "./LoginModal";
 import { NotificationsBell } from "./NotificationsBell";
 import { CommandPalette } from "./shared/CommandPalette";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+  Sheet, SheetContent, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   LayoutDashboard, FileText, PlusCircle, BarChart3, ScrollText,
-  Users, FileStack, LogOut, LogIn, Menu, Search, ChevronDown, ShieldCheck, UserCog, Crown,
+  Users, FileStack, LogOut, LogIn, Menu, Search, ChevronDown,
+  ShieldCheck, UserCog, Crown, Heart,
 } from "lucide-react";
 import type { AppView } from "@/lib/types";
+import { Footer } from "./Footer";
 
-const navItems: { view: AppView; label: string; icon: any; roles: string[] }[] = [
+/* ============================================================
+   AdminLTE 4 — admin area navigation
+   ============================================================ */
+type NavItem = { view: AppView; label: string; icon: any; roles: string[] };
+
+const NAV_ITEMS: NavItem[] = [
   { view: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["ADMIN", "PETUGAS", "ATASAN"] },
-  { view: "profil", label: "Profil", icon: UserCog, roles: ["ADMIN", "PETUGAS", "ATASAN"] },
   { view: "permohonan", label: "Permohonan", icon: FileText, roles: ["ADMIN", "PETUGAS", "ATASAN"] },
   { view: "permohonan-baru", label: "Daftar Baru", icon: PlusCircle, roles: ["ADMIN", "PETUGAS"] },
   { view: "laporan", label: "Laporan", icon: BarChart3, roles: ["ADMIN", "ATASAN"] },
   { view: "jenis-surat", label: "Jenis Surat", icon: FileStack, roles: ["ADMIN"] },
   { view: "users", label: "Pengguna", icon: Users, roles: ["ADMIN"] },
   { view: "audit-log", label: "Audit Log", icon: ScrollText, roles: ["ADMIN"] },
+  { view: "profil", label: "Profil", icon: UserCog, roles: ["ADMIN", "PETUGAS", "ATASAN"] },
 ];
 
-function NavLinks({
-  items,
+// Group items into AdminLTE-style sections.
+// Each section is rendered with an uppercase `nav-header` label.
+function getSections(role: string): { header: string; items: NavItem[] }[] {
+  const allowed = NAV_ITEMS.filter((i) => i.roles.includes(role));
+  const menu = allowed.filter(
+    (i) =>
+      i.view === "dashboard" ||
+      i.view === "permohonan" ||
+      i.view === "permohonan-baru" ||
+      i.view === "laporan"
+  );
+  const manajemen = allowed.filter(
+    (i) => i.view === "jenis-surat" || i.view === "users" || i.view === "audit-log"
+  );
+  const akun = allowed.filter((i) => i.view === "profil");
+  const sections: { header: string; items: NavItem[] }[] = [];
+  if (menu.length) sections.push({ header: "Menu", items: menu });
+  if (manajemen.length) sections.push({ header: "Manajemen", items: manajemen });
+  if (akun.length) sections.push({ header: "Akun", items: akun });
+  return sections;
+}
+
+const VIEW_LABELS: Record<AppView, string> = {
+  public: "Lacak Surat",
+  dashboard: "Dashboard",
+  permohonan: "Permohonan",
+  "permohonan-baru": "Daftar Permohonan Baru",
+  "permohonan-detail": "Detail Permohonan",
+  laporan: "Laporan",
+  "audit-log": "Audit Log",
+  users: "Manajemen Pengguna",
+  "jenis-surat": "Jenis Surat",
+  notifikasi: "Notifikasi",
+  profil: "Pengaturan Akun",
+};
+
+function isActive(view: AppView, item: AppView): boolean {
+  if (view === item) return true;
+  if (item === "permohonan" && view === "permohonan-detail") return true;
+  return false;
+}
+
+/* ----- Sidebar content (shared by desktop <aside> + mobile <Sheet>) ----- */
+function SidebarContent({
+  role,
   view,
   setView,
   onNavigate,
+  onOpenSearch,
+  userName,
+  roleLabel,
+  roleIcon: RoleIcon,
 }: {
-  items: typeof navItems;
+  role: string;
   view: AppView;
   setView: (v: AppView) => void;
   onNavigate?: () => void;
+  onOpenSearch: () => void;
+  userName: string;
+  roleLabel: string;
+  roleIcon: any;
 }) {
+  const sections = getSections(role);
   return (
     <>
-      {items.map((item) => {
-        const Icon = item.icon;
-        const active = view === item.view || (item.view === "permohonan" && view === "permohonan-detail");
-        return (
-          <button
-            key={item.view}
-            onClick={() => { setView(item.view); onNavigate?.(); }}
-            className={cn(
-              "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all",
-              active
-                ? "bg-primary/15 text-primary gold-border border"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/60 border border-transparent"
-            )}
-          >
-            <Icon className="w-4 h-4" />
-            {item.label}
-          </button>
-        );
-      })}
+      <a
+        className="brand-link"
+        href="#"
+        onClick={(e) => {
+          e.preventDefault();
+          setView("dashboard");
+          onNavigate?.();
+        }}
+        aria-label="SI-TRACK TANAH"
+      >
+        <Logo size={36} />
+        <span className="flex flex-col leading-tight">
+          <span className="gold-gradient-text font-extrabold text-base">SI-TRACK TANAH</span>
+          <span className="brand-sub">Kuala Pembuang II</span>
+        </span>
+      </a>
+
+      <div className="user-panel">
+        <div className="up-avatar">{userName.charAt(0).toUpperCase()}</div>
+        <div className="up-info">
+          <div className="up-name">{userName}</div>
+          <div className="up-role">
+            <RoleIcon className="w-3 h-3" /> {roleLabel}
+          </div>
+        </div>
+      </div>
+
+      <div className="sidebar-form">
+        <button
+          type="button"
+          className="sidebar-search-btn"
+          onClick={() => {
+            onOpenSearch();
+            onNavigate?.();
+          }}
+        >
+          <Search className="w-4 h-4" />
+          <span>Cari…</span>
+          <span className="kbd">⌘K</span>
+        </button>
+      </div>
+
+      <nav className="nav-sidebar">
+        {sections.map((section) => (
+          <div key={section.header}>
+            <p className="nav-header">{section.header}</p>
+            {section.items.map((item) => {
+              const Icon = item.icon;
+              const active = isActive(view, item.view);
+              return (
+                <button
+                  key={item.view}
+                  type="button"
+                  className={cn("nav-link", active && "active")}
+                  onClick={() => {
+                    setView(item.view);
+                    onNavigate?.();
+                  }}
+                >
+                  <Icon className="nav-icon" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
     </>
   );
 }
 
+/* ----- AdminLTE minimal footer (dark navy bar with copyright + version) ----- */
+function AdminFooter() {
+  return (
+    <footer className="main-footer">
+      <div className="mf-inner">
+        <span>
+          © {new Date().getFullYear()} Pemerintah Kelurahan Kuala Pembuang II ·{" "}
+          <span className="gold-text font-semibold">SI-TRACK TANAH</span> v1.0
+        </span>
+        <span className="hidden sm:inline-flex items-center gap-1">
+          Dibuat dengan <Heart className="w-3 h-3" style={{ color: "#d4af37" }} /> untuk pelayanan publik
+        </span>
+      </div>
+    </footer>
+  );
+}
+
+/* ============================================================
+   AppShell
+   ============================================================ */
 export function AppShell({ children, onLoginClick }: { children: React.ReactNode; onLoginClick: () => void }) {
   const { user, view, setView, setUser, selectPermohonan } = useAppStore();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -91,8 +216,6 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
     return () => document.removeEventListener("keydown", handler);
   }, []);
 
-  const items = navItems.filter((i) => !user || i.roles.includes(user.role));
-
   const handleLogout = async () => {
     try {
       await api.logout();
@@ -103,143 +226,198 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
     }
   };
 
-  const roleIcon = user?.role === "ADMIN" ? ShieldCheck : user?.role === "ATASAN" ? Crown : UserCog;
-  const RoleIcon = roleIcon;
+  const openCmd = () => {
+    setCmdKey((k) => k + 1);
+    setCmdOpen(true);
+  };
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-border/60 glass-card">
-        <div className="container mx-auto max-w-7xl px-4">
-          <div className="flex h-16 items-center justify-between gap-3">
-            {/* Logo */}
-            <button onClick={() => setView(user ? "dashboard" : "public")} className="shrink-0">
-              <LogoFull />
-            </button>
-
-            {/* Desktop nav */}
-            {user && (
-              <nav className="hidden lg:flex items-center gap-1">
-                <NavLinks items={items} view={view} setView={setView} />
-              </nav>
-            )}
-
-            {/* Right actions */}
-            <div className="flex items-center gap-1.5">
-              {!user ? (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setView("public")}
-                    className="hidden sm:flex"
-                  >
-                    <Search className="w-4 h-4 mr-1.5" /> Lacak Surat
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={onLoginClick}
-                    className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
-                  >
-                    <LogIn className="w-4 h-4 mr-1.5" /> Login Petugas
-                  </Button>
-                </>
-              ) : (
-                <>
-                  {/* Command Palette trigger */}
-                  <button
-                    onClick={() => { setCmdKey((k) => k + 1); setCmdOpen(true); }}
-                    className="hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-border/60 bg-background/60 hover:bg-accent/60 text-muted-foreground hover:text-foreground text-sm transition-colors"
-                  >
-                    <Search className="w-4 h-4" />
-                    <span className="text-xs">Cari...</span>
-                    <kbd className="ml-1 pointer-events-none inline-flex h-5 items-center gap-0.5 rounded border border-border/60 bg-muted/40 px-1.5 font-mono text-[10px] font-medium text-muted-foreground/70">
-                      <span className="text-xs">⌘</span>K
-                    </kbd>
-                  </button>
-                  <NotificationsBell />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-9 px-2 gap-2 hover:bg-accent">
-                        <Avatar className="w-7 h-7 border border-primary/40">
-                          <AvatarFallback className="bg-primary/15 text-primary text-xs font-bold">
-                            {user.name.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="hidden md:flex flex-col items-start leading-tight">
-                          <span className="text-xs font-semibold">{user.name}</span>
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                            <RoleIcon className="w-3 h-3" /> {ROLE_LABELS[user.role]}
-                          </span>
-                        </div>
-                        <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="glass-card navy-glow w-56">
-                      <DropdownMenuLabel className="text-xs">
-                        <div className="flex flex-col">
-                          <span className="font-semibold text-sm">{user.name}</span>
-                          <span className="text-muted-foreground">{user.email}</span>
-                          <Badge variant="outline" className="mt-1 w-fit text-[10px]">
-                            <RoleIcon className="w-3 h-3 mr-1" /> {ROLE_LABELS[user.role]}
-                          </Badge>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setView("dashboard")} className="cursor-pointer">
-                        <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setView("public")} className="cursor-pointer">
-                        <Search className="w-4 h-4 mr-2" /> Lacak Surat (Publik)
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setView("profil")} className="cursor-pointer">
-                        <UserCog className="w-4 h-4 mr-2" /> Pengaturan Akun
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
-                        <LogOut className="w-4 h-4 mr-2" /> Keluar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </>
-              )}
-
-              {/* Mobile menu */}
-              {user && (
-                <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="lg:hidden">
-                      <Menu className="w-5 h-5" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="left" className="w-72 glass-card border-primary/20">
-                    <SheetHeader>
-                      <SheetTitle className="flex items-center gap-2">
-                        <Logo size={32} /> <span className="gold-gradient-text">SI-TRACK TANAH</span>
-                      </SheetTitle>
-                    </SheetHeader>
-                    <nav className="flex flex-col gap-1 mt-4">
-                      <NavLinks items={items} view={view} setView={setView} onNavigate={() => setMobileOpen(false)} />
-                      <div className="mt-4 pt-4 border-t border-border/40">
-                        <Button variant="outline" className="w-full justify-start" onClick={handleLogout}>
-                          <LogOut className="w-4 h-4 mr-2" /> Keluar
-                        </Button>
-                      </div>
-                    </nav>
-                  </SheetContent>
-                </Sheet>
-              )}
+  // ============ PUBLIC VIEW (no user) ============
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <header className="sticky top-0 z-40 border-b border-border/60 glass-card">
+          <div className="container mx-auto max-w-7xl px-4">
+            <div className="flex h-16 items-center justify-between gap-3">
+              <button onClick={() => setView("public")} className="shrink-0">
+                <LogoFull />
+              </button>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setView("public")}
+                  className="hidden sm:flex"
+                >
+                  <Search className="w-4 h-4 mr-1.5" /> Lacak Surat
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={onLoginClick}
+                  className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+                >
+                  <LogIn className="w-4 h-4 mr-1.5" /> Login Petugas
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </div>
+    );
+  }
 
-      {/* Main */}
-      <main className="flex-1">{children}</main>
+  // ============ AUTHENTICATED VIEW (AdminLTE 4) ============
+  const roleIcon = user.role === "ADMIN" ? ShieldCheck : user.role === "ATASAN" ? Crown : UserCog;
+  const RoleIcon = roleIcon;
+  const roleLabel = ROLE_LABELS[user.role];
+  const currentLabel = VIEW_LABELS[view] || "Dashboard";
 
-      {/* Footer */}
-      <FooterLazy />
+  return (
+    <div className="adminlte wrapper">
+      {/* Desktop sidebar (hidden < 992px via CSS) */}
+      <aside className="main-sidebar">
+        <SidebarContent
+          role={user.role}
+          view={view}
+          setView={setView}
+          onOpenSearch={openCmd}
+          userName={user.name}
+          roleLabel={roleLabel}
+          roleIcon={RoleIcon}
+        />
+      </aside>
+
+      {/* Mobile sidebar via Sheet */}
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+        <SheetContent side="left" className="w-72 p-0 bg-[#1a2332] border-r border-white/10">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Menu Navigasi</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col h-full">
+            <SidebarContent
+              role={user.role}
+              view={view}
+              setView={setView}
+              onNavigate={() => setMobileOpen(false)}
+              onOpenSearch={openCmd}
+              userName={user.name}
+              roleLabel={roleLabel}
+              roleIcon={RoleIcon}
+            />
+            <div className="mt-auto p-3 border-t border-white/10">
+              <button
+                type="button"
+                className="nav-link"
+                onClick={() => {
+                  setMobileOpen(false);
+                  handleLogout();
+                }}
+              >
+                <LogOut className="nav-icon" />
+                <span>Keluar</span>
+              </button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Main column */}
+      <div className="content-wrapper">
+        {/* Top navbar (dark) */}
+        <nav className="main-header">
+          {/* Mobile hamburger */}
+          <button
+            type="button"
+            className="sidebar-toggle lg:hidden"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Buka menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          {/* Mini brand (mobile only) */}
+          <div className="navbar-brand-mini">
+            <Logo size={26} />
+            <span className="gold-gradient-text">SI-TRACK TANAH</span>
+          </div>
+
+          {/* Breadcrumb / current page title */}
+          <div className="navbar-breadcrumb">
+            <span className="bc-current">{currentLabel}</span>
+          </div>
+
+          {/* Right cluster */}
+          <div className="navbar-nav-right">
+            <button
+              type="button"
+              className="navbar-btn hidden sm:inline-flex"
+              onClick={openCmd}
+              aria-label="Cari"
+            >
+              <Search className="w-4 h-4" />
+              <kbd
+                className="font-mono text-[10px] px-1.5 py-0.5 rounded"
+                style={{ background: "rgba(0,0,0,.25)", color: "#c2c7d0" }}
+              >
+                ⌘K
+              </kbd>
+            </button>
+
+            <NotificationsBell />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className="navbar-user-btn">
+                  <span className="nu-avatar">{user.name.charAt(0).toUpperCase()}</span>
+                  <span className="nu-meta hidden md:flex">
+                    <span className="nu-name">{user.name}</span>
+                    <span className="nu-role">
+                      <RoleIcon className="w-3 h-3" /> {roleLabel}
+                    </span>
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-[#8a94a6] hidden md:block" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-60">
+                <DropdownMenuLabel className="text-xs">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm">{user.name}</span>
+                    <span className="text-muted-foreground">{user.email}</span>
+                    <Badge variant="outline" className="mt-1 w-fit text-[10px]">
+                      <RoleIcon className="w-3 h-3 mr-1" /> {roleLabel}
+                    </Badge>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setView("dashboard")} className="cursor-pointer">
+                  <LayoutDashboard className="w-4 h-4 mr-2" /> Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setView("public")} className="cursor-pointer">
+                  <Search className="w-4 h-4 mr-2" /> Lacak Surat (Publik)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setView("profil")} className="cursor-pointer">
+                  <UserCog className="w-4 h-4 mr-2" /> Pengaturan Akun
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut className="w-4 h-4 mr-2" /> Keluar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </nav>
+
+        {/* Content area */}
+        <section className="content">{children}</section>
+
+        {/* Footer */}
+        <AdminFooter />
+      </div>
 
       {/* Command Palette (Cmd+K) — key changes on each open to reset internal state */}
       <CommandPalette
@@ -252,9 +430,4 @@ export function AppShell({ children, onLoginClick }: { children: React.ReactNode
       />
     </div>
   );
-}
-
-import { Footer } from "./Footer";
-function FooterLazy() {
-  return <Footer />;
 }
