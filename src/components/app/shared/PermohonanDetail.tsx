@@ -38,8 +38,10 @@ import {
   Upload, QrCode, Copy, CheckCircle2, PenTool, History, RotateCcw, ShieldAlert,
   ChevronRight, FileCheck, FileWarning, Files, MessageSquare,
   Phone, MapPinned, Tag, Gauge, ScanLine, FileType2, Printer,
+  ChevronDown, FileImage,
 } from "lucide-react";
 import { TandaTerima } from "@/components/app/shared/TandaTerima";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface DokumenItem {
   id: string;
@@ -130,6 +132,13 @@ function formatBytes(n?: number | null): string {
   return `${(n / (1024 * 1024)).toFixed(2)} MB`;
 }
 
+function getFileIcon(name: string) {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  if (ext === "pdf") return FileType2;
+  if (["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"].includes(ext)) return FileImage;
+  return Files;
+}
+
 function DLRow({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon?: any }) {
   return (
     <div className="flex items-start gap-2 py-1.5">
@@ -175,6 +184,11 @@ export function PermohonanDetail() {
 
   // tanda terima (printable receipt) state
   const [tandaTerimaOpen, setTandaTerimaOpen] = useState(false);
+
+  // collapsible section state
+  const [pemohonOpen, setPemohonOpen] = useState(true);
+  const [tanahOpen, setTanahOpen] = useState(true);
+  const [keperluanOpen, setKeperluanOpen] = useState(true);
 
   const fetchDetail = useCallback(async () => {
     if (!selectedPermohonanId) return;
@@ -494,20 +508,20 @@ export function PermohonanDetail() {
 
           {/* Alert boxes */}
           {isRejected && p.alasanDitolak && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-2">
-              <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 flex items-start gap-2">
+              <XCircle className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-destructive">Permohonan Ditolak</p>
-                <p className="text-sm text-foreground/90 mt-0.5">{p.alasanDitolak}</p>
+                <p className="text-xs font-semibold text-red-800">Permohonan Ditolak</p>
+                <p className="text-sm text-red-700 mt-0.5">{p.alasanDitolak}</p>
               </div>
             </div>
           )}
           {isRevisi && p.catatan && (
-            <div className="rounded-lg border border-orange-500/40 bg-orange-500/10 p-3 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-orange-500">Perlu Perbaikan</p>
-                <p className="text-sm text-foreground/90 mt-0.5">{p.catatan}</p>
+                <p className="text-xs font-semibold text-amber-800">Perlu Perbaikan</p>
+                <p className="text-sm text-amber-700 mt-0.5">{p.catatan}</p>
               </div>
             </div>
           )}
@@ -563,7 +577,7 @@ export function PermohonanDetail() {
 
             {/* Aksi Proses card */}
             {!isFinal && (
-              <Card className="glass-card border-primary/15 lg:sticky lg:top-20 h-fit">
+              <Card className="glass-card border-primary/15 border-l-4 border-l-primary lg:sticky lg:top-20 h-fit">
                 <CardContent className="p-5 space-y-4">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
@@ -742,65 +756,79 @@ export function PermohonanDetail() {
         <TabsContent value="data" className="space-y-4">
           <div className="grid lg:grid-cols-2 gap-4">
             {/* Data Pemohon */}
-            <Card className="glass-card border-primary/15">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-sm flex items-center gap-2">
-                    <User className="w-4 h-4 text-primary" /> Data Pemohon
-                  </h3>
-                  {can("edit_permohonan") && (
-                    <Button variant="outline" size="sm" onClick={openEdit}>
-                      <FileWarning className="w-3.5 h-3.5" /> Edit
-                    </Button>
-                  )}
-                </div>
-                <Separator className="mb-3" />
-                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
-                  <DLRow label="NIK" value={<span className="font-mono">{p.pemohonNik}</span>} icon={Tag} />
-                  <DLRow label="Nama Lengkap" value={p.pemohonNama} icon={User} />
-                  <DLRow label="Tempat Lahir" value={p.pemohonTempatLahir} icon={MapPin} />
-                  <DLRow label="Tanggal Lahir" value={formatDate(p.pemohonTanggalLahir)} icon={Calendar} />
-                  <div className="sm:col-span-2">
-                    <DLRow label="Alamat" value={p.pemohonAlamat} icon={MapPinned} />
-                  </div>
-                  <DLRow label="RT" value={p.pemohonRt} icon={MapPin} />
-                  <DLRow label="RW" value={p.pemohonRw} icon={MapPin} />
-                  <DLRow label="No. HP" value={p.pemohonHp} icon={Phone} />
-                </div>
-              </CardContent>
-            </Card>
+            <Collapsible open={pemohonOpen} onOpenChange={setPemohonOpen}>
+              <Card className="glass-card border-primary/15">
+                <CardContent className="p-5">
+                  <CollapsibleTrigger asChild>
+                    <div className="flex items-center justify-between mb-3 cursor-pointer select-none group">
+                      <h3 className="font-semibold text-sm flex items-center gap-2">
+                        <User className="w-4 h-4 text-primary" /> Data Pemohon
+                        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${pemohonOpen ? "rotate-180" : "rotate-0"}`} />
+                      </h3>
+                      {can("edit_permohonan") && (
+                        <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); openEdit(); }}>
+                          <FileWarning className="w-3.5 h-3.5" /> Edit
+                        </Button>
+                      )}
+                    </div>
+                  </CollapsibleTrigger>
+                  <Separator className="mb-3" />
+                  <CollapsibleContent>
+                    <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
+                      <DLRow label="NIK" value={<span className="font-mono">{p.pemohonNik}</span>} icon={Tag} />
+                      <DLRow label="Nama Lengkap" value={p.pemohonNama} icon={User} />
+                      <DLRow label="Tempat Lahir" value={p.pemohonTempatLahir} icon={MapPin} />
+                      <DLRow label="Tanggal Lahir" value={formatDate(p.pemohonTanggalLahir)} icon={Calendar} />
+                      <div className="sm:col-span-2">
+                        <DLRow label="Alamat" value={p.pemohonAlamat} icon={MapPinned} />
+                      </div>
+                      <DLRow label="RT" value={p.pemohonRt} icon={MapPin} />
+                      <DLRow label="RW" value={p.pemohonRw} icon={MapPin} />
+                      <DLRow label="No. HP" value={p.pemohonHp} icon={Phone} />
+                    </div>
+                  </CollapsibleContent>
+                </CardContent>
+              </Card>
+            </Collapsible>
 
             {/* Data Tanah */}
-            <Card className="glass-card border-primary/15">
-              <CardContent className="p-5">
-                <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
-                  <MapPin className="w-4 h-4 text-primary" /> Data Tanah
-                </h3>
-                <Separator className="mb-3" />
-                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
-                  <div className="sm:col-span-2">
-                    <DLRow label="Lokasi Tanah" value={p.lokasiTanah} icon={MapPin} />
-                  </div>
-                  <DLRow label="RT" value={p.tanahRt} icon={MapPin} />
-                  <DLRow label="RW" value={p.tanahRw} icon={MapPin} />
-                  <DLRow
-                    label="Luas Tanah"
-                    value={p.luasTanah ? `${p.luasTanah} m²` : null}
-                    icon={Ruler}
-                  />
-                  <DLRow label="Status Penguasaan" value={p.statusPenguasaan} icon={ShieldAlert} />
-                  <div className="sm:col-span-2 mt-2">
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
-                      <Gauge className="w-3 h-3" /> Batas-batas
-                    </p>
-                  </div>
-                  <DLRow label="Batas Utara" value={p.batasUtara} />
-                  <DLRow label="Batas Selatan" value={p.batasSelatan} />
-                  <DLRow label="Batas Timur" value={p.batasTimur} />
-                  <DLRow label="Batas Barat" value={p.batasBarat} />
-                </div>
-              </CardContent>
-            </Card>
+            <Collapsible open={tanahOpen} onOpenChange={setTanahOpen}>
+              <Card className="glass-card border-primary/15">
+                <CardContent className="p-5">
+                  <CollapsibleTrigger asChild>
+                    <h3 className="font-semibold text-sm flex items-center gap-2 mb-3 cursor-pointer select-none">
+                      <MapPin className="w-4 h-4 text-primary" /> Data Tanah
+                      <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${tanahOpen ? "rotate-180" : "rotate-0"}`} />
+                    </h3>
+                  </CollapsibleTrigger>
+                  <Separator className="mb-3" />
+                  <CollapsibleContent>
+                    <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
+                      <div className="sm:col-span-2">
+                        <DLRow label="Lokasi Tanah" value={p.lokasiTanah} icon={MapPin} />
+                      </div>
+                      <DLRow label="RT" value={p.tanahRt} icon={MapPin} />
+                      <DLRow label="RW" value={p.tanahRw} icon={MapPin} />
+                      <DLRow
+                        label="Luas Tanah"
+                        value={p.luasTanah ? `${p.luasTanah} m²` : null}
+                        icon={Ruler}
+                      />
+                      <DLRow label="Status Penguasaan" value={p.statusPenguasaan} icon={ShieldAlert} />
+                      <div className="sm:col-span-2 mt-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
+                          <Gauge className="w-3 h-3" /> Batas-batas
+                        </p>
+                      </div>
+                      <DLRow label="Batas Utara" value={p.batasUtara} />
+                      <DLRow label="Batas Selatan" value={p.batasSelatan} />
+                      <DLRow label="Batas Timur" value={p.batasTimur} />
+                      <DLRow label="Batas Barat" value={p.batasBarat} />
+                    </div>
+                  </CollapsibleContent>
+                </CardContent>
+              </Card>
+            </Collapsible>
 
             {/* Keperluan & Jenis Surat */}
             <Card className="glass-card border-primary/15 lg:col-span-2">
@@ -1367,6 +1395,79 @@ export function PermohonanDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ===== Floating Quick-Action Bar (bottom sticky) ===== */}
+      {!isFinal && p && (
+        <div className="sticky bottom-0 z-30 mt-4 -mx-4 sm:-mx-6 px-4 sm:px-6 py-3 bg-white/95 backdrop-blur-sm border-t border-border shadow-[0_-2px_10px_rgba(0,0,0,0.06)] no-print animate-fade-in-up">
+          <div className="flex items-center justify-between gap-3 max-w-7xl mx-auto">
+            <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+              <FileCheck className="w-4 h-4" />
+              <span>{p.nomorRegister}</span>
+              <StatusBadge kode={p.statusSaatIni} size="sm" />
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              {isPetugasOrAdmin && !isRevisi && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  disabled={actionLoading !== null}
+                  onClick={() => setTolakOpen(true)}
+                >
+                  <XCircle className="w-3.5 h-3.5" /> Tolak
+                </Button>
+              )}
+              {/* Primary action button based on current status */}
+              {canAdvance && isPetugasOrAdmin && !isRevisi && (
+                <Button
+                  className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 shadow-md"
+                  disabled={actionLoading !== null}
+                  onClick={() => handleChangeStatus(
+                    { catatan: catatan.trim() || undefined }, "advance",
+                    "Permohonan dilanjutkan ke tahap berikutnya"
+                  )}
+                >
+                  {actionLoading === "advance" ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
+                  Lanjut ke Tahap Berikutnya
+                </Button>
+              )}
+              {isTtdLurah && isAtasanOrAdmin && (
+                <Button
+                  className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 shadow-md"
+                  disabled={actionLoading !== null}
+                  onClick={() => handleChangeStatus({}, "approve-lurah", "Permohonan disetujui dan ditandatangani")}
+                >
+                  {actionLoading === "approve-lurah" ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenTool className="w-4 h-4" />}
+                  Setujui & Tanda Tangani
+                </Button>
+              )}
+              {isTtdCamat && isAtasanOrAdmin && (
+                <Button
+                  className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 shadow-md"
+                  disabled={actionLoading !== null}
+                  onClick={() => handleChangeStatus({}, "approve-camat", "Permohonan disahkan dan diselesaikan")}
+                >
+                  {actionLoading === "approve-camat" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Stamp className="w-4 h-4" />}
+                  Sahkan & Selesaikan
+                </Button>
+              )}
+              {isRevisi && isPetugasOrAdmin && (
+                <Button
+                  className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 shadow-md"
+                  disabled={actionLoading !== null}
+                  onClick={() => handleChangeStatus(
+                    { statusKode: "CEK_ADMIN" }, "restore",
+                    "Permohonan dikembalikan ke proses"
+                  )}
+                >
+                  {actionLoading === "restore" ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                  Kembalikan ke Proses
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== Tanda Terima (Printable Receipt) Dialog ===== */}
       <Dialog open={tandaTerimaOpen} onOpenChange={setTandaTerimaOpen}>

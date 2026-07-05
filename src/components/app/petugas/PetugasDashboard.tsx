@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 import { SectionHeader } from "@/components/app/StatCard";
 import { SmallBox } from "@/components/app/SmallBox";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import type { DashboardStats } from "@/lib/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -82,13 +89,15 @@ export function PetugasDashboard() {
   const setView = useAppStore((s) => s.setView);
   const selectPermohonan = useAppStore((s) => s.selectPermohonan);
 
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState<number>(currentYear);
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (y: number) => {
     setLoading(true);
     try {
-      const d = await api.dashboard();
+      const d = await api.dashboard(y);
       setData(d as DashboardStats);
     } catch (e: any) {
       toast.error("Gagal memuat dashboard", { description: e.message });
@@ -98,8 +107,14 @@ export function PetugasDashboard() {
   }, []);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchData(year);
+  }, [year, fetchData]);
+
+  const yearOptions = useMemo(() => {
+    const arr: number[] = [];
+    for (let y = currentYear; y >= currentYear - 4; y--) arr.push(y);
+    return arr;
+  }, [currentYear]);
 
   if (loading || !data) {
     return (
@@ -119,6 +134,20 @@ export function PetugasDashboard() {
         title="Dashboard Petugas"
         subtitle={`Halo ${user?.name || "Petugas"}, kelola permohonan surat tanah dengan efisien.`}
         icon={ListChecks}
+        action={
+          <Select value={String(year)} onValueChange={(v) => setYear(Number(v))}>
+            <SelectTrigger className="w-[140px] glass-card border-primary/15">
+              <SelectValue placeholder="Tahun" />
+            </SelectTrigger>
+            <SelectContent>
+              {yearOptions.map((y) => (
+                <SelectItem key={y} value={String(y)}>
+                  Tahun {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
 
       {/* Quick actions */}

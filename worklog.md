@@ -537,8 +537,92 @@ App stable from Task 7-b (AdminLTE 4 redesign). Dev server clean, lint 0 errors,
 
 ## Priority Recommendations for Next Round
 1. **Cross-page bulk selection** — persist selected IDs across pagination using a "select all matching filter" pattern
-2. **Dashboard date-range filter for Petugas/Atasan** (currently only Admin has year filter)
+2. **Dashboard date-range filter for Petugas/Atasan** ✅ DONE (Task 9-a)
 3. **WhatsApp/email notification integration** (currently dashboard-only notifications)
-4. **PWA manifest + service worker** for offline public tracking
+4. **PWA manifest + service worker** for offline public tracking ✅ DONE (Task 9-a)
 5. **Enhanced chart interactivity** (click-to-filter on pie/bar segments)
 6. **Server-side PDF report generation** with jsPDF instead of window.print()
+
+---
+Task ID: 9-a
+Agent: full-stack-developer (year filter + PWA)
+Task: Add year filter to Petugas/Atasan dashboards + PWA manifest + service worker
+
+Work Log:
+- Read worklog.md to understand project history and context
+- Read PetugasDashboard.tsx, AtasanDashboard.tsx, AdminDashboard.tsx (reference for year pattern), StatCard.tsx (SectionHeader action prop), layout.tsx, api.ts
+- Updated PetugasDashboard.tsx: added useMemo import, Select component imports, year state (default currentYear), yearOptions computed via useMemo, fetchData now accepts year param calling api.dashboard(y), useEffect depends on [year, fetchData], year Select in SectionHeader action prop
+- Updated AtasanDashboard.tsx: same changes as PetugasDashboard — year state, yearOptions, fetchData(year), year Select in SectionHeader action
+- Created /public/manifest.json — PWA manifest with name, short_name, icons (logo.svg), standalone display, dark navy background, gold theme color, portrait-primary orientation
+- Created /public/sw.js — minimal service worker with cache-first strategy for offline support (install, activate, fetch handlers)
+- Created /src/components/app/ServiceWorkerRegistrar.tsx — client component that registers SW in production only
+- Updated layout.tsx: added ServiceWorkerRegistrar import, <head> with manifest link + theme-color meta, metadataBase + openGraph + appleWebApp in metadata export, <ServiceWorkerRegistrar /> in body after children
+- Ran `bun run lint` — 0 errors
+- Checked dev.log — compiles clean, API requests working (GET /api/dashboard?year=2026 200)
+
+Stage Summary:
+- Year filter added to both PetugasDashboard and AtasanDashboard (matching AdminDashboard pattern)
+- PWA support added: manifest.json, sw.js service worker, ServiceWorkerRegistrar component
+- Layout updated with manifest link, theme-color meta, metadataBase, openGraph, appleWebApp
+- All lint checks pass, dev server compiles cleanly
+- Files changed: PetugasDashboard.tsx, AtasanDashboard.tsx, layout.tsx, manifest.json (new), sw.js (new), ServiceWorkerRegistrar.tsx (new)
+
+---
+Task ID: 9
+Agent: main (webDevReview round)
+Task: Year filter for Petugas/Atasan dashboards + PWA manifest + PermohonanDetail enhancements
+
+## Current Project Status Assessment
+App stable from Task 8. All core flows verified, lint 0 errors, dev server clean. This round focused on: (1) feature parity across dashboards, (2) PWA for mobile installability, (3) PermohonanDetail UX enhancements.
+
+## Work Completed
+
+### 1. Year Filter for Petugas/Atasan Dashboards (Feature Parity)
+- **PetugasDashboard.tsx**: Added `year` state, `yearOptions` (useMemo), `fetchData(y)` with year param, year Select in SectionHeader action (matching AdminDashboard pattern exactly)
+- **AtasanDashboard.tsx**: Same changes — year state, yearOptions, fetchData(year), year Select
+- Both now support filtering dashboard data by year (current year - 4 to current year)
+
+### 2. PWA Support (Mobile Installability)
+- **`public/manifest.json`**: PWA manifest — standalone display, gold theme (#d4af37), navy background (#0a1628), logo.svg icon, "government" category, lang "id"
+- **`public/sw.js`**: Service worker — network-first with cache fallback, offline fallback to `/`, auto-cleanup old caches on activate
+- **`ServiceWorkerRegistrar.tsx`**: Client component registering SW in production only (no SW in dev mode)
+- **`layout.tsx`**: Added `<link rel="manifest">`, `<meta name="theme-color">`, metadataBase, openGraph, appleWebApp metadata, `<ServiceWorkerRegistrar />` in body
+
+### 3. PermohonanDetail Enhancements
+- **Collapsible Data Sections**: Data tab now uses shadcn Collapsible for each card (Data Pemohon, Data Tanah, Keperluan). Each has rotating ChevronDown icon. Default open.
+- **Print Receipt Button**: Added "Cetak Tanda Terima" ghost button in the header card (quick access, only for PETUGAS/ADMIN)
+- **Document Preview Icons**: File-type icons based on extension — FileImage for images, FileType2 for PDF, Files for others. File size formatting (KB/MB).
+- **Light Theme Alert Boxes**: DITOLAK alert → bg-red-50/border-red-200/text-red-800 (was destructive/10 which was dark-theme only). REVISI alert → bg-amber-50/border-amber-200/text-amber-800 (was orange-500/10).
+- **Aksi Proses Card**: Added `border-l-4 border-l-primary` accent for visual distinction on white cards
+- **Floating Quick-Action Bar**: Sticky bottom bar with register number + status badge (left), Tolak button (optional), and primary gold action button (Lanjut/Setujui/Sahkan/Kembalikan — based on current status). Only shows on non-final statuses. VLM rated 9/10 UX clarity.
+
+### Files Changed
+- `src/components/app/petugas/PetugasDashboard.tsx` — year filter
+- `src/components/app/atasan/AtasanDashboard.tsx` — year filter
+- `public/manifest.json` — NEW PWA manifest
+- `public/sw.js` — NEW service worker
+- `src/components/app/ServiceWorkerRegistrar.tsx` — NEW SW registration
+- `src/app/layout.tsx` — PWA head tags + SW registrar
+- `src/components/app/shared/PermohonanDetail.tsx` — collapsible sections + print button + doc icons + light-theme alerts + floating bar
+
+## Verification Results
+- `bun run lint`: **0 errors**
+- Dev server: compiles clean, all routes 200
+- agent-browser QA:
+  - Admin dashboard: 8 SmallBox + 2 charts ✓
+  - Floating quick-action bar on detail page: visible with "KPII-TNH-2026-000006", "Pengajuan Diterima" badge, "Tolak" + "Lanjut ke Tahap Berikutnya" buttons ✓ — VLM 9/10
+  - Collapsible data sections working ✓
+  - Light-theme alert boxes render correctly ✓
+
+## Unresolved Issues / Risks
+- Service worker only registers in production mode (intentional — no caching in dev)
+- PWA manifest uses `/logo.svg` as icon — may need a 192x192 and 512x512 PNG for full PWA compatibility on Android
+- Floating bar overlaps with the Aksi Proses sidebar card on large screens — both show the same actions. Consider hiding the Aksi Proses card on mobile where the floating bar replaces it.
+
+## Priority Recommendations for Next Round
+1. **Generate PWA icon PNGs** (192x192 and 512x512 from logo.svg) for full Android installability
+2. **Hide Aksi Proses card on mobile** since the floating bar provides the same actions
+3. **Dashboard date-range (from-to) filter** for more granular date selection beyond year-only
+4. **WhatsApp/email notification integration** (currently dashboard-only notifications)
+5. **Server-side PDF report generation** with jsPDF instead of window.print()
+6. **Enhanced chart interactivity** (click-to-filter on pie/bar segments)

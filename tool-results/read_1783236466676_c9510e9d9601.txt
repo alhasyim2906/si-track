@@ -1,0 +1,1414 @@
+     1→"use client";
+     2→import { useEffect, useState, useCallback, useRef } from "react";
+     3→import { api } from "@/lib/api";
+     4→import { useAppStore } from "@/store/app-store";
+     5→import {
+     6→  STATUS_BY_KODE, JENIS_DOKUMEN, buildStages, nextStatus,
+     7→} from "@/lib/constants";
+     8→import { SectionHeader } from "@/components/app/StatCard";
+     9→import { StatusBadge, PriorityBadge } from "@/components/app/StatusBadge";
+    10→import { Timeline, ProgressBar } from "@/components/app/Timeline";
+    11→import { Card, CardContent } from "@/components/ui/card";
+    12→import { Button } from "@/components/ui/button";
+    13→import { Input } from "@/components/ui/input";
+    14→import { Label } from "@/components/ui/label";
+    15→import { Textarea } from "@/components/ui/textarea";
+    16→import { Badge } from "@/components/ui/badge";
+    17→import { Separator } from "@/components/ui/separator";
+    18→import { Skeleton } from "@/components/ui/skeleton";
+    19→import { ScrollArea } from "@/components/ui/scroll-area";
+    20→import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    21→import {
+    22→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    23→} from "@/components/ui/select";
+    24→import {
+    25→  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+    26→} from "@/components/ui/dialog";
+    27→import {
+    28→  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    29→  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+    30→} from "@/components/ui/alert-dialog";
+    31→import {
+    32→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    33→} from "@/components/ui/table";
+    34→import { toast } from "sonner";
+    35→import {
+    36→  ArrowLeft, Hash, FileText, User, MapPin, Calendar, Clock, Ruler, Stamp,
+    37→  AlertCircle, AlertTriangle, XCircle, Loader2, Download, Trash2, Save,
+    38→  Upload, QrCode, Copy, CheckCircle2, PenTool, History, RotateCcw, ShieldAlert,
+    39→  ChevronRight, FileCheck, FileWarning, Files, MessageSquare,
+    40→  Phone, MapPinned, Tag, Gauge, ScanLine, FileType2, Printer,
+    41→} from "lucide-react";
+    42→import { TandaTerima } from "@/components/app/shared/TandaTerima";
+    43→
+    44→interface DokumenItem {
+    45→  id: string;
+    46→  jenisDokumen: string;
+    47→  namaFile: string;
+    48→  filePath?: string;
+    49→  ukuran?: number;
+    50→  createdAt: string;
+    51→}
+    52→
+    53→interface RiwayatEntry {
+    54→  id: string;
+    55→  statusKode: string;
+    56→  statusNama: string;
+    57→  catatan: string | null;
+    58→  petugas: { name: string; position?: string | null };
+    59→  tanggal: string;
+    60→}
+    61→
+    62→interface PermohonanDetail {
+    63→  id: string;
+    64→  nomorRegister: string;
+    65→  statusSaatIni: string;
+    66→  statusNama?: string;
+    67→  statusWarna?: string;
+    68→  prioritas: string;
+    69→  keperluan: string | null;
+    70→  catatan: string | null;
+    71→  alasanDitolak: string | null;
+    72→  tanggalSelesai: string | null;
+    73→  createdAt: string;
+    74→  updatedAt: string;
+    75→  jenisSurat: {
+    76→    id: string; kode: string; nama: string; deskripsi?: string;
+    77→    butuhPengukuran: boolean; butuhTtdCamat: boolean;
+    78→  };
+    79→  creator: { id: string; name: string; position?: string | null } | null;
+    80→  // pemohon
+    81→  pemohonNik: string;
+    82→  pemohonNama: string;
+    83→  pemohonTempatLahir: string | null;
+    84→  pemohonTanggalLahir: string | null;
+    85→  pemohonAlamat: string | null;
+    86→  pemohonRt: string | null;
+    87→  pemohonRw: string | null;
+    88→  pemohonHp: string | null;
+    89→  // tanah
+    90→  lokasiTanah: string | null;
+    91→  tanahRt: string | null;
+    92→  tanahRw: string | null;
+    93→  luasTanah: string | number | null;
+    94→  batasUtara: string | null;
+    95→  batasSelatan: string | null;
+    96→  batasTimur: string | null;
+    97→  batasBarat: string | null;
+    98→  statusPenguasaan: string | null;
+    99→  dokumen: DokumenItem[];
+   100→  riwayat: RiwayatEntry[];
+   101→}
+   102→
+   103→const STATUS_PENGUASAAN_OPTIONS = ["Milik Sendiri", "Warisan", "Girik", "Sewa", "Lainnya"];
+   104→
+   105→function formatDate(d?: string | null): string {
+   106→  if (!d) return "-";
+   107→  try {
+   108→    return new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+   109→  } catch {
+   110→    return d;
+   111→  }
+   112→}
+   113→
+   114→function formatDateTime(d?: string | null): string {
+   115→  if (!d) return "-";
+   116→  try {
+   117→    return new Date(d).toLocaleString("id-ID", {
+   118→      day: "2-digit", month: "short", year: "numeric",
+   119→      hour: "2-digit", minute: "2-digit",
+   120→    });
+   121→  } catch {
+   122→    return d;
+   123→  }
+   124→}
+   125→
+   126→function formatBytes(n?: number | null): string {
+   127→  if (!n) return "-";
+   128→  if (n < 1024) return `${n} B`;
+   129→  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+   130→  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+   131→}
+   132→
+   133→function DLRow({ label, value, icon: Icon }: { label: string; value: React.ReactNode; icon?: any }) {
+   134→  return (
+   135→    <div className="flex items-start gap-2 py-1.5">
+   136→      {Icon && <Icon className="w-3.5 h-3.5 text-muted-foreground mt-0.5 shrink-0" />}
+   137→      <div className="flex-1 min-w-0">
+   138→        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+   139→        <p className="text-sm font-medium break-words">{value || <span className="text-muted-foreground">-</span>}</p>
+   140→      </div>
+   141→    </div>
+   142→  );
+   143→}
+   144→
+   145→export function PermohonanDetail() {
+   146→  const { selectedPermohonanId, setView, selectPermohonan, can, user } = useAppStore();
+   147→  const [permohonan, setPermohonan] = useState<PermohonanDetail | null>(null);
+   148→  const [loading, setLoading] = useState(true);
+   149→  const [error, setError] = useState("");
+   150→
+   151→  // action state
+   152→  const [actionLoading, setActionLoading] = useState<string | null>(null);
+   153→  const [catatan, setCatatan] = useState("");
+   154→  const [revisiOpen, setRevisiOpen] = useState(false);
+   155→  const [revisiCatatan, setRevisiCatatan] = useState("");
+   156→  const [tolakOpen, setTolakOpen] = useState(false);
+   157→  const [alasanTolak, setAlasanTolak] = useState("");
+   158→  const [deleteOpen, setDeleteOpen] = useState(false);
+   159→
+   160→  // upload state
+   161→  const [uploadJenis, setUploadJenis] = useState("");
+   162→  const [uploadFile, setUploadFile] = useState<File | null>(null);
+   163→  const [uploading, setUploading] = useState(false);
+   164→
+   165→  // qr state
+   166→  const [qrData, setQrData] = useState<{ qr: string; url: string; nomorRegister: string } | null>(null);
+   167→  const [qrLoading, setQrLoading] = useState(false);
+   168→  const [qrCopied, setQrCopied] = useState(false);
+   169→
+   170→  // edit dialog state
+   171→  const [editOpen, setEditOpen] = useState(false);
+   172→  const [editForm, setEditForm] = useState<Record<string, any>>({});
+   173→  const [editSaving, setEditSaving] = useState(false);
+   174→  const fileInputRef = useRef<HTMLInputElement>(null);
+   175→
+   176→  // tanda terima (printable receipt) state
+   177→  const [tandaTerimaOpen, setTandaTerimaOpen] = useState(false);
+   178→
+   179→  const fetchDetail = useCallback(async () => {
+   180→    if (!selectedPermohonanId) return;
+   181→    setLoading(true);
+   182→    setError("");
+   183→    try {
+   184→      const r = await api.getPermohonan(selectedPermohonanId);
+   185→      setPermohonan(r);
+   186→    } catch (e: any) {
+   187→      setError(e.message || "Gagal memuat detail permohonan");
+   188→      toast.error(e.message || "Gagal memuat detail permohonan");
+   189→    } finally {
+   190→      setLoading(false);
+   191→    }
+   192→  }, [selectedPermohonanId]);
+   193→
+   194→  useEffect(() => {
+   195→    fetchDetail();
+   196→  }, [fetchDetail]);
+   197→
+   198→  const fetchQr = useCallback(async () => {
+   199→    if (!selectedPermohonanId || qrData) return;
+   200→    setQrLoading(true);
+   201→    try {
+   202→      const r = await api.getQr(selectedPermohonanId);
+   203→      setQrData(r);
+   204→    } catch (e: any) {
+   205→      toast.error(e.message || "Gagal memuat QR code");
+   206→    } finally {
+   207→      setQrLoading(false);
+   208→    }
+   209→  }, [selectedPermohonanId, qrData]);
+   210→
+   211→  const role = user?.role;
+   212→  const isPetugasOrAdmin = role === "PETUGAS" || role === "ADMIN";
+   213→  const isAtasanOrAdmin = role === "ATASAN" || role === "ADMIN";
+   214→  const isAdmin = role === "ADMIN";
+   215→
+   216→  const handleChangeStatus = async (
+   217→    body: { statusKode?: string; catatan?: string; alasanDitolak?: string },
+   218→    key: string,
+   219→    successMsg: string,
+   220→  ) => {
+   221→    if (!selectedPermohonanId) return;
+   222→    setActionLoading(key);
+   223→    try {
+   224→      await api.changeStatus(selectedPermohonanId, body);
+   225→      toast.success(successMsg);
+   226→      setCatatan("");
+   227→      setRevisiCatatan("");
+   228→      setAlasanTolak("");
+   229→      setRevisiOpen(false);
+   230→      setTolakOpen(false);
+   231→      // invalidate qr (status changed → qr may update)
+   232→      setQrData(null);
+   233→      await fetchDetail();
+   234→    } catch (e: any) {
+   235→      toast.error(e.message || "Gagal memperbarui status");
+   236→    } finally {
+   237→      setActionLoading(null);
+   238→    }
+   239→  };
+   240→
+   241→  const handleUpload = async () => {
+   242→    if (!selectedPermohonanId) return;
+   243→    if (!uploadFile) {
+   244→      toast.error("Pilih file terlebih dahulu");
+   245→      return;
+   246→    }
+   247→    if (!uploadJenis) {
+   248→      toast.error("Pilih jenis dokumen");
+   249→      return;
+   250→    }
+   251→    // size limit 10MB
+   252→    if (uploadFile.size > 10 * 1024 * 1024) {
+   253→      toast.error("Ukuran file melebihi batas 10 MB");
+   254→      return;
+   255→    }
+   256→    setUploading(true);
+   257→    try {
+   258→      const fd = new FormData();
+   259→      fd.append("file", uploadFile);
+   260→      fd.append("jenisDokumen", uploadJenis);
+   261→      await api.uploadDokumen(selectedPermohonanId, fd);
+   262→      toast.success("Dokumen berhasil diunggah");
+   263→      setUploadFile(null);
+   264→      setUploadJenis("");
+   265→      if (fileInputRef.current) fileInputRef.current.value = "";
+   266→      await fetchDetail();
+   267→    } catch (e: any) {
+   268→      toast.error(e.message || "Gagal mengunggah dokumen");
+   269→    } finally {
+   270→      setUploading(false);
+   271→    }
+   272→  };
+   273→
+   274→  const handleDeleteDok = async (dokId: string, namaFile: string) => {
+   275→    if (!selectedPermohonanId) return;
+   276→    try {
+   277→      await api.deleteDokumen(selectedPermohonanId, dokId);
+   278→      toast.success(`Dokumen "${namaFile}" dihapus`);
+   279→      await fetchDetail();
+   280→    } catch (e: any) {
+   281→      toast.error(e.message || "Gagal menghapus dokumen");
+   282→    }
+   283→  };
+   284→
+   285→  const handleDeletePermohonan = async () => {
+   286→    if (!selectedPermohonanId) return;
+   287→    setActionLoading("delete");
+   288→    try {
+   289→      await api.deletePermohonan(selectedPermohonanId);
+   290→      toast.success("Permohonan berhasil dihapus");
+   291→      setDeleteOpen(false);
+   292→      setView("permohonan");
+   293→    } catch (e: any) {
+   294→      toast.error(e.message || "Gagal menghapus permohonan");
+   295→    } finally {
+   296→      setActionLoading(null);
+   297→    }
+   298→  };
+   299→
+   300→  const openEdit = () => {
+   301→    if (!permohonan) return;
+   302→    setEditForm({
+   303→      pemohonNik: permohonan.pemohonNik || "",
+   304→      pemohonNama: permohonan.pemohonNama || "",
+   305→      pemohonTempatLahir: permohonan.pemohonTempatLahir || "",
+   306→      pemohonTanggalLahir: permohonan.pemohonTanggalLahir || "",
+   307→      pemohonAlamat: permohonan.pemohonAlamat || "",
+   308→      pemohonRt: permohonan.pemohonRt || "",
+   309→      pemohonRw: permohonan.pemohonRw || "",
+   310→      pemohonHp: permohonan.pemohonHp || "",
+   311→      lokasiTanah: permohonan.lokasiTanah || "",
+   312→      tanahRt: permohonan.tanahRt || "",
+   313→      tanahRw: permohonan.tanahRw || "",
+   314→      luasTanah: permohonan.luasTanah ?? "",
+   315→      batasUtara: permohonan.batasUtara || "",
+   316→      batasSelatan: permohonan.batasSelatan || "",
+   317→      batasTimur: permohonan.batasTimur || "",
+   318→      batasBarat: permohonan.batasBarat || "",
+   319→      statusPenguasaan: permohonan.statusPenguasaan || "Milik Sendiri",
+   320→      keperluan: permohonan.keperluan || "",
+   321→      prioritas: permohonan.prioritas || "NORMAL",
+   322→    });
+   323→    setEditOpen(true);
+   324→  };
+   325→
+   326→  const openTandaTerima = () => {
+   327→    setTandaTerimaOpen(true);
+   328→    // Lazily fetch QR for the receipt if not already cached.
+   329→    if (!qrData && selectedPermohonanId) fetchQr();
+   330→  };
+   331→
+   332→  const handleEditSave = async () => {
+   333→    if (!selectedPermohonanId) return;
+   334→    if (!editForm.pemohonNik || !editForm.pemohonNama) {
+   335→      toast.error("NIK dan Nama pemohon wajib diisi");
+   336→      return;
+   337→    }
+   338→    setEditSaving(true);
+   339→    try {
+   340→      const body: Record<string, any> = { ...editForm };
+   341→      if (body.luasTanah === "" || body.luasTanah == null) delete body.luasTanah;
+   342→      else body.luasTanah = Number(body.luasTanah);
+   343→      await api.updatePermohonan(selectedPermohonanId, body);
+   344→      toast.success("Data permohonan diperbarui");
+   345→      setEditOpen(false);
+   346→      await fetchDetail();
+   347→    } catch (e: any) {
+   348→      toast.error(e.message || "Gagal memperbarui data");
+   349→    } finally {
+   350→      setEditSaving(false);
+   351→    }
+   352→  };
+   353→
+   354→  const downloadQr = () => {
+   355→    if (!qrData) return;
+   356→    const a = document.createElement("a");
+   357→    a.href = qrData.qr;
+   358→    a.download = `QR-${qrData.nomorRegister}.png`;
+   359→    document.body.appendChild(a);
+   360→    a.click();
+   361→    document.body.removeChild(a);
+   362→    toast.success("QR Code diunduh");
+   363→  };
+   364→
+   365→  const copyUrl = async () => {
+   366→    if (!qrData) return;
+   367→    try {
+   368→      await navigator.clipboard.writeText(qrData.url);
+   369→      setQrCopied(true);
+   370→      toast.success("URL tracking disalin");
+   371→      setTimeout(() => setQrCopied(false), 2000);
+   372→    } catch {
+   373→      toast.error("Gagal menyalin URL");
+   374→    }
+   375→  };
+   376→
+   377→  // ===== Loading state =====
+   378→  if (loading) {
+   379→    return (
+   380→      <div className="container mx-auto max-w-7xl px-4 py-6 space-y-5">
+   381→        <Button variant="outline" size="sm" onClick={() => setView("permohonan")}>
+   382→          <ArrowLeft className="w-4 h-4" /> Kembali
+   383→        </Button>
+   384→        <Skeleton className="h-40 w-full rounded-xl" />
+   385→        <Skeleton className="h-10 w-full rounded-lg" />
+   386→        <Skeleton className="h-64 w-full rounded-xl" />
+   387→      </div>
+   388→    );
+   389→  }
+   390→
+   391→  if (error || !permohonan) {
+   392→    return (
+   393→      <div className="container mx-auto max-w-7xl px-4 py-6 space-y-5">
+   394→        <Button variant="outline" size="sm" onClick={() => setView("permohonan")}>
+   395→          <ArrowLeft className="w-4 h-4" /> Kembali
+   396→        </Button>
+   397→        <Card className="glass-card border-destructive/30">
+   398→          <CardContent className="p-10 text-center">
+   399→            <XCircle className="w-10 h-10 text-destructive mx-auto mb-3" />
+   400→            <h3 className="font-semibold">Gagal Memuat</h3>
+   401→            <p className="text-sm text-muted-foreground mt-1">{error || "Permohonan tidak ditemukan"}</p>
+   402→            <Button variant="outline" size="sm" className="mt-4" onClick={fetchDetail}>
+   403→              Coba lagi
+   404→            </Button>
+   405→          </CardContent>
+   406→        </Card>
+   407→      </div>
+   408→    );
+   409→  }
+   410→
+   411→  const p = permohonan;
+   412→  const stages = buildStages({
+   413→    butuhPengukuran: !!p.jenisSurat.butuhPengukuran,
+   414→    butuhTtdCamat: !!p.jenisSurat.butuhTtdCamat,
+   415→  });
+   416→  const currentIndex = stages.indexOf(p.statusSaatIni);
+   417→  const safeCurrentIndex = currentIndex < 0 ? 0 : currentIndex;
+   418→  const canAdvance = nextStatus(p.statusSaatIni, {
+   419→    butuhPengukuran: !!p.jenisSurat.butuhPengukuran,
+   420→    butuhTtdCamat: !!p.jenisSurat.butuhTtdCamat,
+   421→  }) !== null;
+   422→
+   423→  const isRejected = p.statusSaatIni === "DITOLAK";
+   424→  const isRevisi = p.statusSaatIni === "REVISI";
+   425→  const isFinal = p.statusSaatIni === "SELESAI" || isRejected;
+   426→  const isTtdLurah = p.statusSaatIni === "TTD_LURAH";
+   427→  const isTtdCamat = p.statusSaatIni === "TTD_CAMAT";
+   428→
+   429→  return (
+   430→    <div className="container mx-auto max-w-7xl px-4 py-6 space-y-5">
+   431→      <Button variant="outline" size="sm" onClick={() => setView("permohonan")}>
+   432→        <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar
+   433→      </Button>
+   434→
+   435→      {/* ===== Header card ===== */}
+   436→      <Card className="glass-card border-primary/20 navy-glow overflow-hidden">
+   437→        <div className="h-1 bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f]" />
+   438→        <CardContent className="p-5 sm:p-6 space-y-5">
+   439→          <div className="grid lg:grid-cols-[1fr_auto] gap-5">
+   440→            <div className="space-y-3 min-w-0">
+   441→              <div className="flex flex-wrap items-center gap-2">
+   442→                <span className="inline-flex items-center gap-1.5 font-mono text-xs px-2.5 py-1 rounded-md border border-primary/40 bg-primary/10 text-primary font-bold">
+   443→                  <Hash className="w-3.5 h-3.5" />
+   444→                  {p.nomorRegister}
+   445→                </span>
+   446→                <StatusBadge kode={p.statusSaatIni} nama={p.statusNama} size="lg" />
+   447→                {p.prioritas && p.prioritas !== "NORMAL" && <PriorityBadge prioritas={p.prioritas} />}
+   448→              </div>
+   449→              <div>
+   450→                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center gap-2">
+   451→                  <User className="w-6 h-6 text-primary" />
+   452→                  {p.pemohonNama}
+   453→                </h1>
+   454→                <p className="text-sm text-muted-foreground mt-1 font-mono">{p.pemohonNik}</p>
+   455→              </div>
+   456→              <div className="grid sm:grid-cols-2 gap-2 text-sm">
+   457→                <div className="flex items-center gap-2 text-muted-foreground">
+   458→                  <FileText className="w-4 h-4 text-primary" />
+   459→                  <span className="truncate">{p.jenisSurat.nama}</span>
+   460→                </div>
+   461→                <div className="flex items-center gap-2 text-muted-foreground">
+   462→                  <Calendar className="w-4 h-4 text-primary" />
+   463→                  <span>Didaftar {formatDate(p.createdAt)}</span>
+   464→                </div>
+   465→                {p.keperluan && (
+   466→                  <div className="flex items-start gap-2 text-muted-foreground sm:col-span-2">
+   467→                    <MessageSquare className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+   468→                    <span className="line-clamp-2">{p.keperluan}</span>
+   469→                  </div>
+   470→                )}
+   471→                {p.creator && (
+   472→                  <div className="flex items-center gap-2 text-muted-foreground">
+   473→                    <FileCheck className="w-4 h-4 text-primary" />
+   474→                    <span>Oleh: {p.creator.name}</span>
+   475→                  </div>
+   476→                )}
+   477→              </div>
+   478→            </div>
+   479→
+   480→            {/* Right: progress */}
+   481→            <div className="lg:w-80 lg:border-l lg:pl-5 lg:border-border/40 space-y-2">
+   482→              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Progress Pemrosesan</p>
+   483→              <ProgressBar stages={stages} currentIndex={safeCurrentIndex} />
+   484→              <div className="flex items-center justify-between text-xs pt-1">
+   485→                <span className="text-muted-foreground">Tahap {Math.min(safeCurrentIndex + 1, stages.length)} dari {stages.length}</span>
+   486→                {p.tanggalSelesai && (
+   487→                  <span className="flex items-center gap-1 text-green-400">
+   488→                    <CheckCircle2 className="w-3 h-3" /> Selesai {formatDate(p.tanggalSelesai)}
+   489→                  </span>
+   490→                )}
+   491→              </div>
+   492→            </div>
+   493→          </div>
+   494→
+   495→          {/* Alert boxes */}
+   496→          {isRejected && p.alasanDitolak && (
+   497→            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 flex items-start gap-2">
+   498→              <XCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+   499→              <div className="min-w-0">
+   500→                <p className="text-xs font-semibold text-destructive">Permohonan Ditolak</p>
+   501→                <p className="text-sm text-foreground/90 mt-0.5">{p.alasanDitolak}</p>
+   502→              </div>
+   503→            </div>
+   504→          )}
+   505→          {isRevisi && p.catatan && (
+   506→            <div className="rounded-lg border border-orange-500/40 bg-orange-500/10 p-3 flex items-start gap-2">
+   507→              <AlertTriangle className="w-4 h-4 text-orange-500 mt-0.5 shrink-0" />
+   508→              <div className="min-w-0">
+   509→                <p className="text-xs font-semibold text-orange-500">Perlu Perbaikan</p>
+   510→                <p className="text-sm text-foreground/90 mt-0.5">{p.catatan}</p>
+   511→              </div>
+   512→            </div>
+   513→          )}
+   514→
+   515→          {/* Action buttons row */}
+   516→          {isPetugasOrAdmin && (
+   517→            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border/40">
+   518→              <Button
+   519→                variant="outline"
+   520→                size="sm"
+   521→                onClick={openTandaTerima}
+   522→                className="gold-border text-primary hover:bg-primary/10"
+   523→              >
+   524→                <Printer className="w-4 h-4" /> Cetak Tanda Terima
+   525→              </Button>
+   526→            </div>
+   527→          )}
+   528→        </CardContent>
+   529→      </Card>
+   530→
+   531→      {/* ===== Tabs ===== */}
+   532→      <Tabs defaultValue="linimasa" className="w-full" onValueChange={(v) => { if (v === "qr") fetchQr(); }}>
+   533→        <TabsList className="w-full sm:w-auto flex-wrap h-auto p-1">
+   534→          <TabsTrigger value="linimasa"><Clock className="w-4 h-4" /> Linimasa</TabsTrigger>
+   535→          <TabsTrigger value="data"><FileText className="w-4 h-4" /> Data</TabsTrigger>
+   536→          <TabsTrigger value="dokumen">
+   537→            <Files className="w-4 h-4" /> Dokumen
+   538→            {p.dokumen.length > 0 && (
+   539→              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{p.dokumen.length}</Badge>
+   540→            )}
+   541→          </TabsTrigger>
+   542→          <TabsTrigger value="qr"><QrCode className="w-4 h-4" /> QR Code</TabsTrigger>
+   543→          <TabsTrigger value="riwayat"><History className="w-4 h-4" /> Riwayat</TabsTrigger>
+   544→        </TabsList>
+   545→
+   546→        {/* ===== Linimasa tab ===== */}
+   547→        <TabsContent value="linimasa" className="space-y-4">
+   548→          <div className="grid lg:grid-cols-[1fr_360px] gap-4">
+   549→            <Card className="glass-card border-primary/15">
+   550→              <CardContent className="p-5">
+   551→                <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
+   552→                  <Clock className="w-4 h-4 text-primary" /> Linimasa Proses
+   553→                </h3>
+   554→                <ScrollArea className="max-h-[480px] pr-3">
+   555→                  <Timeline
+   556→                    stages={stages}
+   557→                    currentIndex={safeCurrentIndex}
+   558→                    riwayat={p.riwayat.map((r) => ({ statusKode: r.statusKode, tanggal: r.tanggal }))}
+   559→                  />
+   560→                </ScrollArea>
+   561→              </CardContent>
+   562→            </Card>
+   563→
+   564→            {/* Aksi Proses card */}
+   565→            {!isFinal && (
+   566→              <Card className="glass-card border-primary/15 lg:sticky lg:top-20 h-fit">
+   567→                <CardContent className="p-5 space-y-4">
+   568→                  <div className="flex items-center gap-2">
+   569→                    <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
+   570→                      <PenTool className="w-4 h-4 text-primary" />
+   571→                    </div>
+   572→                    <div>
+   573→                      <h3 className="font-semibold text-sm">Aksi Proses</h3>
+   574→                      <p className="text-[11px] text-muted-foreground">Lanjutkan atau revisi permohonan</p>
+   575→                    </div>
+   576→                  </div>
+   577→                  <Separator />
+   578→
+   579→                  {/* Advance action */}
+   580→                  {canAdvance && isPetugasOrAdmin && !isRevisi && (
+   581→                    <div className="space-y-2">
+   582→                      <Label className="text-xs text-muted-foreground">Catatan (opsional)</Label>
+   583→                      <Input
+   584→                        value={catatan}
+   585→                        onChange={(e) => setCatatan(e.target.value)}
+   586→                        placeholder="Catatan untuk tahap berikutnya..."
+   587→                      />
+   588→                      <Button
+   589→                        className="w-full bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+   590→                        disabled={actionLoading !== null}
+   591→                        onClick={() =>
+   592→                          handleChangeStatus(
+   593→                            { catatan: catatan.trim() || undefined },
+   594→                            "advance",
+   595→                            "Permohonan dilanjutkan ke tahap berikutnya",
+   596→                          )
+   597→                        }
+   598→                      >
+   599→                        {actionLoading === "advance" ? (
+   600→                          <Loader2 className="w-4 h-4 animate-spin" />
+   601→                        ) : (
+   602→                          <ChevronRight className="w-4 h-4" />
+   603→                        )}
+   604→                        Lanjut ke Tahap Berikutnya
+   605→                      </Button>
+   606→                    </div>
+   607→                  )}
+   608→
+   609→                  {/* TTD LURAH (Atasan/Admin) */}
+   610→                  {isTtdLurah && isAtasanOrAdmin && (
+   611→                    <Button
+   612→                      className="w-full bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+   613→                      disabled={actionLoading !== null}
+   614→                      onClick={() =>
+   615→                        handleChangeStatus({}, "approve-lurah", "Permohonan disetujui dan ditandatangani")
+   616→                      }
+   617→                    >
+   618→                      {actionLoading === "approve-lurah" ? (
+   619→                        <Loader2 className="w-4 h-4 animate-spin" />
+   620→                      ) : (
+   621→                        <PenTool className="w-4 h-4" />
+   622→                      )}
+   623→                      Setujui & Tanda Tangani
+   624→                    </Button>
+   625→                  )}
+   626→
+   627→                  {/* TTD CAMAT (Atasan/Admin) */}
+   628→                  {isTtdCamat && isAtasanOrAdmin && (
+   629→                    <Button
+   630→                      className="w-full bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+   631→                      disabled={actionLoading !== null}
+   632→                      onClick={() =>
+   633→                        handleChangeStatus({}, "approve-camat", "Permohonan disahkan dan diselesaikan")
+   634→                      }
+   635→                    >
+   636→                      {actionLoading === "approve-camat" ? (
+   637→                        <Loader2 className="w-4 h-4 animate-spin" />
+   638→                      ) : (
+   639→                        <Stamp className="w-4 h-4" />
+   640→                      )}
+   641→                      Sahkan & Selesaikan
+   642→                    </Button>
+   643→                  )}
+   644→
+   645→                  {/* REVISI: kembalikan ke proses */}
+   646→                  {isRevisi && isPetugasOrAdmin && (
+   647→                    <Button
+   648→                      className="w-full bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+   649→                      disabled={actionLoading !== null}
+   650→                      onClick={() =>
+   651→                        handleChangeStatus(
+   652→                          { statusKode: "CEK_ADMIN" },
+   653→                          "restore",
+   654→                          "Permohonan dikembalikan ke proses",
+   655→                        )
+   656→                      }
+   657→                    >
+   658→                      {actionLoading === "restore" ? (
+   659→                        <Loader2 className="w-4 h-4 animate-spin" />
+   660→                      ) : (
+   661→                        <RotateCcw className="w-4 h-4" />
+   662→                      )}
+   663→                      Kembalikan ke Proses
+   664→                    </Button>
+   665→                  )}
+   666→
+   667→                  {/* Revisi & Tolak (PETUGAS/ADMIN) */}
+   668→                  {isPetugasOrAdmin && !isFinal && (
+   669→                    <>
+   670→                      <Separator />
+   671→                      <div className="space-y-2">
+   672→                        <Button
+   673→                          variant="outline"
+   674→                          className="w-full border-orange-500/40 text-orange-400 hover:bg-orange-500/10"
+   675→                          disabled={actionLoading !== null}
+   676→                          onClick={() => setRevisiOpen(true)}
+   677→                        >
+   678→                          <AlertTriangle className="w-4 h-4" /> Minta Perbaikan (Revisi)
+   679→                        </Button>
+   680→                        <Button
+   681→                          variant="outline"
+   682→                          className="w-full border-destructive/40 text-destructive hover:bg-destructive/10"
+   683→                          disabled={actionLoading !== null}
+   684→                          onClick={() => setTolakOpen(true)}
+   685→                        >
+   686→                          <XCircle className="w-4 h-4" /> Tolak Permohonan
+   687→                        </Button>
+   688→                      </div>
+   689→                    </>
+   690→                  )}
+   691→
+   692→                  {/* Delete (ADMIN only) */}
+   693→                  {isAdmin && (
+   694→                    <>
+   695→                      <Separator />
+   696→                      <Button
+   697→                        variant="ghost"
+   698→                        className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+   699→                        disabled={actionLoading !== null}
+   700→                        onClick={() => setDeleteOpen(true)}
+   701→                      >
+   702→                        <Trash2 className="w-4 h-4" /> Hapus Permohonan
+   703→                      </Button>
+   704→                    </>
+   705→                  )}
+   706→
+   707→                  {isFinal && !isPetugasOrAdmin && !isAtasanOrAdmin && (
+   708→                    <p className="text-xs text-muted-foreground text-center py-4">
+   709→                      Permohonan telah mencapai status final.
+   710→                    </p>
+   711→                  )}
+   712→                </CardContent>
+   713→              </Card>
+   714→            )}
+   715→
+   716→            {isFinal && (
+   717→              <Card className="glass-card border-primary/15 h-fit">
+   718→                <CardContent className="p-5 text-center">
+   719→                  <div className="mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-3"
+   720→                    style={{
+   721→                      backgroundColor: `${STATUS_BY_KODE[p.statusSaatIni]?.warna}20`,
+   722→                      border: `1px solid ${STATUS_BY_KODE[p.statusSaatIni]?.warna}50`,
+   723→                    }}
+   724→                  >
+   725→                    {isRejected ? (
+   726→                      <XCircle className="w-6 h-6" style={{ color: STATUS_BY_KODE[p.statusSaatIni]?.warna }} />
+   727→                    ) : (
+   728→                      <CheckCircle2 className="w-6 h-6" style={{ color: STATUS_BY_KODE[p.statusSaatIni]?.warna }} />
+   729→                    )}
+   730→                  </div>
+   731→                  <h3 className="font-semibold">{p.statusNama}</h3>
+   732→                  <p className="text-xs text-muted-foreground mt-1">
+   733→                    Permohonan telah mencapai status final.
+   734→                  </p>
+   735→                </CardContent>
+   736→              </Card>
+   737→            )}
+   738→          </div>
+   739→        </TabsContent>
+   740→
+   741→        {/* ===== Data tab ===== */}
+   742→        <TabsContent value="data" className="space-y-4">
+   743→          <div className="grid lg:grid-cols-2 gap-4">
+   744→            {/* Data Pemohon */}
+   745→            <Card className="glass-card border-primary/15">
+   746→              <CardContent className="p-5">
+   747→                <div className="flex items-center justify-between mb-3">
+   748→                  <h3 className="font-semibold text-sm flex items-center gap-2">
+   749→                    <User className="w-4 h-4 text-primary" /> Data Pemohon
+   750→                  </h3>
+   751→                  {can("edit_permohonan") && (
+   752→                    <Button variant="outline" size="sm" onClick={openEdit}>
+   753→                      <FileWarning className="w-3.5 h-3.5" /> Edit
+   754→                    </Button>
+   755→                  )}
+   756→                </div>
+   757→                <Separator className="mb-3" />
+   758→                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
+   759→                  <DLRow label="NIK" value={<span className="font-mono">{p.pemohonNik}</span>} icon={Tag} />
+   760→                  <DLRow label="Nama Lengkap" value={p.pemohonNama} icon={User} />
+   761→                  <DLRow label="Tempat Lahir" value={p.pemohonTempatLahir} icon={MapPin} />
+   762→                  <DLRow label="Tanggal Lahir" value={formatDate(p.pemohonTanggalLahir)} icon={Calendar} />
+   763→                  <div className="sm:col-span-2">
+   764→                    <DLRow label="Alamat" value={p.pemohonAlamat} icon={MapPinned} />
+   765→                  </div>
+   766→                  <DLRow label="RT" value={p.pemohonRt} icon={MapPin} />
+   767→                  <DLRow label="RW" value={p.pemohonRw} icon={MapPin} />
+   768→                  <DLRow label="No. HP" value={p.pemohonHp} icon={Phone} />
+   769→                </div>
+   770→              </CardContent>
+   771→            </Card>
+   772→
+   773→            {/* Data Tanah */}
+   774→            <Card className="glass-card border-primary/15">
+   775→              <CardContent className="p-5">
+   776→                <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
+   777→                  <MapPin className="w-4 h-4 text-primary" /> Data Tanah
+   778→                </h3>
+   779→                <Separator className="mb-3" />
+   780→                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
+   781→                  <div className="sm:col-span-2">
+   782→                    <DLRow label="Lokasi Tanah" value={p.lokasiTanah} icon={MapPin} />
+   783→                  </div>
+   784→                  <DLRow label="RT" value={p.tanahRt} icon={MapPin} />
+   785→                  <DLRow label="RW" value={p.tanahRw} icon={MapPin} />
+   786→                  <DLRow
+   787→                    label="Luas Tanah"
+   788→                    value={p.luasTanah ? `${p.luasTanah} m²` : null}
+   789→                    icon={Ruler}
+   790→                  />
+   791→                  <DLRow label="Status Penguasaan" value={p.statusPenguasaan} icon={ShieldAlert} />
+   792→                  <div className="sm:col-span-2 mt-2">
+   793→                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
+   794→                      <Gauge className="w-3 h-3" /> Batas-batas
+   795→                    </p>
+   796→                  </div>
+   797→                  <DLRow label="Batas Utara" value={p.batasUtara} />
+   798→                  <DLRow label="Batas Selatan" value={p.batasSelatan} />
+   799→                  <DLRow label="Batas Timur" value={p.batasTimur} />
+   800→                  <DLRow label="Batas Barat" value={p.batasBarat} />
+   801→                </div>
+   802→              </CardContent>
+   803→            </Card>
+   804→
+   805→            {/* Keperluan & Jenis Surat */}
+   806→            <Card className="glass-card border-primary/15 lg:col-span-2">
+   807→              <CardContent className="p-5">
+   808→                <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
+   809→                  <FileText className="w-4 h-4 text-primary" /> Keperluan & Jenis Surat
+   810→                </h3>
+   811→                <Separator className="mb-3" />
+   812→                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
+   813→                  <DLRow label="Jenis Surat" value={p.jenisSurat.nama} icon={FileText} />
+   814→                  <DLRow label="Kode" value={<span className="font-mono text-xs">{p.jenisSurat.kode}</span>} icon={Tag} />
+   815→                  {p.jenisSurat.deskripsi && (
+   816→                    <div className="sm:col-span-2">
+   817→                      <DLRow label="Deskripsi Jenis Surat" value={p.jenisSurat.deskripsi} />
+   818→                    </div>
+   819→                  )}
+   820→                  <DLRow
+   821→                    label="Butuh Pengukuran"
+   822→                    value={
+   823→                      <Badge variant="outline" className={p.jenisSurat.butuhPengukuran
+   824→                        ? "border-amber-500/40 bg-amber-500/10 text-amber-400 text-[10px]"
+   825→                        : "border-muted-foreground/30 text-muted-foreground text-[10px]"}>
+   826→                        <Ruler className="w-3 h-3 mr-1" />
+   827→                        {p.jenisSurat.butuhPengukuran ? "Ya" : "Tidak"}
+   828→                      </Badge>
+   829→                    }
+   830→                  />
+   831→                  <DLRow
+   832→                    label="Butuh TTD Camat"
+   833→                    value={
+   834→                      <Badge variant="outline" className={p.jenisSurat.butuhTtdCamat
+   835→                        ? "border-orange-500/40 bg-orange-500/10 text-orange-400 text-[10px]"
+   836→                        : "border-muted-foreground/30 text-muted-foreground text-[10px]"}>
+   837→                        <Stamp className="w-3 h-3 mr-1" />
+   838→                        {p.jenisSurat.butuhTtdCamat ? "Ya" : "Tidak"}
+   839→                      </Badge>
+   840→                    }
+   841→                  />
+   842→                  <div className="sm:col-span-2">
+   843→                    <DLRow label="Keperluan" value={p.keperluan} icon={MessageSquare} />
+   844→                  </div>
+   845→                  <DLRow label="Prioritas" value={
+   846→                    p.prioritas && p.prioritas !== "NORMAL"
+   847→                      ? <PriorityBadge prioritas={p.prioritas} />
+   848→                      : <Badge variant="outline" className="text-[10px]">Normal</Badge>
+   849→                  } icon={AlertCircle} />
+   850→                  <DLRow label="Dibuat" value={formatDateTime(p.createdAt)} icon={Clock} />
+   851→                  <DLRow label="Diperbarui" value={formatDateTime(p.updatedAt)} icon={Clock} />
+   852→                  {p.tanggalSelesai && (
+   853→                    <DLRow label="Tanggal Selesai" value={formatDate(p.tanggalSelesai)} icon={CheckCircle2} />
+   854→                  )}
+   855→                </div>
+   856→              </CardContent>
+   857→            </Card>
+   858→          </div>
+   859→        </TabsContent>
+   860→
+   861→        {/* ===== Dokumen tab ===== */}
+   862→        <TabsContent value="dokumen" className="space-y-4">
+   863→          {can("upload_dokumen") && (
+   864→            <Card className="glass-card border-primary/15">
+   865→              <CardContent className="p-5">
+   866→                <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
+   867→                  <Upload className="w-4 h-4 text-primary" /> Unggah Dokumen
+   868→                </h3>
+   869→                <div className="grid sm:grid-cols-[200px_1fr_auto] gap-3 items-end">
+   870→                  <div className="space-y-1.5">
+   871→                    <Label className="text-xs text-muted-foreground">Jenis Dokumen</Label>
+   872→                    <Select value={uploadJenis} onValueChange={setUploadJenis}>
+   873→                      <SelectTrigger className="w-full">
+   874→                        <SelectValue placeholder="Pilih jenis" />
+   875→                      </SelectTrigger>
+   876→                      <SelectContent>
+   877→                        {JENIS_DOKUMEN.map((j) => (
+   878→                          <SelectItem key={j.kode} value={j.kode}>{j.nama}</SelectItem>
+   879→                        ))}
+   880→                      </SelectContent>
+   881→                    </Select>
+   882→                  </div>
+   883→                  <div className="space-y-1.5">
+   884→                    <Label className="text-xs text-muted-foreground">File (max 10MB)</Label>
+   885→                    <Input
+   886→                      ref={fileInputRef}
+   887→                      type="file"
+   888→                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+   889→                      className="cursor-pointer"
+   890→                    />
+   891→                  </div>
+   892→                  <Button
+   893→                    onClick={handleUpload}
+   894→                    disabled={uploading || !uploadFile || !uploadJenis}
+   895→                    className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+   896→                  >
+   897→                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+   898→                    Upload
+   899→                  </Button>
+   900→                </div>
+   901→                {uploadFile && (
+   902→                  <p className="text-[11px] text-muted-foreground mt-2 flex items-center gap-1">
+   903→                    <FileType2 className="w-3 h-3" />
+   904→                    {uploadFile.name} — {formatBytes(uploadFile.size)}
+   905→                  </p>
+   906→                )}
+   907→              </CardContent>
+   908→            </Card>
+   909→          )}
+   910→
+   911→          <Card className="glass-card border-primary/15">
+   912→            <CardContent className="p-5">
+   913→              <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
+   914→                <Files className="w-4 h-4 text-primary" /> Dokumen Terunggah
+   915→                <Badge variant="secondary" className="ml-1 text-[10px]">{p.dokumen.length}</Badge>
+   916→              </h3>
+   917→              <Separator className="mb-3" />
+   918→              {p.dokumen.length === 0 ? (
+   919→                <div className="text-center py-10">
+   920→                  <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mb-2">
+   921→                    <Files className="w-5 h-5 text-primary" />
+   922→                  </div>
+   923→                  <p className="text-sm font-medium">Belum ada dokumen</p>
+   924→                  <p className="text-xs text-muted-foreground mt-1">
+   925→                    {can("upload_dokumen") ? "Unggah dokumen pertama untuk permohonan ini." : "Dokumen akan muncul di sini setelah diunggah."}
+   926→                  </p>
+   927→                </div>
+   928→              ) : (
+   929→                <ScrollArea className="max-h-[480px]">
+   930→                  <div className="space-y-2 pr-2">
+   931→                    {p.dokumen.map((d) => {
+   932→                      const jd = JENIS_DOKUMEN.find((j) => j.kode === d.jenisDokumen);
+   933→                      return (
+   934→                        <div
+   935→                          key={d.id}
+   936→                          className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-secondary/30 hover:bg-secondary/50 transition-colors"
+   937→                        >
+   938→                          <div className="w-9 h-9 rounded-md bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
+   939→                            <FileType2 className="w-4 h-4 text-primary" />
+   940→                          </div>
+   941→                          <div className="flex-1 min-w-0">
+   942→                            <div className="flex items-center gap-2 flex-wrap">
+   943→                              <Badge variant="outline" className="text-[10px] border-primary/30 bg-primary/5 text-primary">
+   944→                                {jd?.nama || d.jenisDokumen}
+   945→                              </Badge>
+   946→                              {d.ukuran != null && (
+   947→                                <span className="text-[10px] text-muted-foreground">{formatBytes(d.ukuran)}</span>
+   948→                              )}
+   949→                            </div>
+   950→                            <p className="text-sm font-medium truncate mt-0.5">{d.namaFile}</p>
+   951→                            <p className="text-[10px] text-muted-foreground">{formatDateTime(d.createdAt)}</p>
+   952→                          </div>
+   953→                          <div className="flex items-center gap-1 shrink-0">
+   954→                            {d.filePath && (
+   955→                              <Button asChild variant="ghost" size="icon" className="h-8 w-8">
+   956→                                <a
+   957→                                  href={d.filePath}
+   958→                                  target="_blank"
+   959→                                  rel="noopener noreferrer"
+   960→                                  title="Unduh / Lihat"
+   961→                                >
+   962→                                  <Download className="w-4 h-4" />
+   963→                                </a>
+   964→                              </Button>
+   965→                            )}
+   966→                            {isPetugasOrAdmin && (
+   967→                              <Button
+   968→                                variant="ghost"
+   969→                                size="icon"
+   970→                                className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+   971→                                onClick={() => handleDeleteDok(d.id, d.namaFile)}
+   972→                                title="Hapus"
+   973→                              >
+   974→                                <Trash2 className="w-4 h-4" />
+   975→                              </Button>
+   976→                            )}
+   977→                          </div>
+   978→                        </div>
+   979→                      );
+   980→                    })}
+   981→                  </div>
+   982→                </ScrollArea>
+   983→              )}
+   984→            </CardContent>
+   985→          </Card>
+   986→        </TabsContent>
+   987→
+   988→        {/* ===== QR Code tab ===== */}
+   989→        <TabsContent value="qr" className="space-y-4">
+   990→          <Card className="glass-card border-primary/15">
+   991→            <CardContent className="p-5">
+   992→              <h3 className="font-semibold text-sm flex items-center gap-2 mb-1">
+   993→                <QrCode className="w-4 h-4 text-primary" /> QR Code Tracking
+   994→              </h3>
+   995→              <p className="text-xs text-muted-foreground mb-4">
+   996→                Pindai QR code untuk membuka halaman tracking publik permohonan ini.
+   997→              </p>
+   998→              <Separator className="mb-4" />
+   999→              <div className="grid md:grid-cols-[260px_1fr] gap-5 items-start">
+  1000→                {/* QR image */}
+  1001→                <div className="flex flex-col items-center gap-3">
+  1002→                  <div className="p-4 rounded-xl bg-white border border-primary/30">
+  1003→                    {qrLoading ? (
+  1004→                      <div className="w-48 h-48 flex items-center justify-center">
+  1005→                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+  1006→                      </div>
+  1007→                    ) : qrData ? (
+  1008→                      <img
+  1009→                        src={qrData.qr}
+  1010→                        alt={`QR ${p.nomorRegister}`}
+  1011→                        className="w-48 h-48"
+  1012→                      />
+  1013→                    ) : (
+  1014→                      <div className="w-48 h-48 flex items-center justify-center text-muted-foreground">
+  1015→                        <QrCode className="w-16 h-16 opacity-30" />
+  1016→                      </div>
+  1017→                    )}
+  1018→                  </div>
+  1019→                  <p className="text-xs font-mono text-center text-muted-foreground">{p.nomorRegister}</p>
+  1020→                </div>
+  1021→
+  1022→                {/* Info & actions */}
+  1023→                <div className="space-y-4">
+  1024→                  <div className="rounded-lg bg-primary/5 border border-primary/15 p-3">
+  1025→                    <p className="text-xs font-medium flex items-center gap-1.5 mb-1">
+  1026→                      <ScanLine className="w-3.5 h-3.5 text-primary" /> URL Tracking Publik
+  1027→                    </p>
+  1028→                    <p className="text-sm font-mono break-all">
+  1029→                      {qrData?.url || "..."}
+  1030→                    </p>
+  1031→                  </div>
+  1032→                  <div className="flex flex-wrap gap-2">
+  1033→                    <Button
+  1034→                      onClick={downloadQr}
+  1035→                      disabled={!qrData || qrLoading}
+  1036→                      className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+  1037→                    >
+  1038→                      <Download className="w-4 h-4" /> Download QR
+  1039→                    </Button>
+  1040→                    <Button
+  1041→                      variant="outline"
+  1042→                      onClick={copyUrl}
+  1043→                      disabled={!qrData || qrLoading}
+  1044→                    >
+  1045→                      {qrCopied ? (
+  1046→                        <><CheckCircle2 className="w-4 h-4 text-green-400" /> Tersalin</>
+  1047→                      ) : (
+  1048→                        <><Copy className="w-4 h-4" /> Salin URL</>
+  1049→                      )}
+  1050→                    </Button>
+  1051→                    <Button
+  1052→                      variant="outline"
+  1053→                      onClick={fetchQr}
+  1054→                      disabled={qrLoading}
+  1055→                    >
+  1056→                      <RotateCcw className="w-4 h-4" /> Muat ulang
+  1057→                    </Button>
+  1058→                  </div>
+  1059→                  <div className="rounded-lg border border-border/50 bg-secondary/20 p-3 text-xs text-muted-foreground flex items-start gap-2">
+  1060→                    <AlertCircle className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+  1061→                    <p>
+  1062→                      Catatan: Memindai QR code ini akan membuka halaman tracking publik.
+  1063→                      Pemohon dapat memantau status surat tanpa perlu login.
+  1064→                    </p>
+  1065→                  </div>
+  1066→                </div>
+  1067→              </div>
+  1068→            </CardContent>
+  1069→          </Card>
+  1070→        </TabsContent>
+  1071→
+  1072→        {/* ===== Riwayat tab ===== */}
+  1073→        <TabsContent value="riwayat" className="space-y-4">
+  1074→          <Card className="glass-card border-primary/15">
+  1075→            <CardContent className="p-5">
+  1076→              <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
+  1077→                <History className="w-4 h-4 text-primary" /> Riwayat Pemrosesan
+  1078→                <Badge variant="secondary" className="ml-1 text-[10px]">{p.riwayat.length}</Badge>
+  1079→              </h3>
+  1080→              <Separator className="mb-3" />
+  1081→              {p.riwayat.length === 0 ? (
+  1082→                <div className="text-center py-10">
+  1083→                  <History className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+  1084→                  <p className="text-sm text-muted-foreground">Belum ada riwayat pemrosesan.</p>
+  1085→                </div>
+  1086→              ) : (
+  1087→                <ScrollArea className="max-h-[520px]">
+  1088→                  <Table>
+  1089→                    <TableHeader>
+  1090→                      <TableRow className="border-border/60 hover:bg-transparent">
+  1091→                        <TableHead>Waktu</TableHead>
+  1092→                        <TableHead>Status</TableHead>
+  1093→                        <TableHead>Petugas</TableHead>
+  1094→                        <TableHead>Catatan</TableHead>
+  1095→                      </TableRow>
+  1096→                    </TableHeader>
+  1097→                    <TableBody>
+  1098→                      {p.riwayat.map((r) => (
+  1099→                        <TableRow key={r.id} className="border-border/40">
+  1100→                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap align-top">
+  1101→                            {formatDateTime(r.tanggal)}
+  1102→                          </TableCell>
+  1103→                          <TableCell className="align-top">
+  1104→                            <StatusBadge kode={r.statusKode} nama={r.statusNama} size="sm" />
+  1105→                          </TableCell>
+  1106→                          <TableCell className="align-top">
+  1107→                            <div className="flex flex-col">
+  1108→                              <span className="text-sm font-medium">{r.petugas?.name || "—"}</span>
+  1109→                              {r.petugas?.position && (
+  1110→                                <span className="text-[10px] text-muted-foreground">{r.petugas.position}</span>
+  1111→                              )}
+  1112→                            </div>
+  1113→                          </TableCell>
+  1114→                          <TableCell className="text-xs text-muted-foreground max-w-xs align-top">
+  1115→                            {r.catatan || <span className="text-muted-foreground/50">—</span>}
+  1116→                          </TableCell>
+  1117→                        </TableRow>
+  1118→                      ))}
+  1119→                    </TableBody>
+  1120→                  </Table>
+  1121→                </ScrollArea>
+  1122→              )}
+  1123→            </CardContent>
+  1124→          </Card>
+  1125→        </TabsContent>
+  1126→      </Tabs>
+  1127→
+  1128→      {/* ===== Revisi Dialog ===== */}
+  1129→      <Dialog open={revisiOpen} onOpenChange={setRevisiOpen}>
+  1130→        <DialogContent className="glass-card navy-glow border-primary/20">
+  1131→          <DialogHeader>
+  1132→            <DialogTitle className="flex items-center gap-2">
+  1133→              <AlertTriangle className="w-5 h-5 text-orange-500" /> Minta Perbaikan Dokumen
+  1134→            </DialogTitle>
+  1135→            <DialogDescription>
+  1136→              Permohonan akan dikembalikan ke pemohon untuk diperbaiki. Berikan catatan yang jelas.
+  1137→            </DialogDescription>
+  1138→          </DialogHeader>
+  1139→          <div className="space-y-2">
+  1140→            <Label className="text-xs text-muted-foreground">Catatan Perbaikan (wajib)</Label>
+  1141→            <Textarea
+  1142→              value={revisiCatatan}
+  1143→              onChange={(e) => setRevisiCatatan(e.target.value)}
+  1144→              placeholder="Contoh: Mohon lengkapi fotokopi KTP dan SPPT PBB..."
+  1145→              rows={4}
+  1146→            />
+  1147→          </div>
+  1148→          <DialogFooter>
+  1149→            <Button variant="outline" onClick={() => setRevisiOpen(false)} disabled={actionLoading === "revisi"}>
+  1150→              Batal
+  1151→            </Button>
+  1152→            <Button
+  1153→              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+  1154→              disabled={!revisiCatatan.trim() || actionLoading !== null}
+  1155→              onClick={() =>
+  1156→                handleChangeStatus(
+  1157→                  { statusKode: "REVISI", catatan: revisiCatatan.trim() },
+  1158→                  "revisi",
+  1159→                  "Permohonan dikembalikan untuk perbaikan",
+  1160→                )
+  1161→              }
+  1162→            >
+  1163→              {actionLoading === "revisi" ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
+  1164→              Kirim Permintaan Revisi
+  1165→            </Button>
+  1166→          </DialogFooter>
+  1167→        </DialogContent>
+  1168→      </Dialog>
+  1169→
+  1170→      {/* ===== Tolak Dialog ===== */}
+  1171→      <Dialog open={tolakOpen} onOpenChange={setTolakOpen}>
+  1172→        <DialogContent className="glass-card navy-glow border-destructive/30">
+  1173→          <DialogHeader>
+  1174→            <DialogTitle className="flex items-center gap-2 text-destructive">
+  1175→              <XCircle className="w-5 h-5" /> Tolak Permohonan
+  1176→            </DialogTitle>
+  1177→            <DialogDescription>
+  1178→              Tindakan ini bersifat final. Permohonan yang ditolak tidak dapat diproses lagi.
+  1179→            </DialogDescription>
+  1180→          </DialogHeader>
+  1181→          <div className="space-y-2">
+  1182→            <Label className="text-xs text-muted-foreground">Alasan Penolakan (wajib)</Label>
+  1183→            <Textarea
+  1184→              value={alasanTolak}
+  1185→              onChange={(e) => setAlasanTolak(e.target.value)}
+  1186→              placeholder="Contoh: Dokumen tidak valid, tanah dalam sengketa..."
+  1187→              rows={4}
+  1188→            />
+  1189→          </div>
+  1190→          <DialogFooter>
+  1191→            <Button variant="outline" onClick={() => setTolakOpen(false)} disabled={actionLoading === "tolak"}>
+  1192→              Batal
+  1193→            </Button>
+  1194→            <Button
+  1195→              variant="destructive"
+  1196→              disabled={!alasanTolak.trim() || actionLoading !== null}
+  1197→              onClick={() =>
+  1198→                handleChangeStatus(
+  1199→                  { statusKode: "DITOLAK", alasanDitolak: alasanTolak.trim() },
+  1200→                  "tolak",
+  1201→                  "Permohonan ditolak",
+  1202→                )
+  1203→              }
+  1204→            >
+  1205→              {actionLoading === "tolak" ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+  1206→              Tolak Permohonan
+  1207→            </Button>
+  1208→          </DialogFooter>
+  1209→        </DialogContent>
+  1210→      </Dialog>
+  1211→
+  1212→      {/* ===== Delete AlertDialog ===== */}
+  1213→      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+  1214→        <AlertDialogContent className="glass-card navy-glow border-destructive/30">
+  1215→          <AlertDialogHeader>
+  1216→            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+  1217→              <Trash2 className="w-5 h-5" /> Hapus Permohonan?
+  1218→            </AlertDialogTitle>
+  1219→            <AlertDialogDescription>
+  1220→              Tindakan ini tidak dapat dibatalkan. Permohonan dengan nomor register{" "}
+  1221→              <span className="font-mono font-semibold">{p.nomorRegister}</span> beserta seluruh
+  1222→              dokumen dan riwayatnya akan dihapus permanen.
+  1223→            </AlertDialogDescription>
+  1224→          </AlertDialogHeader>
+  1225→          <AlertDialogFooter>
+  1226→            <AlertDialogCancel disabled={actionLoading === "delete"}>Batal</AlertDialogCancel>
+  1227→            <AlertDialogAction
+  1228→              onClick={handleDeletePermohonan}
+  1229→              disabled={actionLoading !== null}
+  1230→              className="bg-destructive text-white hover:bg-destructive/90"
+  1231→            >
+  1232→              {actionLoading === "delete" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+  1233→              Ya, Hapus Permanen
+  1234→            </AlertDialogAction>
+  1235→          </AlertDialogFooter>
+  1236→        </AlertDialogContent>
+  1237→      </AlertDialog>
+  1238→
+  1239→      {/* ===== Edit Dialog ===== */}
+  1240→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+  1241→        <DialogContent className="glass-card navy-glow border-primary/20 max-w-2xl max-h-[90vh] overflow-y-auto">
+  1242→          <DialogHeader>
+  1243→            <DialogTitle className="flex items-center gap-2">
+  1244→              <FileWarning className="w-5 h-5 text-primary" /> Edit Data Permohonan
+  1245→            </DialogTitle>
+  1246→            <DialogDescription>
+  1247→              Perbarui data pemohon dan data tanah. Nomor register tidak dapat diubah.
+  1248→            </DialogDescription>
+  1249→          </DialogHeader>
+  1250→
+  1251→          <div className="space-y-4 py-2">
+  1252→            <div>
+  1253→              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Data Pemohon</p>
+  1254→              <div className="grid sm:grid-cols-2 gap-3">
+  1255→                <div className="space-y-1.5">
+  1256→                  <Label className="text-xs">NIK</Label>
+  1257→                  <Input value={editForm.pemohonNik || ""} onChange={(e) => setEditForm({ ...editForm, pemohonNik: e.target.value.replace(/[^0-9]/g, "").slice(0, 16) })} />
+  1258→                </div>
+  1259→                <div className="space-y-1.5">
+  1260→                  <Label className="text-xs">Nama Lengkap</Label>
+  1261→                  <Input value={editForm.pemohonNama || ""} onChange={(e) => setEditForm({ ...editForm, pemohonNama: e.target.value })} />
+  1262→                </div>
+  1263→                <div className="space-y-1.5">
+  1264→                  <Label className="text-xs">Tempat Lahir</Label>
+  1265→                  <Input value={editForm.pemohonTempatLahir || ""} onChange={(e) => setEditForm({ ...editForm, pemohonTempatLahir: e.target.value })} />
+  1266→                </div>
+  1267→                <div className="space-y-1.5">
+  1268→                  <Label className="text-xs">Tanggal Lahir</Label>
+  1269→                  <Input type="date" value={editForm.pemohonTanggalLahir || ""} onChange={(e) => setEditForm({ ...editForm, pemohonTanggalLahir: e.target.value })} />
+  1270→                </div>
+  1271→                <div className="sm:col-span-2 space-y-1.5">
+  1272→                  <Label className="text-xs">Alamat</Label>
+  1273→                  <Input value={editForm.pemohonAlamat || ""} onChange={(e) => setEditForm({ ...editForm, pemohonAlamat: e.target.value })} />
+  1274→                </div>
+  1275→                <div className="space-y-1.5">
+  1276→                  <Label className="text-xs">RT</Label>
+  1277→                  <Input value={editForm.pemohonRt || ""} onChange={(e) => setEditForm({ ...editForm, pemohonRt: e.target.value.replace(/[^0-9]/g, "").slice(0, 3) })} />
+  1278→                </div>
+  1279→                <div className="space-y-1.5">
+  1280→                  <Label className="text-xs">RW</Label>
+  1281→                  <Input value={editForm.pemohonRw || ""} onChange={(e) => setEditForm({ ...editForm, pemohonRw: e.target.value.replace(/[^0-9]/g, "").slice(0, 3) })} />
+  1282→                </div>
+  1283→                <div className="space-y-1.5">
+  1284→                  <Label className="text-xs">No. HP</Label>
+  1285→                  <Input value={editForm.pemohonHp || ""} onChange={(e) => setEditForm({ ...editForm, pemohonHp: e.target.value.replace(/[^0-9+]/g, "").slice(0, 15) })} />
+  1286→                </div>
+  1287→                <div className="space-y-1.5">
+  1288→                  <Label className="text-xs">Prioritas</Label>
+  1289→                  <Select value={editForm.prioritas || "NORMAL"} onValueChange={(v) => setEditForm({ ...editForm, prioritas: v })}>
+  1290→                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+  1291→                    <SelectContent>
+  1292→                      <SelectItem value="NORMAL">Normal</SelectItem>
+  1293→                      <SelectItem value="TINGGI">Tinggi</SelectItem>
+  1294→                      <SelectItem value="MENDESAK">Mendesak</SelectItem>
+  1295→                    </SelectContent>
+  1296→                  </Select>
+  1297→                </div>
+  1298→              </div>
+  1299→            </div>
+  1300→
+  1301→            <Separator />
+  1302→
+  1303→            <div>
+  1304→              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Data Tanah</p>
+  1305→              <div className="grid sm:grid-cols-2 gap-3">
+  1306→                <div className="sm:col-span-2 space-y-1.5">
+  1307→                  <Label className="text-xs">Lokasi Tanah</Label>
+  1308→                  <Input value={editForm.lokasiTanah || ""} onChange={(e) => setEditForm({ ...editForm, lokasiTanah: e.target.value })} />
+  1309→                </div>
+  1310→                <div className="space-y-1.5">
+  1311→                  <Label className="text-xs">RT (Lokasi)</Label>
+  1312→                  <Input value={editForm.tanahRt || ""} onChange={(e) => setEditForm({ ...editForm, tanahRt: e.target.value.replace(/[^0-9]/g, "").slice(0, 3) })} />
+  1313→                </div>
+  1314→                <div className="space-y-1.5">
+  1315→                  <Label className="text-xs">RW (Lokasi)</Label>
+  1316→                  <Input value={editForm.tanahRw || ""} onChange={(e) => setEditForm({ ...editForm, tanahRw: e.target.value.replace(/[^0-9]/g, "").slice(0, 3) })} />
+  1317→                </div>
+  1318→                <div className="space-y-1.5">
+  1319→                  <Label className="text-xs">Luas Tanah (m²)</Label>
+  1320→                  <Input type="number" min="0" step="0.01" value={editForm.luasTanah ?? ""} onChange={(e) => setEditForm({ ...editForm, luasTanah: e.target.value })} />
+  1321→                </div>
+  1322→                <div className="space-y-1.5">
+  1323→                  <Label className="text-xs">Status Penguasaan</Label>
+  1324→                  <Select value={editForm.statusPenguasaan || "Milik Sendiri"} onValueChange={(v) => setEditForm({ ...editForm, statusPenguasaan: v })}>
+  1325→                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+  1326→                    <SelectContent>
+  1327→                      {STATUS_PENGUASAAN_OPTIONS.map((s) => (
+  1328→                        <SelectItem key={s} value={s}>{s}</SelectItem>
+  1329→                      ))}
+  1330→                    </SelectContent>
+  1331→                  </Select>
+  1332→                </div>
+  1333→                <div className="space-y-1.5">
+  1334→                  <Label className="text-xs">Batas Utara</Label>
+  1335→                  <Input value={editForm.batasUtara || ""} onChange={(e) => setEditForm({ ...editForm, batasUtara: e.target.value })} />
+  1336→                </div>
+  1337→                <div className="space-y-1.5">
+  1338→                  <Label className="text-xs">Batas Selatan</Label>
+  1339→                  <Input value={editForm.batasSelatan || ""} onChange={(e) => setEditForm({ ...editForm, batasSelatan: e.target.value })} />
+  1340→                </div>
+  1341→                <div className="space-y-1.5">
+  1342→                  <Label className="text-xs">Batas Timur</Label>
+  1343→                  <Input value={editForm.batasTimur || ""} onChange={(e) => setEditForm({ ...editForm, batasTimur: e.target.value })} />
+  1344→                </div>
+  1345→                <div className="space-y-1.5">
+  1346→                  <Label className="text-xs">Batas Barat</Label>
+  1347→                  <Input value={editForm.batasBarat || ""} onChange={(e) => setEditForm({ ...editForm, batasBarat: e.target.value })} />
+  1348→                </div>
+  1349→                <div className="sm:col-span-2 space-y-1.5">
+  1350→                  <Label className="text-xs">Keperluan</Label>
+  1351→                  <Textarea value={editForm.keperluan || ""} onChange={(e) => setEditForm({ ...editForm, keperluan: e.target.value })} rows={3} />
+  1352→                </div>
+  1353→              </div>
+  1354→            </div>
+  1355→          </div>
+  1356→
+  1357→          <DialogFooter>
+  1358→            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>Batal</Button>
+  1359→            <Button
+  1360→              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+  1361→              disabled={editSaving}
+  1362→              onClick={handleEditSave}
+  1363→            >
+  1364→              {editSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+  1365→              Simpan Perubahan
+  1366→            </Button>
+  1367→          </DialogFooter>
+  1368→        </DialogContent>
+  1369→      </Dialog>
+  1370→
+  1371→      {/* ===== Tanda Terima (Printable Receipt) Dialog ===== */}
+  1372→      <Dialog open={tandaTerimaOpen} onOpenChange={setTandaTerimaOpen}>
+  1373→        <DialogContent
+  1374→          className="glass-card navy-glow border-primary/20 max-w-[900px] w-full max-h-[95vh] overflow-y-auto tanda-terima-printable print:!max-h-[999999px] print:!overflow-visible print:!max-w-full print:!w-full print:!p-0 print:!static print:!block print:!transform-none print:!bg-white print:!border-0 print:!shadow-none"
+  1375→          showCloseButton={false}
+  1376→        >
+  1377→          <DialogHeader className="no-print">
+  1378→            <DialogTitle className="flex items-center gap-2">
+  1379→              <Printer className="w-5 h-5 text-primary" /> Tanda Terima Permohonan
+  1380→            </DialogTitle>
+  1381→            <DialogDescription>
+  1382→              Pratinjau tanda terima. Klik &quot;Cetak / Print&quot; untuk mencetak
+  1383→              atau menyimpan sebagai PDF.
+  1384→            </DialogDescription>
+  1385→          </DialogHeader>
+  1386→
+  1387→          {qrLoading && !qrData && (
+  1388→            <div className="flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground no-print">
+  1389→              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+  1390→              Memuat QR code untuk tanda terima...
+  1391→            </div>
+  1392→          )}
+  1393→
+  1394→          <TandaTerima permohonan={p} qrDataUrl={qrData?.qr || null} />
+  1395→
+  1396→          <DialogFooter className="no-print">
+  1397→            <Button variant="outline" onClick={() => setTandaTerimaOpen(false)}>
+  1398→              Tutup
+  1399→            </Button>
+  1400→            <Button
+  1401→              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+  1402→              onClick={() => window.print()}
+  1403→            >
+  1404→              <Printer className="w-4 h-4" /> Cetak / Print
+  1405→            </Button>
+  1406→          </DialogFooter>
+  1407→        </DialogContent>
+  1408→      </Dialog>
+  1409→    </div>
+  1410→  );
+  1411→}
+  1412→
+  1413→export default PermohonanDetail;
+  1414→
