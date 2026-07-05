@@ -1445,7 +1445,7 @@ export function PermohonanDetail() {
       {/* ===== Tanda Terima (Printable Receipt) Dialog ===== */}
       <Dialog open={tandaTerimaOpen} onOpenChange={setTandaTerimaOpen}>
         <DialogContent
-          className="glass-card navy-glow border-primary/20 max-w-[900px] w-full max-h-[95vh] overflow-y-auto tanda-terima-printable print:!max-h-[999999px] print:!overflow-visible print:!max-w-full print:!w-full print:!p-0 print:!static print:!block print:!transform-none print:!bg-white print:!border-0 print:!shadow-none"
+          className="glass-card navy-glow border-primary/20 max-w-[900px] w-full max-h-[95vh] overflow-y-auto tanda-terima-printable print:!max-h-[999999px] print:!overflow-visible print:!max-w-full print:!w-full print:!p-0 print:!static print:!block print:!transform-none print:!bg-white print:!text-black print:!border-0 print:!shadow-none"
           showCloseButton={false}
         >
           <DialogHeader className="no-print">

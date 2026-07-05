@@ -217,6 +217,16 @@
 
 /* ===== Print styles for Tanda Terima & Reports ===== */
 @media print {
+  html, body {
+    width: auto !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
+    color: #0a1628 !important;
+  }
   body {
     background: #ffffff !important;
     color: #0a1628 !important;
@@ -230,13 +240,21 @@
   }
   .glass-card, .navy-glow {
     background: #ffffff !important;
+    background-image: none !important;
     border: 1px solid #d4af37 !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     color: #0a1628 !important;
+    text-shadow: none !important;
   }
   .glass-card * {
     color: #0a1628 !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
   }
   .gold-gradient-text {
     -webkit-text-fill-color: #b8941f !important;
@@ -254,32 +272,170 @@
     padding: 0 !important;
   }
   @page {
-    margin: 1.5cm;
+    size: A4 portrait;
+    margin: 12mm;
   }
 
   /* ===== Tanda Terima dialog print overrides ===== */
   /* Override the generic [role=dialog] hide for our printable receipt.
      NOTE: Lightning CSS strips `max-height: none` / `overflow: visible`
      because they are initial values, so we use explicit overrides here
-     and also rely on Tailwind `print:` variants on the DialogContent. */
+     and also rely on Tailwind `print:` variants on the DialogContent.
+     IMPORTANT: Tailwind 4 uses the `translate` CSS property (not `transform`)
+     for `translate-x-[-50%] translate-y-[-50%]`. Lightning CSS strips
+     `translate: none` declarations, so we reset the Tailwind CSS variables
+     `--tw-translate-x` / `--tw-translate-y` instead. This makes Tailwind's
+     own `translate: var(--tw-translate-x) var(--tw-translate-y)` resolve to
+     `0 0` (no shift), so the dialog stays in its natural document-flow
+     position instead of being shifted -50%/-50% (which previously caused
+     only the right half of the receipt to be visible in print). */
   [role="dialog"].tanda-terima-printable {
+    --tw-translate-x: 0 !important;
+    --tw-translate-y: 0 !important;
+    --tw-translate-z: 0 !important;
+    --tw-rotate: 0 !important;
+    --tw-scale-x: 1 !important;
+    --tw-scale-y: 1 !important;
+    --tw-skew-x: 0 !important;
+    --tw-skew-y: 0 !important;
     display: block !important;
     position: static !important;
     transform: none !important;
     inset: auto !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
     margin: 0 !important;
     padding: 0 !important;
-    max-width: 100% !important;
-    width: 100% !important;
-    max-height: 999999px !important;
+    /* Explicit A4 print width to guarantee fit (210mm - 2*12mm @page margin) */
+    width: 186mm !important;
+    max-width: 186mm !important;
+    min-width: 0 !important;
+    max-height: none !important;
     height: auto !important;
     overflow: visible !important;
     background: #ffffff !important;
+    background-color: #ffffff !important;
+    background-image: none !important;
     border: none !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border-radius: 0 !important;
+    color: #0a1628 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
+
+  /* ===== Nuclear white-background override for the printable dialog =====
+     The dark navy `glass-card` background gradient + `backdrop-filter: blur(12px)`
+     was leaking onto page 2 in PDF output (giant black rectangle).
+     Force every descendant of the printable dialog to white bg, no shadows,
+     no backdrop blur, no text-shadows. Gold accent borders/lines are kept
+     because we only override `background`, not `border-color`. */
+  [role="dialog"].tanda-terima-printable,
+  [role="dialog"].tanda-terima-printable * {
+    background-color: #ffffff !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  /* QR code image stays as-is (it is a data URL image, not a background) */
+  [role="dialog"].tanda-terima-printable img {
+    background-color: #ffffff !important;
+  }
+
+  /* Compact spacing + smaller font in print so the whole receipt fits on one A4 */
+  [role="dialog"].tanda-terima-printable {
+    padding: 0 !important;
+    font-size: 11px !important;
+    line-height: 1.4 !important;
+  }
+  /* The inner receipt wrapper: keep modest padding so content fits A4 */
+  [role="dialog"].tanda-terima-printable .tanda-terima-inner {
+    padding: 6mm 8mm !important;
+    margin: 0 !important;
+  }
+  [role="dialog"].tanda-terima-printable .tanda-terima-inner > * + * {
+    margin-top: 6px !important;
+  }
+  /* Tighten signature block in print to save vertical space */
+  [role="dialog"].tanda-terima-printable .signature-block {
+    padding-top: 10px !important;
+  }
+  [role="dialog"].tanda-terima-printable .signature-block .mb-12 {
+    margin-bottom: 28px !important;
+  }
+  [role="dialog"].tanda-terima-printable .signature-block .mb-6 {
+    margin-bottom: 8px !important;
+  }
+  /* Compress the signature blank space (the wet-signature area) so the
+     whole receipt fits on a single A4 page. mt-12/mt-14/mt-16 normally
+     reserve 48-64px for a handwritten signature — in print 24px is enough. */
+  [role="dialog"].tanda-terima-printable .signature-block .mt-12,
+  [role="dialog"].tanda-terima-printable .signature-block .mt-14,
+  [role="dialog"].tanda-terima-printable .signature-block .mt-16 {
+    margin-top: 22px !important;
+  }
+  [role="dialog"].tanda-terima-printable .signature-block .mt-4,
+  [role="dialog"].tanda-terima-printable .signature-block .sm\:mt-6 {
+    margin-top: 6px !important;
+  }
+  /* Make the bottom disclaimer smaller in print to save the last few mm */
+  [role="dialog"].tanda-terima-printable .tanda-terima-inner > p.italic,
+  [role="dialog"].tanda-terima-printable .tanda-terima-inner > p:last-child {
+    font-size: 9px !important;
+    line-height: 1.35 !important;
+    padding-top: 4px !important;
+    margin-top: 4px !important;
+  }
+  /* Hide the Cap Stempel circle in print (it's a UI hint, not essential) */
+  [role="dialog"].tanda-terima-printable .signature-block .rounded-full {
+    display: none !important;
+  }
+  /* Tighten the section spacing inside the inner wrapper */
+  [role="dialog"].tanda-terima-printable .tanda-terima-inner section {
+    margin-top: 4px !important;
+  }
+  [role="dialog"].tanda-terima-printable .tanda-terima-inner h3 {
+    margin-bottom: 3px !important;
+    padding-bottom: 2px !important;
+  }
+  [role="dialog"].tanda-terima-printable .tanda-terima-inner dl {
+    gap: 0 !important;
+  }
+  [role="dialog"].tanda-terima-printable .tanda-terima-inner dl > div {
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+  }
+
+  /* Prevent page breaks inside any section / header / signature block of the receipt */
+  [role="dialog"].tanda-terima-printable section,
+  [role="dialog"].tanda-terima-printable header,
+  [role="dialog"].tanda-terima-printable .signature-block,
+  [role="dialog"].tanda-terima-printable .tanda-terima-inner > div,
+  [role="dialog"].tanda-terima-printable .tanda-terima-inner > p {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Also target the Radix DialogContent slot (shadcn/ui) in case the
+     `print:!bg-white` Tailwind variant doesn't cascade to all wrappers. */
+  [data-slot="dialog-content"],
+  [data-slot="dialog-content"] * {
+    background-color: #ffffff !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+  [data-slot="dialog-content"] {
+    color: #0a1628 !important;
+  }
+
   /* Hide the dialog overlay during print */
   [data-slot="dialog-overlay"] {
     display: none !important;

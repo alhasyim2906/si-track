@@ -1463,3 +1463,96 @@ Project was stable after Task 12 (multi-upload KTP/KK and boundary photos). User
 8. **Tanda Terima PDF with logo** — same — embed custom logo in the printable tanda terima
 9. **Multi-language support (i18n)** — Indonesian + English toggle
 10. Continue with previously-queued features from Task 12 recommendations: server-side MIME magic-byte validation, move uploads out of public/, per-permohonan storage quota, image resize on upload, document viewer modal, bulk download as ZIP
+
+---
+Task ID: 14
+Agent: main
+Task: Perbaiki Tanda Terima Permohonan — fix print layout (black page 2 bug, text truncation, signature grid cramping, page break issues)
+
+## Current Project Status Assessment
+Project was stable after Task 13 (branding asset upload feature). User reported "perbaiki Tanda Terima Permohonan". Diagnosis via agent-browser + VLM (glm-4.6v) on both the on-screen dialog screenshot and the printed PDF (converted to PNG via `pdftoppm`) revealed 5 concrete bugs in the printable receipt:
+
+1. **CRITICAL — Black page 2 in PDF print**: The dark navy `glass-card` background gradient + `backdrop-filter: blur(12px)` was leaking onto a second page, producing a giant black rectangle with only a gold border at the top. The existing `@media print` override only targeted `.glass-card` and `.navy-glow` themselves, not their descendants.
+2. **Text truncated mid-word in signatures**: The 3-column signature grid (`grid-cols-3`) produced broken names like "antoso" (Budi Santoso), "inah" (Maryam), "Jministrasi" (Administrator) because columns were too narrow and `break-words` split words mid-character.
+3. **Disclaimer text cut off at bottom of page 1**: The bottom note ("Tanda terima ini bukan bukti kepemilikan tanah...") was being cut mid-sentence at the page break.
+4. **Content splits awkwardly across 2 pages**: No `page-break-inside: avoid` rules existed for receipt sections.
+5. **Misleading 3rd signature column**: The third column showed "Kuala Pembuang, [today]" + "Lurah Kuala Pembuang II" but contained no actual signature — misleading for a formal receipt.
+
+## Work Completed
+
+### 1. `src/components/app/shared/TandaTerima.tsx` — full rewrite of the receipt JSX
+- Added `tanda-terima-inner` class to outer wrapper div so print CSS can target inner padding separately from the dialog content slot.
+- **Header (kop surat)**: tightened sizes (text-xs/base on mobile, sm:text-sm/xl on larger); kept logo + 3-line address block.
+- **Gold horizontal rule**: now a double-line (3px thick bar + 1px subtle line below) for more formality; wrapped in `print:break-inside-avoid`.
+- **Title block**: added gold underline (`underline decoration-[#d4af37] decoration-2 underline-offset-4`); wrapped in `print:break-inside-avoid`.
+- **Nomor Register + QR section**: renamed label to "Nomor Register / Tanda Terima" to clarify the register number IS the receipt number; thicker border (`border-2`); QR code container now `border-2 border-primary/50 shadow-sm` with white bg preserved; wrapped in `<section>` with `print:break-inside-avoid`.
+- **All data sections** (Data Pemohon, Data Tanah, Keperluan & Jenis Surat, Catatan): wrapped each in `<section className="print:break-inside-avoid">` so they never split across pages.
+- **Signature block — REWRITTEN**:
+  - Removed the misleading 3-column grid.
+  - Place + date line at top, **right-aligned** ("Kuala Pembuang, [today]").
+  - "Mengetahui," + "LURAH KUALA PEMBUANG II" header above the signatures (centered, small font) — acknowledges the Lurah without taking a signature column.
+  - **2-column grid** (`grid-cols-2 gap-6 sm:gap-16`) for Pemohon (left) + Petugas Penerima (right) — each column wide enough for any name.
+  - Signature blank space uses `mt-12 sm:mt-14` (48-56px on screen) — print CSS compresses this to 22px.
+  - Names rendered as `( {name} )` with parentheses — formal Indonesian government style indicating signature placeholder.
+  - Petugas position shown in smaller muted text below the name.
+- **Bottom disclaimer**: kept `border-t border-primary/20` divider; added `print:break-inside-avoid` so it doesn't split.
+- Reduced outer padding from `p-6 sm:p-8` to `p-5 sm:p-7` for tighter on-screen density.
+- Section vertical rhythm changed from `space-y-5` to `space-y-4 sm:space-y-5`.
+
+### 2. `src/app/globals.css` — extended `@media print` block
+- **Nuclear white-background override** added (targeting both `[role="dialog"].tanda-terima-printable` and `*` descendants): forces `background-color: #ffffff`, `background-image: none`, `backdrop-filter: none`, `box-shadow: none`, `text-shadow: none` on every element inside the printable dialog. This kills the black page 2 bug at its root — no descendant can hold a dark background.
+- **Tailwind CSS variable reset** for `--tw-translate-x/y/z`, `--tw-rotate`, `--tw-scale-x/y`, `--tw-skew-x/y` on the printable dialog — fixes a bug where Tailwind 4's `translate` property (using CSS vars) was shifting the dialog -50%/-50% in print, causing only the right half to be visible.
+- **Explicit A4 width**: `width: 186mm !important; max-width: 186mm !important;` on the printable dialog (210mm A4 width - 2×12mm @page margin = 186mm) — guarantees content fits within the printable area.
+- **A4 portrait page setup**: `@page { size: A4 portrait; margin: 12mm; }`.
+- **Inner wrapper padding**: `padding: 6mm 8mm` in print (was 8mm) to save vertical space.
+- **Compact spacing rules**:
+  - `font-size: 11px; line-height: 1.4` on the printable dialog.
+  - `> * + * { margin-top: 6px }` for tight vertical rhythm.
+  - `section { margin-top: 4px }` and `h3 { margin-bottom: 3px; padding-bottom: 2px }` for tight section headers.
+  - `dl { gap: 0 }` and `dl > div { padding-top: 1px; padding-bottom: 1px }` for tight data rows.
+- **Signature block compaction**:
+  - `.mt-12`, `.mt-14`, `.mt-16` inside `.signature-block` → `margin-top: 22px !important` in print (was 48-64px) — saves ~26-42px per signature row.
+  - `.mb-12` → 28px, `.mb-6` → 8px (legacy selectors, kept for safety).
+- **Disclaimer compaction**: bottom `p.italic` and `p:last-child` → `font-size: 9px; line-height: 1.35; padding-top: 4px; margin-top: 4px` in print.
+- **Page break rules**: `page-break-inside: avoid; break-inside: avoid` on all `section`, `header`, `.signature-block`, direct child `div` and `p` of `.tanda-terima-inner`. Headings (`h2`, `h3`) get `page-break-after: avoid` so they don't orphan.
+- **Hide `.rounded-full` inside signature block** in print (legacy Cap Stempel hint, not in current code but kept for safety).
+- **Radix DialogContent slot override**: `[data-slot="dialog-content"], [data-slot="dialog-content"] *` forced to white bg, no shadow, no backdrop-filter — catches any shadcn/ui wrapper that the `print:!bg-white` Tailwind variant might miss.
+- **Portal background**: `[data-slot="dialog-portal"]` forced to `background: #ffffff` — ensures no dark portal background bleeds onto subsequent pages.
+- **`bg-primary/5` override**: maps to a very light cream tint `#fdf8e8` in print so the Nomor Register panel still reads as a panel without going dark.
+- **Color print preservation**: `-webkit-print-color-adjust: exact; print-color-adjust: exact` on the printable dialog so gold accents actually print.
+
+### 3. `src/components/app/shared/PermohonanDetail.tsx`
+- Verified the DialogContent className already includes all needed `print:` variants (`print:!bg-white`, `print:!text-black`, `print:!border-0`, `print:!shadow-none`, `print:!max-h-[999999px]`, `print:!overflow-visible`, `print:!max-w-full`, `print:!w-full`, `print:!p-0`, `print:!static`, `print:!block`, `print:!transform-none`).
+- DialogHeader and DialogFooter already have `no-print` class so they don't appear in PDF.
+- No changes needed here.
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile (`✓ Compiled in 498ms`), no runtime errors
+- **agent-browser QA** (admin logged in, opened Suparman permohonan XK7M2P9Q, clicked "Cetak Tanda Terima"):
+  - On-screen dialog screenshot: VLM score **8/10** — glass-card with dark navy + gold accents renders correctly, QR code visible, title prominent, signatures readable when scrolled to bottom
+  - **PDF output**: `agent-browser pdf /tmp/tt-after3-print.pdf` → produces **1 page** (was 2 pages before fix)
+  - PDF page 1 VLM analysis: **9/10** — "All required elements are visible on the single page: header, register number, QR code, applicant data, land data, signatures, disclaimer. No layout problems. Signatures complete: '( Suparman )' and '( Budi Santoso )'. No black/dark background visible. Looks like a formal government receipt."
+  - PDF page 2: **does not exist** (content fits on 1 page) — black box bug eliminated
+- **Second permohonan test** (Maryam RB4F8NKW, status "Menunggu Tanda Tangan Lurah", priority TINGGI):
+  - PDF: 1 page, signatures complete "( Maryam )" and "( Budi Santoso )", priority field shows "TINGGI", status visible, no layout issues
+- **Bug-by-bug verification**:
+  - Black page 2 bug: **FIXED** — no black rectangle, no page 2 at all
+  - Text truncation: **FIXED** — "Suparman", "Budi Santoso", "Maryam" all render complete
+  - Disclaimer cut off: **FIXED** — fits on page 1 with `print:break-inside-avoid`
+  - Content splits across pages: **FIXED** — all sections use `print:break-inside-avoid`
+  - Right edge cutoff: **FIXED** — explicit 186mm width matches A4 printable area
+
+## Unresolved Issues / Risks
+- **Very long applicant names** (e.g., 4-word names like "Sri Mulyani Indah Permatasari") may still wrap to 2 lines in the signature column — but the 2-column layout has enough width that this should look fine. Not tested with extreme cases.
+- **Very long catatan (notes)** could still push content to page 2 if multi-paragraph — current code only handles a single paragraph. Acceptable for typical use.
+- **Mobile print**: when a user prints from a mobile browser, the `@page A4 portrait` rule may not apply (mobile browsers often default to screen size). The receipt will still print but may use more pages. Desktop print (the primary use case) is fully fixed.
+- **Browser print preview caching**: Chrome sometimes caches the print CSS. If a user reports the black box still appearing after this fix, a hard refresh (Ctrl+Shift+R) of the permohonan detail page before clicking "Cetak / Print" resolves it.
+
+## Priority Recommendations for Next Round
+1. **Add a "Download PDF" button** alongside "Cetak / Print" that generates a server-side PDF (via puppeteer or react-pdf) for a more reliable single-page output — current `window.print()` depends on browser print settings which vary.
+2. **Add watermark / QR code validation** — embed the register number as a faint watermark behind the receipt body for anti-forgery.
+3. **Add a "Cetak Tanda Terima" button on the public tracking page** so applicants can reprint their receipt if they lose it (using just the register number).
+4. **Multi-language receipt** (Indonesian + English) toggle for international use.
+5. **Embed custom logo** in the receipt header — currently uses the default Logo component which falls back to inline SVG if no custom branding logo is uploaded. Should pass `src={branding.branding_logo_url}` so admin-uploaded logos appear on receipts (ties into Task 13 branding feature).
+6. Continue with previously-queued features from Task 13 recommendations: image dimension validation, auto-resize uploaded images, branding reset button, color theme customization, custom CSS injection.

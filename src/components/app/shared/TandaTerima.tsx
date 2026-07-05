@@ -2,6 +2,7 @@
 
 import { Logo } from "@/components/app/Logo";
 import { STATUS_BY_KODE } from "@/lib/constants";
+import { useAppStore } from "@/store/app-store";
 
 /**
  * Tanda Terima Permohonan — printable formal receipt.
@@ -9,6 +10,12 @@ import { STATUS_BY_KODE } from "@/lib/constants";
  * On screen this renders as a glass-card (dark navy + gold accents).
  * In print, the @media print rules in globals.css flip glass-card to
  * white background with gold border + dark text automatically.
+ *
+ * Layout notes (Task 14):
+ *  - Single A4 page optimized via `print:break-inside-avoid` on each section.
+ *  - 2-column signature grid (Pemohon + Petugas Penerima) with date above.
+ *  - "Mengetahui, LURAH KUALA PEMBUANG II" header above signatures.
+ *  - All sections use `print:break-inside-avoid` so they don't split mid-section.
  */
 
 export interface TandaTerimaPermohonan {
@@ -98,20 +105,23 @@ export function TandaTerima({
   const p = permohonan;
   const statusDef = STATUS_BY_KODE[p.statusSaatIni];
   const statusName = p.statusNama || statusDef?.nama || p.statusSaatIni;
+  // Use admin-uploaded custom logo if available (Task 13 branding feature)
+  const branding = useAppStore((s) => s.branding);
+  const logoUrl = branding?.branding_logo_url;
 
   return (
-    <div className="mx-auto w-full max-w-[800px] glass-card border-primary/30 rounded-lg p-6 sm:p-8 space-y-5">
+    <div className="tanda-terima-inner mx-auto w-full max-w-[800px] glass-card border-primary/30 rounded-lg p-5 sm:p-7 space-y-4 sm:space-y-5">
       {/* ===== Kop Surat (letterhead) ===== */}
-      <header className="flex items-start gap-4">
-        <Logo size={60} className="shrink-0" />
+      <header className="flex items-start gap-3 sm:gap-4 print:break-inside-avoid">
+        <Logo size={56} src={logoUrl} className="shrink-0" />
         <div className="flex-1 text-center min-w-0">
-          <h1 className="text-sm sm:text-base font-bold uppercase tracking-wide">
+          <h1 className="text-xs sm:text-sm font-bold uppercase tracking-wide">
             PEMERINTAH KABUPATEN SERUYAN
           </h1>
-          <h2 className="text-lg sm:text-2xl font-extrabold uppercase tracking-wide gold-gradient-text leading-tight">
+          <h2 className="text-base sm:text-xl font-extrabold uppercase tracking-wide gold-gradient-text leading-tight">
             KELURAHAN KUALA PEMBUANG II
           </h2>
-          <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5">
+          <p className="text-[9px] sm:text-[11px] text-muted-foreground mt-0.5 leading-tight">
             Jl. Iskandar No. 1, Kuala Pembuang, Seruyan, Kalimantan Tengah 74214
             <br className="hidden sm:block" />
             <span className="sm:hidden"> • </span>
@@ -120,57 +130,66 @@ export function TandaTerima({
         </div>
       </header>
 
-      {/* Gold horizontal rule */}
-      <div className="h-[3px] rounded-full bg-gradient-to-r from-[#b8941f] via-[#f5d77a] to-[#b8941f]" />
+      {/* Gold horizontal rule (double-line for formality) */}
+      <div className="space-y-0.5 print:break-inside-avoid">
+        <div className="h-[3px] rounded-full bg-gradient-to-r from-[#b8941f] via-[#f5d77a] to-[#b8941f]" />
+        <div className="h-px rounded-full bg-gradient-to-r from-transparent via-[#d4af37]/60 to-transparent" />
+      </div>
 
       {/* ===== Title ===== */}
-      <div className="text-center space-y-1 pt-1">
-        <h2 className="text-xl sm:text-2xl font-extrabold tracking-wide uppercase">
+      <div className="text-center space-y-1 pt-1 print:break-inside-avoid">
+        <h2 className="text-lg sm:text-2xl font-extrabold tracking-wide uppercase underline decoration-[#d4af37] decoration-2 underline-offset-4">
           Tanda Terima Permohonan
         </h2>
-        <p className="text-xs sm:text-sm text-muted-foreground uppercase tracking-[0.2em]">
+        <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-[0.25em]">
           Pendaftaran Surat Tanah
         </p>
       </div>
 
       {/* ===== Nomor Register + QR Code ===== */}
-      <div className="flex flex-col sm:flex-row items-stretch gap-4">
-        <div className="flex-1 rounded-lg border border-primary/40 bg-primary/5 p-4 space-y-3">
+      <section className="flex flex-col sm:flex-row items-stretch gap-3 sm:gap-4 print:break-inside-avoid">
+        <div className="flex-1 rounded-lg border-2 border-primary/50 bg-primary/5 p-3 sm:p-4 space-y-2.5">
           <div>
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Nomor Register</p>
-            <p className="font-mono text-xl sm:text-2xl font-bold gold-gradient-text break-all">
+            <p className="text-[9px] sm:text-[10px] uppercase tracking-wide text-muted-foreground">
+              Nomor Register / Tanda Terima
+            </p>
+            <p className="font-mono text-lg sm:text-2xl font-bold gold-gradient-text break-all leading-tight">
               {p.nomorRegister}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Diterima Tanggal</p>
-              <p className="text-sm font-semibold">{formatDate(p.createdAt)}</p>
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-wide text-muted-foreground">
+                Diterima Tanggal
+              </p>
+              <p className="text-xs sm:text-sm font-semibold">{formatDate(p.createdAt)}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Status Saat Ini</p>
-              <p className="text-sm font-semibold">{statusName}</p>
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-wide text-muted-foreground">
+                Status Saat Ini
+              </p>
+              <p className="text-xs sm:text-sm font-semibold">{statusName}</p>
             </div>
           </div>
         </div>
         {qrDataUrl && (
-          <div className="flex flex-row sm:flex-col items-center gap-2 sm:gap-1 shrink-0">
-            <div className="p-2 rounded-lg bg-white border border-primary/40">
+          <div className="flex flex-row sm:flex-col items-center gap-2 sm:gap-1 shrink-0 self-center">
+            <div className="p-1.5 rounded-lg bg-white border-2 border-primary/50 shadow-sm">
               <img
                 src={qrDataUrl}
                 alt={`QR Code ${p.nomorRegister}`}
-                className="w-[100px] h-[100px]"
+                className="w-[88px] h-[88px] sm:w-[96px] sm:h-[96px]"
               />
             </div>
-            <p className="text-[10px] text-muted-foreground text-center max-w-[120px] leading-tight">
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground text-center max-w-[120px] leading-tight">
               Scan untuk lacak status
             </p>
           </div>
         )}
-      </div>
+      </section>
 
       {/* ===== Data Pemohon ===== */}
-      <section>
+      <section className="print:break-inside-avoid">
         <h3 className="text-xs font-bold uppercase tracking-wider border-b-2 border-primary/40 pb-1 mb-2 gold-text">
           Data Pemohon
         </h3>
@@ -192,7 +211,7 @@ export function TandaTerima({
       </section>
 
       {/* ===== Data Tanah ===== */}
-      <section>
+      <section className="print:break-inside-avoid">
         <h3 className="text-xs font-bold uppercase tracking-wider border-b-2 border-primary/40 pb-1 mb-2 gold-text">
           Data Tanah
         </h3>
@@ -216,7 +235,7 @@ export function TandaTerima({
       </section>
 
       {/* ===== Keperluan & Jenis Surat ===== */}
-      <section>
+      <section className="print:break-inside-avoid">
         <h3 className="text-xs font-bold uppercase tracking-wider border-b-2 border-primary/40 pb-1 mb-2 gold-text">
           Keperluan &amp; Jenis Surat
         </h3>
@@ -231,7 +250,7 @@ export function TandaTerima({
 
       {/* ===== Catatan ===== */}
       {p.catatan && (
-        <section>
+        <section className="print:break-inside-avoid">
           <h3 className="text-xs font-bold uppercase tracking-wider border-b-2 border-primary/40 pb-1 mb-2 gold-text">
             Catatan
           </h3>
@@ -239,50 +258,48 @@ export function TandaTerima({
         </section>
       )}
 
-      {/* ===== Footer: 3-column signatures ===== */}
-      <section className="grid grid-cols-3 gap-3 sm:gap-6 pt-8">
-        {/* Left: Pemohon */}
-        <div className="text-center text-sm">
-          <p className="font-medium mb-1">Pemohon,</p>
-          <div className="h-16 sm:h-20" />
-          <div className="border-t border-foreground/60 pt-1">
-            <p className="font-semibold text-xs sm:text-sm leading-tight break-words">
-              {p.pemohonNama}
-            </p>
-          </div>
+      {/* ===== Signature Block ===== */}
+      <section className="signature-block pt-4 sm:pt-6 print:break-inside-avoid">
+        {/* Place + date line at top, right-aligned */}
+        <div className="text-right text-sm mb-4 sm:mb-6">
+          <p className="font-medium leading-tight">Kuala Pembuang, {todayDate()}</p>
         </div>
 
-        {/* Center: Petugas Penerima */}
-        <div className="text-center text-sm">
-          <p className="font-medium mb-1">Petugas Penerima,</p>
-          <div className="h-16 sm:h-20" />
-          <div className="border-t border-foreground/60 pt-1">
-            <p className="font-semibold text-xs sm:text-sm leading-tight break-words">
-              {p.creator?.name || "—"}
-            </p>
-            {p.creator?.position && (
-              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5 break-words">
-                {p.creator.position}
+        {/* Mengetahui line (Lurah acknowledgment) */}
+        <p className="text-center text-[11px] text-muted-foreground mb-1">Mengetahui,</p>
+        <p className="text-center text-xs font-semibold mb-1">LURAH KUALA PEMBUANG II</p>
+
+        {/* 2-column signatures: Pemohon (left) + Petugas Penerima (right) */}
+        <div className="grid grid-cols-2 gap-6 sm:gap-16 mt-12 sm:mt-16">
+          {/* Left: Pemohon */}
+          <div className="text-center text-sm">
+            <p className="font-medium mb-0 leading-tight">Pemohon,</p>
+            <div className="border-t border-foreground/70 pt-1 mt-12 sm:mt-14">
+              <p className="font-semibold text-xs sm:text-sm leading-tight">
+                ( {p.pemohonNama} )
               </p>
-            )}
+            </div>
           </div>
-        </div>
 
-        {/* Right: Place + Date */}
-        <div className="text-center text-sm">
-          <p className="font-medium mb-1 leading-tight">Kuala Pembuang,</p>
-          <p className="font-medium mb-0 leading-tight">{todayDate()}</p>
-          <div className="h-12 sm:h-16" />
-          <div className="border-t border-foreground/60 pt-1">
-            <p className="text-[10px] text-muted-foreground leading-tight">
-              Lurah Kuala Pembuang II
-            </p>
+          {/* Right: Petugas Penerima */}
+          <div className="text-center text-sm">
+            <p className="font-medium mb-0 leading-tight">Petugas Penerima,</p>
+            <div className="border-t border-foreground/70 pt-1 mt-12 sm:mt-14">
+              <p className="font-semibold text-xs sm:text-sm leading-tight">
+                ( {p.creator?.name || "—"} )
+              </p>
+              {p.creator?.position && (
+                <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                  {p.creator.position}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ===== Bottom note ===== */}
-      <p className="text-[10px] sm:text-[11px] italic text-muted-foreground text-center pt-3 border-t border-primary/20 leading-relaxed">
+      <p className="text-[10px] sm:text-[11px] italic text-muted-foreground text-center pt-3 border-t border-primary/20 leading-relaxed print:break-inside-avoid">
         Tanda terima ini bukan bukti kepemilikan tanah. Simpan baik-baik untuk
         melacak status permohonan Anda melalui Nomor Register atau QR Code di atas.
       </p>
