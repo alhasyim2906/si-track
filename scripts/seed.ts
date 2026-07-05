@@ -74,7 +74,7 @@ async function main() {
   const jenisList = await db.jenisSurat.findMany();
   const samples = [
     {
-      nomorRegister: "KPII-TNH-2026-000001",
+      nomorRegister: "KPII-TNH-2026-XK7M2P9Q",
       jenisIdx: 0,
       pemohonNik: "6201010101900001",
       pemohonNama: "Suparman",
@@ -99,7 +99,7 @@ async function main() {
       riwayat: ["PENGAJUAN", "CEK_ADMIN", "VERIFIKASI_LAPANGAN"],
     },
     {
-      nomorRegister: "KPII-TNH-2026-000002",
+      nomorRegister: "KPII-TNH-2026-RB4F8NKW",
       jenisIdx: 1,
       pemohonNik: "6201010202800002",
       pemohonNama: "Maryam",
@@ -124,7 +124,7 @@ async function main() {
       riwayat: ["PENGAJUAN", "CEK_ADMIN", "VERIFIKASI_LAPANGAN", "PENGUKURAN", "PEMBUATAN_SURAT"],
     },
     {
-      nomorRegister: "KPII-TNH-2026-000003",
+      nomorRegister: "KPII-TNH-2026-QH3JY6MT",
       jenisIdx: 2,
       pemohonNik: "6201010303950003",
       pemohonNama: "Joko Widodo",
@@ -150,7 +150,7 @@ async function main() {
       tanggalSelesai: new Date(),
     },
     {
-      nomorRegister: "KPII-TNH-2026-000004",
+      nomorRegister: "KPII-TNH-2026-WP9XK2D7",
       jenisIdx: 3,
       pemohonNik: "6201010404760004",
       pemohonNama: "Wahyuni",
@@ -175,7 +175,7 @@ async function main() {
       riwayat: ["PENGAJUAN"],
     },
     {
-      nomorRegister: "KPII-TNH-2026-000005",
+      nomorRegister: "KPII-TNH-2026-TV5GR4HN",
       jenisIdx: 4,
       pemohonNik: "6201010505880005",
       pemohonNama: "Rahmat Hidayat",
@@ -266,6 +266,10 @@ async function main() {
   await db.settings.upsert({ where: { key: "app_name" }, update: {}, create: { key: "app_name", value: "SI-TRACK TANAH" } });
   await db.settings.upsert({ where: { key: "kelurahan" }, update: {}, create: { key: "kelurahan", value: "Kelurahan Kuala Pembuang II" } });
   await db.settings.upsert({ where: { key: "alamat_kantor" }, update: {}, create: { key: "alamat_kantor", value: "Jl. Iskandar No. 1, Kuala Pembuang, Seruyan, Kalimantan Tengah" } });
+  // Register format defaults — random mode active (anti-enumeration)
+  await db.settings.upsert({ where: { key: "register_prefix" }, update: {}, create: { key: "register_prefix", value: "KPII-TNH" } });
+  await db.settings.upsert({ where: { key: "register_digit_count" }, update: {}, create: { key: "register_digit_count", value: "8" } });
+  await db.settings.upsert({ where: { key: "register_use_random" }, update: {}, create: { key: "register_use_random", value: "true" } });
 
   console.log("✅ Seed complete!");
   console.log("   Login: admin@kpii.go.id / admin123");

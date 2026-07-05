@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 import { SectionHeader } from "@/components/app/StatCard";
@@ -30,6 +30,8 @@ import {
   Loader2,
   Eye,
   Globe,
+  ShieldCheck,
+  Shuffle,
 } from "lucide-react";
 
 /* ============================================================
@@ -47,7 +49,8 @@ const DEFAULTS: Record<string, string> = {
   require_ttd_camat: "false",
   max_upload_size_mb: "10",
   register_prefix: "KPII-TNH",
-  register_digit_count: "6",
+  register_digit_count: "8",
+  register_use_random: "true",
   app_name: "SI-TRACK TANAH",
   app_subtitle: "Kelurahan Kuala Pembuang II",
 };
@@ -82,7 +85,8 @@ const SYSTEM_FIELDS: FieldDef[] = [
 
 const REGISTER_FIELDS: FieldDef[] = [
   { key: "register_prefix", label: "Prefix Nomor Register", description: "Awalan nomor register surat", icon: FileDigit, type: "text", placeholder: "KPII-TNH" },
-  { key: "register_digit_count", label: "Jumlah Digit Serial", description: "Jumlah digit untuk nomor urut register", icon: Hash, type: "number", placeholder: "6" },
+  { key: "register_use_random", label: "Mode Acak (Anti-Tebak)", description: "Gunakan token acak alfanumerik agar nomor register tidak mudah ditebak/ditebus. Disarankan AKTIF untuk privasi pemohon.", icon: ShieldCheck, type: "switch" },
+  { key: "register_digit_count", label: "Panjang Token / Serial", description: "Jumlah karakter token acak (mode acak) atau digit nomor urut (mode berurutan). Min 4, maks 16. Disarankan 8+ untuk mode acak.", icon: Hash, type: "number", placeholder: "8" },
 ];
 
 const APPEARANCE_FIELDS: FieldDef[] = [
@@ -259,8 +263,22 @@ export function SettingsManagement() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  // Register preview
-  const registerPreview = `${settings.register_prefix || "KPII-TNH"}-${new Date().getFullYear()}-${"1".padStart(Number(settings.register_digit_count) || 6, "0")}`;
+  // Register preview — reflects current settings (random token if random mode on)
+  const registerPreview = useMemo(() => {
+    const prefix = (settings.register_prefix || "KPII-TNH").trim().toUpperCase() || "KPII-TNH";
+    const year = new Date().getFullYear();
+    const digits = Math.max(4, Math.min(16, Number(settings.register_digit_count) || 8));
+    const useRandom = (settings.register_use_random ?? "true") === "true";
+    if (useRandom) {
+      const alphabet = "ABCDEFGHJKMNPQRSTVWXYZ23456789"; // no I, L, O, U, 0, 1
+      let token = "";
+      for (let i = 0; i < digits; i++) {
+        token += alphabet[Math.floor(Math.random() * alphabet.length)];
+      }
+      return `${prefix}-${year}-${token}`;
+    }
+    return `${prefix}-${year}-${"1".padStart(digits, "0")}`;
+  }, [settings.register_prefix, settings.register_digit_count, settings.register_use_random]);
 
   if (!allowed) {
     return (
@@ -397,15 +415,30 @@ export function SettingsManagement() {
           </div>
           {/* Preview */}
           <div className="mt-2 p-4 rounded-lg bg-primary/5 border border-primary/15">
-            <div className="flex items-center gap-2 mb-2">
-              <Eye className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Pratinjau Nomor Register</span>
+            <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Eye className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">Pratinjau Nomor Register</span>
+              </div>
+              {(settings.register_use_random ?? "true") === "true" ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/15 text-green-600 border border-green-500/30">
+                  <ShieldCheck className="w-3 h-3" /> Mode Acak Aktif
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
+                  <Shuffle className="w-3 h-3" /> Mode Berurutan
+                </span>
+              )}
             </div>
-            <p className="text-lg font-mono font-bold gold-gradient-text tracking-wide">
+            <p className="text-lg font-mono font-bold gold-gradient-text tracking-wide break-all">
               {registerPreview}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Format: {settings.register_prefix || "KPII-TNH"}-TAHUN-SERIAL
+            <p className="text-xs text-muted-foreground mt-1.5">
+              {(settings.register_use_random ?? "true") === "true" ? (
+                <>Format: <span className="font-mono">{settings.register_prefix || "KPII-TNH"}-TAHUN-TOKEN_ACAK</span> · Token dihasilkan acak setiap pendaftaran, tidak berurutan, anti-tebak.</>
+              ) : (
+                <>Format: <span className="font-mono">{settings.register_prefix || "KPII-TNH"}-TAHUN-SERIAL</span> · Nomor urut berurutan (mudah ditebak, kurang privat).</>
+              )}
             </p>
           </div>
           <div className="flex justify-end pt-2">

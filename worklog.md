@@ -1157,3 +1157,64 @@ App was production-usable from Phase 7 (all core flows verified, AdminLTE 4 rede
 5. **PWA manifest + service worker** for offline tracking
 6. **WhatsApp/email notification integration** (currently dashboard-only notifications)
 7. **Map integration** — show land location on map for permohonan detail
+
+---
+Task ID: 11
+Agent: main
+Task: Add random (unguessable) registration number format so nomor register cannot be easily enumerated by unauthorized parties.
+
+## Current Project Status Assessment
+Project is production-stable (Phase 8 complete: AdminLTE 4 consistency, Settings, Notifications, Bulk Actions). This round adds a security/privacy enhancement requested by the user: the registration number format was sequential (`KPII-TNH-2026-000001`) which allowed trivial enumeration — an attacker could increment the serial to scrape every applicant's data via the public tracking endpoint. Replaced with a random alphanumeric token drawn from a 30-character alphabet that excludes visually-ambiguous characters.
+
+## Work Completed
+
+### 1. Random Register Generator (`src/lib/auth.ts`)
+- Rewrote `generateNomorRegister()` to support two modes controlled by the new `register_use_random` setting:
+  - **Random mode (default, ON)**: `{PREFIX}-{YEAR}-{TOKEN}` where TOKEN is `N` random chars from a 30-char Crockford-style alphabet `ABCDEFGHJKMNPQRSTVWXYZ23456789` (excludes I, L, O, U, 0, 1). With 8 chars → keyspace ≈ 6.6 × 10¹¹ — infeasible to enumerate.
+  - **Sequential mode (legacy)**: zero-padded counter, kept for backward compat / admin choice.
+- Added `randomToken(length)` using `crypto.randomBytes` (server-side CSPRNG).
+- Added `readSettingsMap()` server-side settings reader so the generator honors admin-configured `register_prefix`, `register_digit_count`, `register_use_random`.
+- Uniqueness guaranteed via DB `findUnique` check with 12-retry loop; fallback extends token by 2 chars on (astronomically unlikely) collision.
+- Added exported `previewNomorRegister()` helper for non-DB preview contexts.
+- Token length clamped to 4–16 to prevent misconfiguration.
+
+### 2. Settings UI (`src/components/app/admin/SettingsManagement.tsx`)
+- New `register_use_random` setting (default `"true"`) added to DEFAULTS + REGISTER_FIELDS as a switch labeled "Mode Acak (Anti-Tebak)".
+- Updated `register_digit_count` default `6 → 8`, description clarified (now "Panjang Token / Serial", explains it controls token length in random mode / serial digits in sequential mode).
+- Added `ShieldCheck` + `Shuffle` icons.
+- Preview now generates a live random sample (client-side `Math.random` over the same 30-char alphabet) when random mode is on; shows sequential `00000001` when off.
+- Added mode badge in preview: green "Mode Acak Aktif" (ShieldCheck) vs amber "Mode Berurutan" (Shuffle).
+- Format label dynamically switches between `{PREFIX}-TAHUN-TOKEN_ACAK` (with anti-tebak note) and `{PREFIX}-TAHUN-SERIAL` (with privacy warning).
+- Wrapped preview in `useMemo` for performance.
+
+### 3. Seed Script (`scripts/seed.ts`)
+- Replaced 5 sequential sample registers (`000001`–`000005`) with random-format equivalents: `XK7M2P9Q`, `RB4F8NKW`, `QH3JY6MT`, `WP9XK2D7`, `TV5GR4HN`.
+- Added seed entries for `register_prefix`, `register_digit_count=8`, `register_use_random=true` (upsert with `update: {}` so existing values are preserved).
+- Re-ran seed → 5 new random-format permohonan added to DB alongside the existing 6 sequential ones (now 11 total, both formats coexist for backward compatibility).
+
+### 4. Public-Facing Copy Updates
+- `PublicTracking.tsx`: placeholder updated `KPII-TNH-2026-000001` → `KPII-TNH-2026-XK7M2P9Q`; "Coba:" example chips updated to the 3 new random-format registers.
+- `PublicSections.tsx` FAQ: tracking answer now shows random-format example + added privacy note: "Nomor register menggunakan format acak agar tidak dapat ditebak orang lain — jaga kerahasiaan nomor register Anda."
+
+## Verification Results
+- `bun run lint`: **0 errors**
+- Dev server: all routes 200, no runtime errors in `dev.log`
+- **Generator unit test** (direct call, 8 samples): all match `^KPII-TNH-2026-[ABCDEFGHJKMNPQRSTVWXYZ23456789]{8}$`, all unique, no ambiguous chars (0/1/I/L/O/U) present ✓
+- **agent-browser QA**:
+  - Settings page: "Mode Acak (Anti-Tebak)" toggle visible, "Mode Acak Aktif" green badge shown, preview sample `KPII-TNH-2026-J4CNPP6C` (8-char, no ambiguous) ✓
+  - Permohonan list: 5 random-format + 5 sequential records both visible ✓
+  - Public tracking API `GET /api/tracking/KPII-TNH-2026-XK7M2P9Q` → 200, returns correct pemohon (Suparman, PENGUKURAN, 7 stages, 3 riwayat) ✓
+  - Anti-enumeration: `GET /api/tracking/KPII-TNH-2026-000007` (wrong guess) → 404 ✓
+- Backward compatibility: existing sequential registers (000001–000006) still track correctly — no data migration needed.
+
+## Unresolved Issues / Risks
+- The 6 legacy sequential records (000001–000006) remain in the DB. They are still guessable. If full anti-enumeration is required for historical data, an admin could manually re-register them (or a future migration could reassign). New registrations are all random.
+- The `register_digit_count` setting's stored DB value may still be `"6"` if it was set previously; the generator clamps to min 4 and the Settings UI shows the effective value. Admin should bump to 8 via the Settings page for stronger keyspace.
+- Public tracking still allows unlimited 404 probes (no rate-limiting). An attacker gains nothing (404 = no data leak), but a future hardening step could add rate-limiting on `/api/tracking/[registerNumber]` to deter brute-force probing.
+
+## Priority Recommendations for Next Round
+1. **Rate-limit the public tracking endpoint** (e.g., 20 requests/min/IP) to further deter brute-force token guessing.
+2. **Add a "Regenerate preview" shuffle button** in Settings so admins can see multiple random samples before saving.
+3. **Optional: migrate legacy sequential registers** to random format with a redirect/alias table (low priority — only if historical privacy is a concern).
+4. **Add register-format validator** on the public tracking input (regex hint) to give immediate user feedback before submit.
+5. Continue with previously-queued features: dashboard comparison charts, WebSocket notifications, advanced search, PDF export polish, PWA, WhatsApp/email integration, map integration.

@@ -88,7 +88,7 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Contoh: KPII-TNH-2026-000001"
+                  placeholder="Contoh: KPII-TNH-2026-XK7M2P9Q"
                   className="pl-10 h-12 bg-background/60 uppercase font-mono tracking-wide text-sm border-primary/20 focus:border-primary/50"
                   autoComplete="off"
                 />
@@ -103,7 +103,7 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
               <span>Atau pindai QR Code pada tanda terima Anda.</span>
               <span className="text-foreground/30">·</span>
               <span className="font-medium">Coba:</span>
-              {["KPII-TNH-2026-000001", "KPII-TNH-2026-000002", "KPII-TNH-2026-000003"].map((r) => (
+              {["KPII-TNH-2026-XK7M2P9Q", "KPII-TNH-2026-RB4F8NKW", "KPII-TNH-2026-QH3JY6MT"].map((r) => (
                 <button
                   key={r}
                   type="button"

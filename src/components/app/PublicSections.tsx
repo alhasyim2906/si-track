@@ -81,7 +81,7 @@ const FAQS = [
   },
   {
     q: "Bagaimana cara melacak status surat tanah saya?",
-    a: "Anda cukup memasukkan Nomor Register (contoh: KPII-TNH-2026-000001) yang tertera pada tanda terima, atau memindai QR Code pada tanda terima menggunakan kamera ponsel Anda. Sistem akan menampilkan status terbaru beserta riwayat proses.",
+    a: "Anda cukup memasukkan Nomor Register (contoh: KPII-TNH-2026-XK7M2P9Q) yang tertera pada tanda terima, atau memindai QR Code pada tanda terima menggunakan kamera ponsel Anda. Sistem akan menampilkan status terbaru beserta riwayat proses. Nomor register menggunakan format acak agar tidak dapat ditebak orang lain — jaga kerahasiaan nomor register Anda.",
   },
   {
     q: "Dokumen apa saja yang perlu saya bawa saat mendaftar?",
