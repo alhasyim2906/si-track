@@ -41,6 +41,15 @@ export const api = {
     req(`/api/permohonan/${id}/status`, { method: "POST", body: JSON.stringify(body) }),
   uploadDokumen: (id: string, formData: FormData) =>
     req<{ dokumen: any }>(`/api/permohonan/${id}/dokumen`, { method: "POST", body: formData }),
+  uploadDokumenBatch: (id: string, files: File[], jenisDokumen: string) => {
+    const fd = new FormData();
+    for (const f of files) fd.append("files", f);
+    fd.append("jenisDokumen", jenisDokumen);
+    return req<{ dokumen: any[]; count: number; total: number; errors?: { namaFile: string; error: string }[] }>(
+      `/api/permohonan/${id}/dokumen`,
+      { method: "POST", body: fd }
+    );
+  },
   deleteDokumen: (id: string, dokId: string) =>
     req(`/api/permohonan/${id}/dokumen?dokId=${dokId}`, { method: "DELETE" }),
   getQr: (id: string) => req<{ qr: string; url: string; nomorRegister: string }>(`/api/permohonan/${id}/qr`),

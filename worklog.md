@@ -1218,3 +1218,88 @@ Project is production-stable (Phase 8 complete: AdminLTE 4 consistency, Settings
 3. **Optional: migrate legacy sequential registers** to random format with a redirect/alias table (low priority — only if historical privacy is a concern).
 4. **Add register-format validator** on the public tracking input (regex hint) to give immediate user feedback before submit.
 5. Continue with previously-queued features: dashboard comparison charts, WebSocket notifications, advanced search, PDF export polish, PWA, WhatsApp/email integration, map integration.
+
+---
+Task ID: 12
+Agent: main
+Task: Add multi-upload feature for KTP/KK photos (pemohon) and all land boundary photos (batas tanah). Replace single-file upload with categorized multi-file upload zones.
+
+## Current Project Status Assessment
+Project was stable after Task 11 (random register format). User requested multi-upload for: (1) Foto KTP and KK for pemohon, (2) photos for all 4 land boundaries (Utara, Selatan, Timur, Barat). The old upload UI was single-file only with a dropdown for jenis dokumen. Replaced with a modern categorized multi-upload system featuring drag-and-drop, image thumbnails, per-file upload progress, and batch API.
+
+## Work Completed
+
+### 1. New Document Types & Categories (`src/lib/constants.ts`)
+- Added 4 new jenis dokumen for boundary photos: `FOTO_BATAS_UTARA`, `FOTO_BATAS_SELATAN`, `FOTO_BATAS_TIMUR`, `FOTO_BATAS_BARAT`
+- Extended `JENIS_DOKUMEN` with `kategori` (PEMOHON | TANAH | BATAS | LAINNYA), `multi` (bool), `accept` (HTML accept attr) fields
+- Added `DOKUMEN_BY_KATEGORI` helper map and `KATEGORI_DOKUMEN` metadata array (label, deskripsi, warna) for UI grouping
+- Total jenis: 11 (3 Pemohon, 3 Tanah, 4 Batas, 1 Lainnya)
+
+### 2. Batch Upload API (`src/app/api/permohonan/[id]/dokumen/route.ts`)
+- Updated POST handler to accept both single (`file`) and multiple (`files[]`) files — backward compatible
+- Per-file 10MB validation, unique filename with random suffix to prevent collision
+- Returns `{ dokumen, count, total, errors? }` for batch; `{ dokumen }` (single object) for single-file backward compat
+- Single audit log entry for entire batch
+- Errors collected per-file (doesn't abort entire batch)
+
+### 3. API Client Method (`src/lib/api.ts`)
+- Added `uploadDokumenBatch(id, files[], jenisDokumen)` — builds FormData with multiple `files` entries
+
+### 4. Reusable MultiUploadZone Component (`src/components/app/shared/MultiUploadZone.tsx`)
+- Drag-and-drop zone with click-to-select fallback
+- File queue with per-item status (pending → uploading → done/error)
+- Image thumbnail previews (using `URL.createObjectURL`)
+- "Unggah N File" button triggers batch upload
+- Uploaded files displayed as responsive thumbnail grid with hover-to-delete
+- Per-zone accent color theming
+- Object URL cleanup on unmount
+- File size validation (10MB) with toast error
+- Success/error toast notifications
+
+### 5. PermohonanDetail Dokumen Tab Redesign (`src/components/app/shared/PermohonanDetail.tsx`)
+- Replaced single-file upload UI with 4 categorized cards (Pemohon/Tanah/Batas/Lainnya)
+- Summary bar at top: total count, foto count, PDF count, per-category badges
+- Each category card contains a 2-column grid of MultiUploadZone instances per jenis dokumen
+- Category icons: IdCard (Pemohon), Home (Tanah), Compass (Batas), Paperclip (Lainnya)
+- Each jenis shows label, "(multi)" tag, file count badge
+- Removed unused upload state (`uploadJenis`, `uploadFile`, `uploading`, `fileInputRef`) and handlers (`handleUpload`, `handleDeleteDok`) — MultiUploadZone manages its own state
+- Added `mimeType` to DokumenItem interface
+- Added imports: `DOKUMEN_BY_KATEGORI`, `KATEGORI_DOKUMEN`, `MultiUploadZone`, new lucide icons
+
+### 6. PermohonanForm Info Banner (`src/components/app/petugas/PermohonanForm.tsx`)
+- Added informational card "Unggah Dokumen Setelah Pendaftaran" with Multi-Upload badge
+- 3 colored info boxes explaining what can be uploaded post-creation:
+  - Dokumen Pemohon (KTP + KK multi, Surat Pernyataan)
+  - Dokumen Tanah (SPPT PBB, Bukti Penguasaan, Foto Lokasi)
+  - Foto Batas Tanah (multi per batas: Utara, Selatan, Timur, Barat)
+- Added `Upload`, `Info` icons
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: running clean, no runtime errors
+- **agent-browser QA**:
+  - PermohonanDetail Dokumen tab: all 4 categories render ✓
+  - All 11 multi-upload zones present (3+3+4+1) ✓
+  - 11 `input[type=file][multiple]` elements ✓
+  - Summary bar shows "Total Dokumen Terunggah" with category breakdowns ✓
+  - All 4 batas foto zones (Utara/Selatan/Timur/Barat) visible ✓
+  - KTP and KK zones in Pemohon category ✓
+  - Drag-and-drop zones with "Tarik & lepas" hint ✓
+  - PermohonanForm info banner with all 3 category boxes ✓
+- **Batch upload API test**: uploaded `ktp-test.png` → POST returned **201**, file saved to DB with correct `jenisDokumen=KTP`, `mimeType=image/png`, `ukuran=70` ✓ (test files cleaned up after verification)
+- Backward compatibility: existing single-file `uploadDokumen` API still works (same endpoint, different field name)
+
+## Unresolved Issues / Risks
+- File previews use `URL.createObjectURL` which holds memory until revoked — cleaned up on unmount and after upload, but large multi-file selections could spike memory briefly
+- No file-type validation on the client side (only accept attr hint); server validates size but not MIME type — a future hardening step could validate actual MIME via file magic bytes
+- Upload directory is `public/uploads/permohonan/{id}/` — files are publicly accessible via URL; for sensitive docs (KTP/KK) consider moving to a non-public path with a streaming download endpoint
+- No total-permohonan size quota — an attacker with upload access could fill disk; consider a per-permohonan size limit
+
+## Priority Recommendations for Next Round
+1. **Server-side MIME validation** — validate actual file type via magic bytes, not just extension
+2. **Move uploads out of public/** — serve via authenticated streaming endpoint for privacy
+3. **Per-permohonan storage quota** — e.g., 100MB max total
+4. **Image resize/compress on upload** — large photos from phones could be 5-10MB each
+5. **Document viewer modal** — lightbox to preview images/PDFs without leaving the page
+6. **Bulk download as ZIP** — download all documents for a permohonan in one click
+7. Continue with previously-queued features from Task 11 recommendations

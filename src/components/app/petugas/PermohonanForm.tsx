@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 import {
   ArrowLeft, FileText, User, MapPin, Save, Loader2, Ruler, Stamp,
-  AlertCircle, ShieldAlert, Gauge,
+  AlertCircle, ShieldAlert, Gauge, Upload, Info,
 } from "lucide-react";
 
 interface JenisSuratItem {
@@ -476,6 +476,50 @@ export function PermohonanForm() {
                     rows={3}
                   />
                 </Field>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Upload info banner */}
+        <Card className="glass-card border-primary/15">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
+                <Upload className="w-4.5 h-4.5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-sm flex items-center gap-2 mb-1">
+                  Unggah Dokumen Setelah Pendaftaran
+                  <Badge variant="outline" className="text-[10px] border-primary/30 bg-primary/5 text-primary">Multi-Upload</Badge>
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Setelah permohonan dibuat, Anda akan diarahkan ke halaman detail di mana Anda dapat
+                  mengunggah dokumen pendukung secara multi-upload (banyak file sekaligus):
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                    <Info className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Dokumen Pemohon</p>
+                      <p className="text-[11px] text-muted-foreground">Foto KTP &amp; Kartu Keluarga (multi-upload), Surat Pernyataan</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+                    <Info className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Dokumen Tanah</p>
+                      <p className="text-[11px] text-muted-foreground">SPPT PBB, Bukti Penguasaan, Foto Lokasi (multi)</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg bg-cyan-500/5 border border-cyan-500/20 sm:col-span-2">
+                    <Info className="w-3.5 h-3.5 text-cyan-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-medium">Foto Batas Tanah (multi-upload per batas)</p>
+                      <p className="text-[11px] text-muted-foreground">Unggah beberapa foto untuk setiap batas: Utara, Selatan, Timur, dan Barat bidang tanah</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>

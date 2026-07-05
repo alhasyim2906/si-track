@@ -32,40 +32,78 @@ export async function POST(
   const { id } = await params;
 
   const formData = await req.formData();
-  const file = formData.get("file") as File | null;
   const jenisDokumen = (formData.get("jenisDokumen") as string) || "DOKUMEN_PENDUKUNG";
-  if (!file) return NextResponse.json({ error: "File tidak ditemukan" }, { status: 400 });
   if (!JENIS_DOKUMEN.find((j) => j.kode === jenisDokumen)) {
     return NextResponse.json({ error: "Jenis dokumen tidak valid" }, { status: 400 });
   }
 
+  // Support both single ("file") and multi ("files") upload — backward compatible.
+  // Collect all File entries (FormData treats multiple files with same key as separate entries).
+  const files: File[] = [];
+  const single = formData.get("file");
+  if (single && single instanceof File) files.push(single);
+  const allEntries = formData.getAll("files");
+  for (const f of allEntries) {
+    if (f instanceof File) files.push(f);
+  }
+  if (files.length === 0) {
+    return NextResponse.json({ error: "File tidak ditemukan" }, { status: 400 });
+  }
+
   const uploadDir = path.join(process.cwd(), "public", "uploads", "permohonan", id);
   await fs.mkdir(uploadDir, { recursive: true });
-  const ext = path.extname(file.name) || "";
-  const safeName = `${jenisDokumen}-${Date.now()}${ext}`;
-  const filePath = path.join(uploadDir, safeName);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(filePath, buffer);
 
-  const dok = await db.dokumen.create({
-    data: {
-      permohonanId: id,
-      jenisDokumen,
-      namaFile: file.name,
-      filePath: `/uploads/permohonan/${id}/${safeName}`,
-      ukuran: file.size,
-      mimeType: file.type,
-    },
-  });
+  const created: any[] = [];
+  const errors: { namaFile: string; error: string }[] = [];
 
-  await writeAudit(current.session, {
-    aksi: "CREATE",
-    modul: "PERMOHONAN",
-    entitasId: id,
-    detail: `Upload dokumen ${jenisDokumen}: ${file.name}`,
-  });
+  for (const file of files) {
+    // 10MB limit per file
+    if (file.size > 10 * 1024 * 1024) {
+      errors.push({ namaFile: file.name, error: "Ukuran melebihi 10 MB" });
+      continue;
+    }
+    try {
+      const ext = path.extname(file.name) || "";
+      const safeName = `${jenisDokumen}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+      const filePath = path.join(uploadDir, safeName);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      await fs.writeFile(filePath, buffer);
 
-  return NextResponse.json({ dokumen: dok }, { status: 201 });
+      const dok = await db.dokumen.create({
+        data: {
+          permohonanId: id,
+          jenisDokumen,
+          namaFile: file.name,
+          filePath: `/uploads/permohonan/${id}/${safeName}`,
+          ukuran: file.size,
+          mimeType: file.type,
+        },
+      });
+      created.push(dok);
+    } catch (e: any) {
+      errors.push({ namaFile: file.name, error: e?.message || "Gagal menyimpan" });
+    }
+  }
+
+  if (created.length > 0) {
+    await writeAudit(current.session, {
+      aksi: "CREATE",
+      modul: "PERMOHONAN",
+      entitasId: id,
+      detail: `Upload ${created.length} dokumen ${jenisDokumen}${files.length > 1 ? ` (batch)` : ""}: ${created.map((d) => d.namaFile).join(", ")}`,
+    });
+  }
+
+  // Single-file backward compat: return { dokumen } for one file; { dokumen: [], count, errors } for batch
+  if (files.length === 1 && created.length === 1) {
+    return NextResponse.json({ dokumen: created[0] }, { status: 201 });
+  }
+  return NextResponse.json({
+    dokumen: created,
+    count: created.length,
+    total: files.length,
+    errors: errors.length ? errors : undefined,
+  }, { status: 201 });
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

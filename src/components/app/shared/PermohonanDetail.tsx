@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
 import { useAppStore } from "@/store/app-store";
 import {
-  STATUS_BY_KODE, JENIS_DOKUMEN, buildStages, nextStatus,
+  STATUS_BY_KODE, JENIS_DOKUMEN, DOKUMEN_BY_KATEGORI, KATEGORI_DOKUMEN, buildStages, nextStatus,
 } from "@/lib/constants";
 import { SectionHeader } from "@/components/app/StatCard";
 import { StatusBadge, PriorityBadge } from "@/components/app/StatusBadge";
@@ -38,11 +38,12 @@ import {
   Upload, QrCode, Copy, CheckCircle2, PenTool, History, RotateCcw, ShieldAlert,
   ChevronRight, FileCheck, FileWarning, Files, MessageSquare,
   Phone, MapPinned, Tag, Gauge, ScanLine, FileType2, Printer,
-  ChevronDown, FileImage,
+  ChevronDown, FileImage, IdCard, Home, Compass, Paperclip,
 } from "lucide-react";
 import { TandaTerima } from "@/components/app/shared/TandaTerima";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AlteInfoBox } from "@/components/app/AlteInfoBox";
+import { MultiUploadZone, type UploadedDoc } from "@/components/app/shared/MultiUploadZone";
 
 interface DokumenItem {
   id: string;
@@ -50,6 +51,7 @@ interface DokumenItem {
   namaFile: string;
   filePath?: string;
   ukuran?: number;
+  mimeType?: string | null;
   createdAt: string;
 }
 
@@ -167,11 +169,6 @@ export function PermohonanDetail() {
   const [alasanTolak, setAlasanTolak] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  // upload state
-  const [uploadJenis, setUploadJenis] = useState("");
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-
   // qr state
   const [qrData, setQrData] = useState<{ qr: string; url: string; nomorRegister: string } | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
@@ -181,7 +178,6 @@ export function PermohonanDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, any>>({});
   const [editSaving, setEditSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // tanda terima (printable receipt) state
   const [tandaTerimaOpen, setTandaTerimaOpen] = useState(false);
@@ -250,50 +246,6 @@ export function PermohonanDetail() {
       toast.error(e.message || "Gagal memperbarui status");
     } finally {
       setActionLoading(null);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedPermohonanId) return;
-    if (!uploadFile) {
-      toast.error("Pilih file terlebih dahulu");
-      return;
-    }
-    if (!uploadJenis) {
-      toast.error("Pilih jenis dokumen");
-      return;
-    }
-    // size limit 10MB
-    if (uploadFile.size > 10 * 1024 * 1024) {
-      toast.error("Ukuran file melebihi batas 10 MB");
-      return;
-    }
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", uploadFile);
-      fd.append("jenisDokumen", uploadJenis);
-      await api.uploadDokumen(selectedPermohonanId, fd);
-      toast.success("Dokumen berhasil diunggah");
-      setUploadFile(null);
-      setUploadJenis("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      await fetchDetail();
-    } catch (e: any) {
-      toast.error(e.message || "Gagal mengunggah dokumen");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleDeleteDok = async (dokId: string, namaFile: string) => {
-    if (!selectedPermohonanId) return;
-    try {
-      await api.deleteDokumen(selectedPermohonanId, dokId);
-      toast.success(`Dokumen "${namaFile}" dihapus`);
-      await fetchDetail();
-    } catch (e: any) {
-      toast.error(e.message || "Gagal menghapus dokumen");
     }
   };
 
@@ -928,129 +880,110 @@ export function PermohonanDetail() {
 
         {/* ===== Dokumen tab ===== */}
         <TabsContent value="dokumen" className="space-y-4">
-          {can("upload_dokumen") && (
-            <Card className="glass-card border-primary/15">
-              <CardContent className="p-5">
-                <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
-                  <Upload className="w-4 h-4 text-primary" /> Unggah Dokumen
-                </h3>
-                <div className="grid sm:grid-cols-[200px_1fr_auto] gap-3 items-end">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Jenis Dokumen</Label>
-                    <Select value={uploadJenis} onValueChange={setUploadJenis}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Pilih jenis" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {JENIS_DOKUMEN.map((j) => (
-                          <SelectItem key={j.kode} value={j.kode}>{j.nama}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">File (max 10MB)</Label>
-                    <Input
-                      ref={fileInputRef}
-                      type="file"
-                      onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                      className="cursor-pointer"
-                    />
-                  </div>
-                  <Button
-                    onClick={handleUpload}
-                    disabled={uploading || !uploadFile || !uploadJenis}
-                    className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
-                  >
-                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    Upload
-                  </Button>
-                </div>
-                {uploadFile && (
-                  <p className="text-[11px] text-muted-foreground mt-2 flex items-center gap-1">
-                    <FileType2 className="w-3 h-3" />
-                    {uploadFile.name} — {formatBytes(uploadFile.size)}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
+          {/* Summary bar */}
           <Card className="glass-card border-primary/15">
-            <CardContent className="p-5">
-              <h3 className="font-semibold text-sm flex items-center gap-2 mb-3">
-                <Files className="w-4 h-4 text-primary" /> Dokumen Terunggah
-                <Badge variant="secondary" className="ml-1 text-[10px]">{p.dokumen.length}</Badge>
-              </h3>
-              <Separator className="mb-3" />
-              {p.dokumen.length === 0 ? (
-                <div className="text-center py-10">
-                  <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mb-2">
-                    <Files className="w-5 h-5 text-primary" />
+            <CardContent className="p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
+                    <Files className="w-4.5 h-4.5 text-primary" />
                   </div>
-                  <p className="text-sm font-medium">Belum ada dokumen</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {can("upload_dokumen") ? "Unggah dokumen pertama untuk permohonan ini." : "Dokumen akan muncul di sini setelah diunggah."}
-                  </p>
+                  <div>
+                    <p className="text-sm font-semibold">Total Dokumen Terunggah</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {p.dokumen.length} file · {p.dokumen.filter((d) => (d.mimeType || "").startsWith("image")).length} foto · {p.dokumen.filter((d) => (d.mimeType || "").includes("pdf")).length} PDF
+                    </p>
+                  </div>
                 </div>
-              ) : (
-                <ScrollArea className="max-h-[480px]">
-                  <div className="space-y-2 pr-2">
-                    {p.dokumen.map((d) => {
+                <div className="flex items-center gap-2">
+                  {KATEGORI_DOKUMEN.map((k) => {
+                    const count = p.dokumen.filter((d) => {
                       const jd = JENIS_DOKUMEN.find((j) => j.kode === d.jenisDokumen);
+                      return jd?.kategori === k.kode;
+                    }).length;
+                    return (
+                      <Badge
+                        key={k.kode}
+                        variant="outline"
+                        className="text-[10px] px-2 py-1"
+                        style={{ borderColor: `${k.warna}55`, color: k.warna, backgroundColor: `${k.warna}10` }}
+                      >
+                        {k.label}: {count}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Categorized multi-upload zones */}
+          {KATEGORI_DOKUMEN.map((kat) => {
+            const jenisInKat = DOKUMEN_BY_KATEGORI[kat.kode] || [];
+            const docsInKat = p.dokumen.filter((d) => {
+              const jd = JENIS_DOKUMEN.find((j) => j.kode === d.jenisDokumen);
+              return jd?.kategori === kat.kode;
+            });
+            const katIcon = kat.kode === "PEMOHON" ? IdCard : kat.kode === "TANAH" ? Home : kat.kode === "BATAS" ? Compass : Paperclip;
+            const KatIcon = katIcon;
+            return (
+              <Card key={kat.kode} className="glass-card border-primary/15">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-2.5 mb-1">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                      style={{ backgroundColor: `${kat.warna}1a`, border: `1px solid ${kat.warna}40` }}
+                    >
+                      <KatIcon className="w-4 h-4" style={{ color: kat.warna }} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-sm flex items-center gap-2">
+                        {kat.label}
+                        <Badge variant="secondary" className="text-[10px]">{docsInKat.length}</Badge>
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground">{kat.deskripsi}</p>
+                    </div>
+                  </div>
+                  <Separator className="my-3" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {jenisInKat.map((j) => {
+                      const docs = p.dokumen.filter((d) => d.jenisDokumen === j.kode);
                       return (
                         <div
-                          key={d.id}
-                          className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                          key={j.kode}
+                          className="rounded-lg border border-border/50 bg-secondary/20 p-3"
                         >
-                          <div className="w-9 h-9 rounded-md bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
-                            <FileType2 className="w-4 h-4 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant="outline" className="text-[10px] border-primary/30 bg-primary/5 text-primary">
-                                {jd?.nama || d.jenisDokumen}
-                              </Badge>
-                              {d.ukuran != null && (
-                                <span className="text-[10px] text-muted-foreground">{formatBytes(d.ukuran)}</span>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="text-xs font-medium flex items-center gap-1.5">
+                              {j.nama}
+                              {j.multi && (
+                                <span className="text-[9px] text-primary/70 font-normal">(multi)</span>
                               )}
-                            </div>
-                            <p className="text-sm font-medium truncate mt-0.5">{d.namaFile}</p>
-                            <p className="text-[10px] text-muted-foreground">{formatDateTime(d.createdAt)}</p>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            {d.filePath && (
-                              <Button asChild variant="ghost" size="icon" className="h-8 w-8">
-                                <a
-                                  href={d.filePath}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title="Unduh / Lihat"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </a>
-                              </Button>
-                            )}
-                            {isPetugasOrAdmin && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                onClick={() => handleDeleteDok(d.id, d.namaFile)}
-                                title="Hapus"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                            </Label>
+                            {docs.length > 0 && (
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0" style={{ borderColor: `${kat.warna}40`, color: kat.warna }}>
+                                {docs.length} file
+                              </Badge>
                             )}
                           </div>
+                          <MultiUploadZone
+                            permohonanId={p.id}
+                            jenisDokumen={j.kode}
+                            jenisLabel={j.nama}
+                            accept={j.accept}
+                            accent={kat.warna}
+                            uploaded={docs as UploadedDoc[]}
+                            canEdit={can("upload_dokumen")}
+                            onChanged={fetchDetail}
+                          />
                         </div>
                       );
                     })}
                   </div>
-                </ScrollArea>
-              )}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            );
+          })}
         </TabsContent>
 
         {/* ===== QR Code tab ===== */}

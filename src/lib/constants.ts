@@ -112,14 +112,43 @@ export const STATUS_BY_KODE: Record<string, StatusDef> = Object.fromEntries(
 );
 
 // ===== Jenis Dokumen =====
+// kategori: PEMONON | TANAH | BATAS | LAINNYA — drives UI grouping in multi-upload
+// multi: true → jenis ini mendukung banyak file (multi-upload)
+// accept: atribut accept HTML untuk input file
+// icon: nama ikon lucide (opsional, untuk UI)
 export const JENIS_DOKUMEN = [
-  { kode: "KTP", nama: "KTP" },
-  { kode: "KK", nama: "Kartu Keluarga" },
-  { kode: "SPPT_PBB", nama: "SPPT PBB" },
-  { kode: "BUKTI_PENGUASAAN", nama: "Bukti Penguasaan Tanah" },
-  { kode: "SURAT_PERNYATAAN", nama: "Surat Pernyataan" },
-  { kode: "FOTO_LOKASI", nama: "Foto Lokasi" },
-  { kode: "DOKUMEN_PENDUKUNG", nama: "Dokumen Pendukung" },
+  // Dokumen Pemohon
+  { kode: "KTP", nama: "KTP", kategori: "PEMOHON", multi: true, accept: "image/*,application/pdf" },
+  { kode: "KK", nama: "Kartu Keluarga", kategori: "PEMOHON", multi: true, accept: "image/*,application/pdf" },
+  { kode: "SURAT_PERNYATAAN", nama: "Surat Pernyataan", kategori: "PEMOHON", multi: false, accept: "image/*,application/pdf" },
+  // Dokumen Tanah
+  { kode: "SPPT_PBB", nama: "SPPT PBB", kategori: "TANAH", multi: false, accept: "image/*,application/pdf" },
+  { kode: "BUKTI_PENGUASAAN", nama: "Bukti Penguasaan Tanah", kategori: "TANAH", multi: true, accept: "image/*,application/pdf" },
+  { kode: "FOTO_LOKASI", nama: "Foto Lokasi", kategori: "TANAH", multi: true, accept: "image/*" },
+  // Foto Batas Tanah (multi-upload per batas)
+  { kode: "FOTO_BATAS_UTARA", nama: "Foto Batas Utara", kategori: "BATAS", multi: true, accept: "image/*" },
+  { kode: "FOTO_BATAS_SELATAN", nama: "Foto Batas Selatan", kategori: "BATAS", multi: true, accept: "image/*" },
+  { kode: "FOTO_BATAS_TIMUR", nama: "Foto Batas Timur", kategori: "BATAS", multi: true, accept: "image/*" },
+  { kode: "FOTO_BATAS_BARAT", nama: "Foto Batas Barat", kategori: "BATAS", multi: true, accept: "image/*" },
+  // Lainnya
+  { kode: "DOKUMEN_PENDUKUNG", nama: "Dokumen Pendukung", kategori: "LAINNYA", multi: true, accept: "image/*,application/pdf" },
+] as const;
+
+// Helper: ambil daftar jenis berdasarkan kategori
+export const DOKUMEN_BY_KATEGORI: Record<string, typeof JENIS_DOKUMEN[number][]> = JENIS_DOKUMEN.reduce(
+  (acc, j) => {
+    (acc[j.kategori] ||= []).push(j);
+    return acc;
+  },
+  {} as Record<string, typeof JENIS_DOKUMEN[number][]>
+);
+
+// Label & urutan kategori untuk UI
+export const KATEGORI_DOKUMEN: { kode: string; label: string; deskripsi: string; warna: string }[] = [
+  { kode: "PEMOHON", label: "Dokumen Pemohon", deskripsi: "KTP, Kartu Keluarga, dan dokumen identitas pemohon", warna: "#3b82f6" },
+  { kode: "TANAH", label: "Dokumen Tanah", deskripsi: "Bukti penguasaan, SPPT PBB, dan foto lokasi tanah", warna: "#d4af37" },
+  { kode: "BATAS", label: "Foto Batas Tanah", deskripsi: "Foto batas utara, selatan, timur, dan barat bidang tanah", warna: "#0891b2" },
+  { kode: "LAINNYA", label: "Dokumen Pendukung", deskripsi: "Dokumen tambahan lain yang relevan", warna: "#6b7280" },
 ];
 
 // ===== Jenis Surat (seed) =====
