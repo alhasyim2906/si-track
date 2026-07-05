@@ -1668,3 +1668,37 @@ Project was stable after Task 14 (Tanda Terima print fix). User requested: "tamb
 6. **Webhook for delivery receipts**: Fonnte supports delivery webhooks — implement `/api/webhooks/fonnte` to record delivery status (sent/delivered/read/failed) on the NotificationQueue
 7. **Multi-language templates**: Allow templates per language (Indonesian + English) with a language toggle on the pemohon
 8. **Continue with previously-queued features**: dashboard comparison charts, PWA, map integration, PDF export polish, server-side MIME validation for uploads, move uploads out of public/
+
+---
+Task ID: 15
+Agent: main
+Task: Tambahkan BAB III pasal pembiayaan poin 1-3 dan BAB IV Bagian Kedua Syarat-syarat Pasal 6-8 dari Perbup Seruyan No. 45 Tahun 2017 ke halaman publik, dengan materai diubah dari Rp. 6.000 ke Rp. 10.000. Upload dokumen Perbup untuk transparansi.
+
+Work Log:
+- Extracted text from uploaded PDF `/home/z/my-project/upload/perbub tanah.pdf` (30 pages, 43,352 chars) using pdf skill `extract.text` command
+- Identified relevant sections: BAB III PEMBIAYAAN (Pasal 3 poin 1-3), BAB IV Bagian Kedua SYARAT-SYARAT (Pasal 6 SPPT, Pasal 7 SPPPT, Pasal 8 Tata Cara)
+- Copied Perbup PDF to `/home/z/my-project/public/regulasi/Perbub-Seruyan-No-45-Tahun-2017-Pendaftaran-Tanah-Sistematis-Lengkap.pdf` (1.78MB) for public download
+- Created new `RegulationSection` component in `src/components/app/PublicSections.tsx` (~420 lines) containing:
+  * Regulation metadata card: Perbup No. 45 Tahun 2017, title, dates (4 Des 2017 / 6 Des 2017), Bupati Sudarsono, Sekda Haryono, Berita Daerah info, "Unduh PDF Lengkap" + "Baca Dokumen" buttons
+  * Key highlights grid (4 stat cards): Biaya Operasional Rp. 250.000, Materai Rp. 10.000, Pengumuman 30 Hari, Jenis SPPT 3 Jenis
+  * BAB III — PEMBIAYAAN card with 3 sub-cards (Poin 1: Rp. 250.000 operational cost + breakdown; Poin 2: exclusions — akta/BPHTB/PPh; Poin 3: remote location transport)
+  * BAB IV — Bagian Kedua SYARAT-SYARAT with 3-tab interface:
+    - Pasal 6 (SPPT): 3 jenis cards (Tangan Pertama, Jual Beli, Hibah/Waris) with lettered requirements
+    - Pasal 7 (SPPPT): 2 jenis cards (Jual Beli, Hibah/Waris) with lettered requirements
+    - Pasal 8 (Tata Cara): 10 numbered steps with gold gradient step badges
+  * Materai lines highlighted in amber/gold with Sticker icon, all changed from Rp. 6.000 to Rp. 10.000
+  * Transparency footer note explaining the source and materai update
+- Integrated `RegulationSection` into `PublicTracking.tsx` between `RequirementsSection` and `FAQSection`
+- Updated FAQ: added new Q&A about biaya & materai (referencing Perbup BAB III Pasal 3, Rp. 250.000, Rp. 10.000 materai); updated existing document requirements FAQ to reference Perbub Pasal 6 & 7
+- Updated RequirementsSection "Biaya Layanan" card: changed from "Gratis — tidak dipungut biaya" to "Biaya Operasional — Rp. 250.000 sesuai Perbup No. 45/2017" for accurate transparency
+- Ran `bun run lint` → 0 errors
+- Verified via agent-browser: page loads, metadata card (10/10), BAB III cards (8/10 — just scroll position), Pasal 6 SPPT cards (10/10), tabs interactive (Pasal 6/7/8 all switch correctly), PDF download link returns HTTP 200 (1.78MB)
+
+Stage Summary:
+- Public-facing "Dasar Hukum & Regulasi" section now displays full Perbup Seruyan No. 45 Tahun 2017 content for transparency
+- BAB III Pembiayaan (Pasal 3 poin 1-3) and BAB IV Bagian Kedua Syarat-syarat (Pasal 6-8) fully rendered with structured, readable layout
+- Materai updated from Rp. 6.000 to Rp. 10.000 throughout (highlighted in amber)
+- PDF downloadable via gold "Unduh PDF Lengkap" button (1.78MB, HTTP 200 verified)
+- All 3 BAB IV tabs (Pasal 6/7/8) verified interactive with correct content
+- VLM visual scores: metadata card 10/10, Pasal 6 cards 10/10, BAB III 8/10 (scroll artifact)
+- Lint: 0 errors. No runtime errors in dev.log

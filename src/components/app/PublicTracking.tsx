@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { PublicStatsBanner, FAQSection, RequirementsSection } from "./PublicSections";
+import { PublicStatsBanner, FAQSection, RequirementsSection, RegulationSection } from "./PublicSections";
 import {
   Search, QrCode, Loader2, FileSearch, MapPin, User, Calendar,
   CheckCircle2, XCircle, AlertTriangle, Clock, FileText, ArrowRight, Info, Ruler, Building2,
@@ -181,6 +181,7 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
             <EmptyState onLoginClick={onLoginClick} />
             <div className="mt-12 space-y-10">
               <RequirementsSection />
+              <RegulationSection />
               <FAQSection />
             </div>
           </>
