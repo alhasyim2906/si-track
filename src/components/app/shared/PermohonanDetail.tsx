@@ -45,6 +45,8 @@ import { TandaTerima } from "@/components/app/shared/TandaTerima";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AlteInfoBox } from "@/components/app/AlteInfoBox";
 import { MultiUploadZone, type UploadedDoc } from "@/components/app/shared/MultiUploadZone";
+import { ArsipTab, type ArsipData } from "@/components/app/shared/ArsipTab";
+import { ApiError } from "@/lib/api";
 import {
   STATUS_PENGUASAAN_OPTIONS,
   CARA_PEROLEHAN_TANAH,
@@ -127,6 +129,7 @@ interface PermohonanDetail {
   dokumen: DokumenItem[];
   riwayat: RiwayatEntry[];
   riwayatTanah?: RiwayatTanahItem[];
+  arsip?: ArsipData | null;
 }
 
 function formatDate(d?: string | null): string {
@@ -572,6 +575,10 @@ export function PermohonanDetail() {
   const [tanahOpen, setTanahOpen] = useState(true);
   const [keperluanOpen, setKeperluanOpen] = useState(true);
 
+  // active tab — controlled so we can auto-switch to "arsip" when the user
+  // tries to move to SELESAI without uploading the mandatory archive doc.
+  const [activeTab, setActiveTab] = useState("linimasa");
+
   // status penguasaan options (admin-managed master data, dynamic).
   // Falls back to STATUS_PENGUASAAN_OPTIONS constant if API returns empty.
   const [statusPenguasaanList, setStatusPenguasaanList] = useState<
@@ -649,6 +656,11 @@ export function PermohonanDetail() {
       await fetchDetail();
     } catch (e: any) {
       toast.error(e.message || "Gagal memperbarui status");
+      // Auto-switch to the Arsip tab when the server reports the mandatory
+      // archive is missing — guides the user straight to the upload form.
+      if (e instanceof ApiError && e.code === "ARSIP_REQUIRED") {
+        setActiveTab("arsip");
+      }
     } finally {
       setActionLoading(null);
     }
@@ -992,7 +1004,7 @@ export function PermohonanDetail() {
       </Card>
 
       {/* ===== Tabs ===== */}
-      <Tabs defaultValue="linimasa" className="w-full" onValueChange={(v) => { if (v === "qr") fetchQr(); }}>
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "qr") fetchQr(); }} className="w-full">
         <TabsList className="w-full sm:w-auto flex-wrap h-auto p-1">
           <TabsTrigger value="linimasa"><Clock className="w-4 h-4" /> Linimasa</TabsTrigger>
           <TabsTrigger value="data"><FileText className="w-4 h-4" /> Data</TabsTrigger>
@@ -1000,6 +1012,18 @@ export function PermohonanDetail() {
             <Files className="w-4 h-4" /> Dokumen
             {p.dokumen.length > 0 && (
               <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">{p.dokumen.length}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="arsip">
+            <FileCheck2 className="w-4 h-4" /> Arsip
+            {p.arsip ? (
+              <Badge className="ml-1 text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" /> Ada
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 text-rose-600 border-rose-500/40">
+                <AlertCircle className="w-2.5 h-2.5 mr-0.5" /> Wajib
+              </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="qr"><QrCode className="w-4 h-4" /> QR Code</TabsTrigger>
@@ -1465,6 +1489,17 @@ export function PermohonanDetail() {
               </Card>
             );
           })}
+        </TabsContent>
+
+        {/* ===== Arsip tab ===== */}
+        <TabsContent value="arsip" className="space-y-4">
+          <ArsipTab
+            permohonanId={p.id}
+            nomorRegister={p.nomorRegister}
+            statusSaatIni={p.statusSaatIni}
+            arsip={p.arsip ?? null}
+            onChanged={fetchDetail}
+          />
         </TabsContent>
 
         {/* ===== QR Code tab ===== */}

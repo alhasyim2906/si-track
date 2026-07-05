@@ -17,7 +17,7 @@ import { PublicStatsBanner, FAQSection, RequirementsSection, RegulationSection }
 import {
   Search, QrCode, Loader2, FileSearch, MapPin, User, Calendar,
   CheckCircle2, XCircle, AlertTriangle, Clock, FileText, ArrowRight, Info, Ruler, Building2,
-  History, Landmark, Compass,
+  History, Landmark, Compass, Download,
 } from "lucide-react";
 import type { TrackingResult } from "@/lib/types";
 
@@ -349,6 +349,62 @@ function TrackingResultView({ result, onRefresh }: { result: TrackingResult; onR
           initialDocs={result.revisiDokumen || []}
           onRefresh={onRefresh}
         />
+      )}
+
+      {/* Arsip download section — only shown when status is SELESAI and arsip exists */}
+      {isDone && result.arsip && (
+        <Card className="glass-card border-green-500/40 overflow-hidden animate-fade-in-up">
+          <div className="h-1.5 bg-gradient-to-r from-green-500 via-emerald-500 to-green-500" />
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-green-500/15 border-2 border-green-500/40">
+                <FileText className="w-7 h-7 text-green-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h3 className="text-lg font-bold">Surat Tanah Siap Diunduh</h3>
+                  <Badge className="bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30 text-[10px]">
+                    <CheckCircle2 className="w-3 h-3 mr-0.5" /> Final
+                  </Badge>
+                </div>
+                <p className="text-sm text-foreground/70 mb-2">
+                  Dokumen final surat tanah Anda telah selesai dan diarsipkan. Klik tombol di samping untuk
+                  mengunduh salinan digital.
+                </p>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground/60">
+                  {result.arsip.nomorSurat && (
+                    <span className="inline-flex items-center gap-1">
+                      <FileText className="w-3 h-3" />
+                      No. Surat: <code className="font-mono">{result.arsip.nomorSurat}</code>
+                    </span>
+                  )}
+                  {result.arsip.tanggalTerbit && (
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {new Date(result.arsip.tanggalTerbit).toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" })}
+                    </span>
+                  )}
+                  {result.arsip.pejabatPenerbit && (
+                    <span className="inline-flex items-center gap-1">
+                      <Landmark className="w-3 h-3" />
+                      {result.arsip.pejabatPenerbit}
+                      {result.arsip.jabatanPejabat ? ` (${result.arsip.jabatanPejabat})` : ""}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1">
+                    <FileText className="w-3 h-3" />
+                    {result.arsip.namaFile}
+                  </span>
+                </div>
+              </div>
+              <Button asChild size="lg" className="bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold shrink-0">
+                <a href={result.arsip.filePath} download={result.arsip.namaFile} target="_blank" rel="noopener noreferrer">
+                  <Download className="w-4 h-4 mr-2" /> Unduh Surat
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

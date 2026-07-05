@@ -1,6 +1,22 @@
 // SI-TRACK TANAH — client-side API helpers
 import type { AppUser, SlaItem, SlaSummary } from "@/lib/types";
 
+/**
+ * Custom API error that carries the server's `code` field (e.g. "ARSIP_REQUIRED")
+ * alongside the human-readable message. The UI can inspect `err.code` to render
+ * context-specific guidance (e.g. auto-switch to the Arsip tab).
+ */
+export class ApiError extends Error {
+  code?: string;
+  status: number;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
 async function req<T = any>(url: string, opts: RequestInit = {}): Promise<T> {
   const res = await fetch(url, {
     ...opts,
@@ -12,7 +28,11 @@ async function req<T = any>(url: string, opts: RequestInit = {}): Promise<T> {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error((data as any).error || `Request failed (${res.status})`);
+    throw new ApiError(
+      (data as any).error || `Request failed (${res.status})`,
+      res.status,
+      (data as any).code
+    );
   }
   return data as T;
 }
@@ -65,6 +85,31 @@ export const api = {
   deleteDokumen: (id: string, dokId: string) =>
     req(`/api/permohonan/${id}/dokumen?dokId=${dokId}`, { method: "DELETE" }),
   getQr: (id: string) => req<{ qr: string; url: string; nomorRegister: string }>(`/api/permohonan/${id}/qr`),
+
+  // ===== Arsip surat tanah (final, signed land-letter archive) =====
+  // 1:1 with permohonan. Must be uploaded before status can reach SELESAI.
+  getArsip: (id: string) =>
+    req<{ arsip: any | null; permohonan: any }>(`/api/permohonan/${id}/arsip`),
+  uploadArsip: (id: string, formData: FormData) =>
+    req<{ arsip: any }>(`/api/permohonan/${id}/arsip`, { method: "POST", body: formData }),
+  updateArsipMetadata: (id: string, body: any) =>
+    req<{ arsip: any }>(`/api/permohonan/${id}/arsip`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  replaceArsipFile: (id: string, formData: FormData) =>
+    req<{ arsip: any }>(`/api/permohonan/${id}/arsip`, { method: "PUT", body: formData }),
+  deleteArsip: (id: string) =>
+    req<{ ok: boolean }>(`/api/permohonan/${id}/arsip`, { method: "DELETE" }),
+
+  // Global arsip list (admin/petugas dashboard — all archived surat tanah)
+  listArsip: (params: Record<string, string | undefined> = {}) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) if (v) q.set(k, v);
+    return req<{ total: number; page: number; limit: number; totalPages: number; items: any[] }>(
+      `/api/arsip?${q.toString()}`
+    );
+  },
 
   // riwayat tanah (land ownership history) — CRUD per permohonan
   listRiwayatTanah: (id: string) =>

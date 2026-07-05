@@ -21,6 +21,7 @@ import { ProfileSettings } from "@/components/app/shared/ProfileSettings";
 import { NotificationCenter } from "@/components/app/shared/NotificationCenter";
 import { SlaTracking } from "@/components/app/shared/SlaTracking";
 import { SetupWizard } from "@/components/app/shared/SetupWizard";
+import { ArsipList } from "@/components/app/shared/ArsipList";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
@@ -130,6 +131,8 @@ export default function Home() {
         return <Reports />;
       case "sla":
         return user.role === "ADMIN" || user.role === "ATASAN" ? <SlaTracking /> : <PublicTracking />;
+      case "arsip":
+        return <ArsipList />;
       case "audit-log":
         return user.role === "ADMIN" ? <AuditLogView /> : <PublicTracking />;
       case "users":

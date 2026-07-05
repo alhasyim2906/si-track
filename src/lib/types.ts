@@ -81,6 +81,20 @@ export interface TrackingResult {
   revisiDokumen?: RevisiDokumenItem[];
   revisiDokumenCount?: number;
   revisiUploadEnabled?: boolean;
+  // Final archived surat tanah (only present when status === SELESAI).
+  // Lets pemohon download a digital copy of their finished letter.
+  arsip?: {
+    nomorSurat: string | null;
+    tanggalTerbit: string | null;
+    pejabatPenerbit: string | null;
+    jabatanPejabat: string | null;
+    namaFile: string;
+    filePath: string;
+    mimeType: string | null;
+    ukuran: number | null;
+    uploadedAt: string;
+  } | null;
+  arsipReady?: boolean;
 }
 
 export interface RiwayatTanahPublicItem {
@@ -185,4 +199,5 @@ export type AppView =
   | "notifikasi-center"
   | "profil"
   | "pengaturan"
-  | "sla";
+  | "sla"
+  | "arsip";

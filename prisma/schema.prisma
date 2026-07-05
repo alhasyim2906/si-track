@@ -135,6 +135,43 @@ model Permohonan {
   riwayat      RiwayatProses[]
   riwayatTanah RiwayatTanah[]
   notifikasi   Notifikasi[]
+  arsip        ArsipSuratTanah?
+}
+
+// ===== Arsip Surat Tanah (final, signed land-letter archive) =====
+// 1:1 with Permohonan. The single canonical "finished" surat tanah document
+// that must be uploaded BEFORE a permohonan can be moved to status SELESAI.
+// Stores both the file and rich metadata (nomor surat, pejabat penerbit,
+// lokasi arsip fisik) for offline retrieval & compliance audit.
+model ArsipSuratTanah {
+  id              String    @id @default(cuid())
+  permohonanId    String    @unique // 1:1 — one final archive per permohonan
+
+  // ===== Surat metadata =====
+  nomorSurat      String?   // nomor surat resmi, e.g., "470/001/SKT/2026"
+  tanggalTerbit   DateTime? // tanggal surat diterbitkan (bisa beda dari tanggalSelesai)
+  pejabatPenerbit String?   // nama pejabat yang menerbitkan & menandatangani
+  jabatanPejabat  String?   // jabatan pejabat (e.g., "Lurah Kuala Pembuang II")
+  nomorLembar     String?   // nomor lembar arsip fisik untuk pencarian offline
+  lokasiArsip     String?   // lokasi penyimpanan fisik (e.g., "Lemari A-3, Rak 2")
+  catatan         String?   // catatan tambahan petugas
+
+  // ===== File =====
+  namaFile        String    // display name (original filename as uploaded)
+  filePath        String    // public URL path, e.g., /uploads/permohonan/{id}/arsip/xxx.pdf
+  ukuran          Int?      // file size in bytes
+  mimeType        String?   // MIME type
+  fileHash        String?   // sha256 hex digest for integrity check
+
+  // ===== Audit =====
+  uploadedBy      String
+  uploadedAt      DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
+
+  @@index([tanggalTerbit])
+  @@index([pejabatPenerbit])
 }
 
 // ===== Riwayat Tanah (Land Ownership History) =====

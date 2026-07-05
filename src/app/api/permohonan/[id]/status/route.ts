@@ -64,6 +64,26 @@ export async function POST(
     }
   }
 
+  // ===== Enforce mandatory arsip upload before SELESAI =====
+  // The finished surat tanah document (ArsipSuratTanah) MUST be uploaded
+  // before a permohonan can be marked SELESAI. This is the compliance
+  // gate: no archive = no completion. The error message directs the user
+  // to the Arsip tab where they can upload.
+  if (targetKode === "SELESAI") {
+    const arsipCount = await db.arsipSuratTanah.count({ where: { permohonanId: id } });
+    if (arsipCount === 0) {
+      return NextResponse.json(
+        {
+          error:
+            "Wajib mengunggah dokumen Arsip Surat Tanah yang sudah jadi sebelum menyelesaikan permohonan. " +
+            "Silakan buka tab \u201cArsip\u201d pada detail permohonan untuk mengunggah file surat tanah final beserta metadata (nomor surat, pejabat penerbit, dll).",
+          code: "ARSIP_REQUIRED",
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   const updateData: any = {
     statusSaatIni: targetKode,
     catatan: catatan || null,

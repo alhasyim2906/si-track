@@ -18,6 +18,7 @@ export async function GET(
       dokumen: { orderBy: { createdAt: "desc" } },
       riwayatTanah: { orderBy: [{ urutan: "asc" }, { createdAt: "asc" }] },
       creator: { select: { name: true, position: true } },
+      arsip: true,
     },
   });
 
@@ -105,5 +106,23 @@ export async function GET(
       })),
     revisiDokumenCount: permohonan.dokumen.filter((d) => d.isRevisionUpload).length,
     revisiUploadEnabled: permohonan.statusSaatIni === "REVISI",
+    // ===== Arsip surat tanah jadi =====
+    // Only expose to pemohon when status is SELESAI (the surat is final &
+    // signed). Before that, the archive is internal working document.
+    arsip:
+      permohonan.arsip && permohonan.statusSaatIni === "SELESAI"
+        ? {
+            nomorSurat: permohonan.arsip.nomorSurat,
+            tanggalTerbit: permohonan.arsip.tanggalTerbit,
+            pejabatPenerbit: permohonan.arsip.pejabatPenerbit,
+            jabatanPejabat: permohonan.arsip.jabatanPejabat,
+            namaFile: permohonan.arsip.namaFile,
+            filePath: permohonan.arsip.filePath,
+            mimeType: permohonan.arsip.mimeType,
+            ukuran: permohonan.arsip.ukuran,
+            uploadedAt: permohonan.arsip.uploadedAt,
+          }
+        : null,
+    arsipReady: !!permohonan.arsip && permohonan.statusSaatIni === "SELESAI",
   });
 }
