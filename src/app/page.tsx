@@ -21,7 +21,7 @@ import { NotificationCenter } from "@/components/app/shared/NotificationCenter";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
-  const { user, view, setUser, setView, setBranding, setAppName } = useAppStore();
+  const { user, view, setUser, setView, setBranding, setAppName, setSettings } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);
   const [trackQuery, setTrackQuery] = useState("");
@@ -37,13 +37,14 @@ export default function Home() {
         ]);
         if (meR.user) setUser(meR.user);
         setAppName(setR.settings.app_name, setR.settings.app_subtitle);
+        setSettings(setR.settings || {});
         setBranding(brandR.branding || {});
       } catch {
       } finally {
         setLoading(false);
       }
     })();
-  }, [setUser, setBranding, setAppName]);
+  }, [setUser, setBranding, setAppName, setSettings]);
 
   // read ?track= from URL once
   useEffect(() => {

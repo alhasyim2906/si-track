@@ -8,6 +8,8 @@ interface AppState {
   selectedPermohonanId: string | null;
   // branding settings (logo_url, favicon_url, etc.) — cached for client use
   branding: Record<string, string>;
+  // all system settings (footer text, kelurahan info, etc.) — cached for client use
+  settings: Record<string, string>;
   appName: string;
   appSubtitle: string;
   // nav
@@ -15,6 +17,7 @@ interface AppState {
   setUser: (u: AppUser | null) => void;
   selectPermohonan: (id: string | null) => void;
   setBranding: (b: Record<string, string>) => void;
+  setSettings: (s: Record<string, string>) => void;
   setAppName: (name: string, subtitle?: string) => void;
   // helpers
   can: (action: string) => boolean;
@@ -25,6 +28,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   view: "public",
   selectedPermohonanId: null,
   branding: {},
+  settings: {},
   appName: "SI-TRACK TANAH",
   appSubtitle: "Kelurahan Kuala Pembuang II",
   setView: (v) => {
@@ -34,6 +38,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setUser: (u) => set({ user: u, view: u ? "dashboard" : "public" }),
   selectPermohonan: (id) => set({ selectedPermohonanId: id, view: id ? "permohonan-detail" : "permohonan" }),
   setBranding: (b) => set({ branding: b }),
+  setSettings: (s) => set({ settings: s }),
   setAppName: (name, subtitle) =>
     set((s) => ({ appName: name || s.appName, appSubtitle: subtitle ?? s.appSubtitle })),
   can: (action) => {

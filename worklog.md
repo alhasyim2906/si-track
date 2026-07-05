@@ -1702,3 +1702,38 @@ Stage Summary:
 - All 3 BAB IV tabs (Pasal 6/7/8) verified interactive with correct content
 - VLM visual scores: metadata card 10/10, Pasal 6 cards 10/10, BAB III 8/10 (scroll artifact)
 - Lint: 0 errors. No runtime errors in dev.log
+
+---
+Task ID: 17
+Agent: main
+Task: Tambahkan scrollbar pada bell Notifikasi dan pusat Notifikasi, tambahkan juga pengaturan untuk ubah FOOTER.
+
+Work Log:
+- Added custom scrollbar CSS class `.notif-scroll` to globals.css (Section K) with gold/amber themed scrollbar (9px width, rgba(212,175,55,0.6) thumb, visible track). Includes light-mode variant for `.adminlte` area.
+- Updated `NotificationsBell.tsx`: replaced Radix `ScrollArea` with plain `<div className="max-h-80 overflow-y-scroll notif-scroll">` for always-visible custom scrollbar. Removed unused ScrollArea import.
+- Updated `NotificationCenter.tsx`: replaced Radix `ScrollArea` with `<div className="max-h-[600px] overflow-y-scroll notif-scroll pr-1.5">`. Removed unused ScrollArea import.
+- Used `overflow-y-scroll` (not `overflow-y-auto`) to ensure scrollbar is always visible even when content doesn't overflow, per user request.
+- Added `settings: Record<string, string>` field + `setSettings` action to Zustand app-store for global settings state.
+- Updated `page.tsx` to load all settings via `api.settings()` on mount and sync to store via `setSettings(setR.settings || {})`.
+- Added 10 footer settings keys to `DEFAULTS` in SettingsManagement: `footer_about_text`, `footer_service_hours_weekday/saturday/sunday`, `footer_copyright_text`, `footer_credit_text`, `footer_show_shield_badge/contact/service_hours/links`.
+- Added `FOOTER_FIELDS` array (10 FieldDef entries) including new `textarea` type support for the about text field.
+- Updated `SettingRow` component to handle `textarea` type (renders Textarea with configurable rows).
+- Added new "Footer" section (Section 5) to SettingsManagement UI with: all 10 footer fields, live footer preview box (mini footer rendering showing how changes look), blue tips box about `{year}` and `{app_name}` placeholders, section-level Save button.
+- Added new icons to imports: `FileText`, `Heart`, `ExternalLink`, `Clock`, `PanelBottom`, `MapPin`, `Info`.
+- Updated `handleSave`/`handleSaveSection`/`loadSettings` to call `setGlobalSettings(merged)` (aliased to avoid naming collision with local `setSettings` from useState) so Footer reads live values.
+- Rewrote `Footer.tsx` to read all content from `useAppStore().settings` with `FOOTER_DEFAULTS` fallback: about text, service hours (3 lines), copyright text (with `{year}` replacement), credit text (with `{app_name}` and `{year}` replacement, ❤ split into Lucide Heart icon), 4 toggle switches for showing/hiding sections (shield badge, contact, service hours, links). Contact info (alamat/telepon/email) reads from `alamat_kelurahan`/`telepon_kelurahan`/`email_kelurahan` settings. Dynamic column span based on visible columns.
+- Ran `bun run lint` → 0 errors.
+- Verified via agent-browser:
+  * Default footer renders correctly (10/10 VLM score) with 4 columns, copyright, credit line
+  * Footer settings section renders with all fields, live preview, tips box, save button
+  * Changed footer_about_text → saved via Footer section's Simpan button → verified in API (`footer_about_text: "Test footer about text..."`) → verified on public page footer (VLM confirmed custom text visible)
+  * Notification bell popover: scrollbar functional (scrollHeight: 1006px > clientHeight: 320px, 11 items, scrollTop changeable). Chromium headless doesn't paint scrollbars in screenshots (known Playwright limitation) but custom `.notif-scroll` CSS will render gold scrollbar in real browser.
+  * Restored default footer text after testing.
+
+Stage Summary:
+- Notification bell popover and notification center now have always-visible custom gold scrollbars (`.notif-scroll` class, `overflow-y-scroll`)
+- Footer is fully customizable via Settings → Footer section: about text, service hours, copyright, credit, and 4 toggle switches for section visibility
+- Footer settings persist to DB via existing Settings API, sync live to Zustand store, and render dynamically on all pages
+- Placeholder support: `{year}` → current year, `{app_name}` → app name, `❤` → Lucide Heart icon
+- Live preview in settings panel shows footer changes before saving
+- Lint: 0 errors. No runtime errors.

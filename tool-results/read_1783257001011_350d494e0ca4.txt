@@ -1,0 +1,1213 @@
+     1→"use client";
+     2→
+     3→import { useCallback, useEffect, useMemo, useState } from "react";
+     4→import { api } from "@/lib/api";
+     5→import { useAppStore } from "@/store/app-store";
+     6→import { SectionHeader } from "@/components/app/StatCard";
+     7→import { Card, CardContent } from "@/components/ui/card";
+     8→import { Button } from "@/components/ui/button";
+     9→import { Input } from "@/components/ui/input";
+    10→import { Label } from "@/components/ui/label";
+    11→import { Switch } from "@/components/ui/switch";
+    12→import { Separator } from "@/components/ui/separator";
+    13→import { Skeleton } from "@/components/ui/skeleton";
+    14→import { Textarea } from "@/components/ui/textarea";
+    15→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+    16→import { toast } from "sonner";
+    17→import {
+    18→  Settings,
+    19→  Building2,
+    20→  Phone,
+    21→  Mail,
+    22→  Hash,
+    23→  Cog,
+    24→  Bell,
+    25→  Ruler,
+    26→  Stamp,
+    27→  HardDriveUpload,
+    28→  FileDigit,
+    29→  LayoutTemplate,
+    30→  Type,
+    31→  Save,
+    32→  Loader2,
+    33→  Eye,
+    34→  Globe,
+    35→  ShieldCheck,
+    36→  Shuffle,
+    37→  Image as ImageIcon,
+    38→  Palette,
+    39→  Monitor,
+    40→  Smartphone,
+    41→  Star,
+    42→  Mountain,
+    43→  Sparkles,
+    44→  RefreshCw,
+    45→  Send,
+    46→  MessageCircle,
+    47→  Key,
+    48→  Server,
+    49→  TestTube2,
+    50→  CheckCircle2,
+    51→  XCircle,
+    52→} from "lucide-react";
+    53→import { BrandingUploader, type BrandingAssetSpec } from "@/components/app/shared/BrandingUploader";
+    54→import { Logo } from "@/components/app/Logo";
+    55→
+    56→/* ============================================================
+    57→   Default values for all settings keys
+    58→   ============================================================ */
+    59→const DEFAULTS: Record<string, string> = {
+    60→  nama_kelurahan: "Kelurahan Kuala Pembuang II",
+    61→  alamat_kelurahan: "Jl. Raya Kuala Pembuang, Seruyan Hilir, Kalimantan Tengah",
+    62→  telepon_kelurahan: "(0532) 123456",
+    63→  email_kelurahan: "kppi@seruyankab.go.id",
+    64→  kode_pos: "74214",
+    65→  maintenance_mode: "false",
+    66→  auto_notify: "true",
+    67→  require_pengukuran: "true",
+    68→  require_ttd_camat: "false",
+    69→  max_upload_size_mb: "10",
+    70→  register_prefix: "KPII-TNH",
+    71→  register_digit_count: "8",
+    72→  register_use_random: "true",
+    73→  app_name: "SI-TRACK TANAH",
+    74→  app_subtitle: "Kelurahan Kuala Pembuang II",
+    75→  // ===== Notification defaults (Task 15) =====
+    76→  notify_email_enabled: "true",
+    77→  notify_wa_enabled: "true",
+    78→  notify_fonnte_token: "",
+    79→  notify_email_provider: "log",
+    80→  notify_email_from: "",
+    81→  notify_email_api_url: "",
+    82→  notify_email_api_key: "",
+    83→  notify_tpl_selesai_subject: "Surat Tanah Anda Telah Selesai — {nomor_register}",
+    84→  notify_tpl_selesai_email:
+    85→    "Yth. {pemohon_nama},\n\nKabar baik! Permohonan surat tanah Anda dengan Nomor Register {nomor_register} telah SELESAI diproses.\n\nJenis Surat: {jenis_surat}\nStatus: {status_nama}\nTanggal: {tanggal}\n\nSilakan mengunjungi {kelurahan_nama} untuk mengambil surat Anda. Bawalah tanda terima permohonan dan dokumen identitas asli.\n\nAlamat: {kelurahan_alamat}\nTelepon: {kelurahan_telepon}\nEmail: {kelurahan_email}\n\nTerima kasih atas kepercayaan Anda.\n\nHormat kami,\n{kelurahan_nama}",
+    86→  notify_tpl_selesai_wa:
+    87→    "*{kelurahan_nama}*\n\nYth. {pemohon_nama},\n\nKabar baik! Permohonan surat tanah Anda dengan Nomor Register *{nomor_register}* telah *SELESAI* diproses.\n\nJenis Surat: {jenis_surat}\nTanggal: {tanggal}\n\nSilakan ambil surat Anda di {kelurahan_alamat}. Bawa tanda terima & KTP asli.\n\nTerima kasih. 🙏",
+    88→  notify_tpl_revisi_subject: "Permohonan Surat Tanah Memerlukan Kelengkapan Dokumen — {nomor_register}",
+    89→  notify_tpl_revisi_email:
+    90→    "Yth. {pemohon_nama},\n\nPermohonan surat tanah Anda dengan Nomor Register {nomor_register} memerlukan kelengkapan dokumen.\n\nJenis Surat: {jenis_surat}\nStatus: {status_nama}\nCatatan: {catatan}\nTanggal: {tanggal}\n\nMohon segera melengkapi dokumen yang diminta dengan mengunjungi {kelurahan_nama} atau menghubungi petugas kami.\n\nAlamat: {kelurahan_alamat}\nTelepon: {kelurahan_telepon}\nEmail: {kelurahan_email}\n\nTerima kasih.\n\nHormat kami,\n{kelurahan_nama}",
+    91→  notify_tpl_revisi_wa:
+    92→    "*{kelurahan_nama}*\n\nYth. {pemohon_nama},\n\nPermohonan surat tanah Anda dengan Nomor Register *{nomor_register}* memerlukan *kelengkapan dokumen*.\n\nCatatan: {catatan}\nTanggal: {tanggal}\n\nMohon segera lengkapi dokumen yang diminta. Hubungi {kelurahan_telepon} untuk info lebih lanjut.\n\nTerima kasih. 🙏",
+    93→};
+    94→
+    95→/* ============================================================
+    96→   Field definitions for each section
+    97→   ============================================================ */
+    98→interface FieldDef {
+    99→  key: string;
+   100→  label: string;
+   101→  description?: string;
+   102→  icon: any;
+   103→  type: "text" | "number" | "switch";
+   104→  placeholder?: string;
+   105→}
+   106→
+   107→const KELURAHAN_FIELDS: FieldDef[] = [
+   108→  { key: "nama_kelurahan", label: "Nama Kelurahan", icon: Building2, type: "text", placeholder: "Nama kelurahan" },
+   109→  { key: "alamat_kelurahan", label: "Alamat", icon: Globe, type: "text", placeholder: "Alamat lengkap" },
+   110→  { key: "telepon_kelurahan", label: "Telepon", icon: Phone, type: "text", placeholder: "Nomor telepon" },
+   111→  { key: "email_kelurahan", label: "Email", icon: Mail, type: "text", placeholder: "Alamat email" },
+   112→  { key: "kode_pos", label: "Kode Pos", icon: Hash, type: "text", placeholder: "Kode pos" },
+   113→];
+   114→
+   115→const SYSTEM_FIELDS: FieldDef[] = [
+   116→  { key: "maintenance_mode", label: "Mode Maintenance", description: "Aktifkan mode maintenance untuk menonaktifkan akses publik", icon: Cog, type: "switch" },
+   117→  { key: "auto_notify", label: "Notifikasi Otomatis", description: "Kirim notifikasi otomatis saat status permohonan berubah", icon: Bell, type: "switch" },
+   118→  { key: "require_pengukuran", label: "Wajib Pengukuran Tanah", description: "Wajibkan proses pengukuran tanah sebelum pembuatan surat", icon: Ruler, type: "switch" },
+   119→  { key: "require_ttd_camat", label: "Wajib TTD Camat", description: "Wajibkan tanda tangan Camat sebelum surat selesai", icon: Stamp, type: "switch" },
+   120→  { key: "max_upload_size_mb", label: "Batas Upload (MB)", description: "Ukuran maksimum file yang dapat diunggah", icon: HardDriveUpload, type: "number", placeholder: "10" },
+   121→];
+   122→
+   123→const REGISTER_FIELDS: FieldDef[] = [
+   124→  { key: "register_prefix", label: "Prefix Nomor Register", description: "Awalan nomor register surat", icon: FileDigit, type: "text", placeholder: "KPII-TNH" },
+   125→  { key: "register_use_random", label: "Mode Acak (Anti-Tebak)", description: "Gunakan token acak alfanumerik agar nomor register tidak mudah ditebak/ditebus. Disarankan AKTIF untuk privasi pemohon.", icon: ShieldCheck, type: "switch" },
+   126→  { key: "register_digit_count", label: "Panjang Token / Serial", description: "Jumlah karakter token acak (mode acak) atau digit nomor urut (mode berurutan). Min 4, maks 16. Disarankan 8+ untuk mode acak.", icon: Hash, type: "number", placeholder: "8" },
+   127→];
+   128→
+   129→const APPEARANCE_FIELDS: FieldDef[] = [
+   130→  { key: "app_name", label: "Nama Aplikasi", icon: Type, type: "text", placeholder: "SI-TRACK TANAH" },
+   131→  { key: "app_subtitle", label: "Subjudul", icon: LayoutTemplate, type: "text", placeholder: "Kelurahan Kuala Pembuang II" },
+   132→];
+   133→
+   134→/* ============================================================
+   135→   Branding asset specs — drives the Branding section UI
+   136→   ============================================================ */
+   137→const BRANDING_SPECS: BrandingAssetSpec[] = [
+   138→  {
+   139→    type: "logo",
+   140→    label: "Logo Aplikasi",
+   141→    description: "Logo utama yang tampil di sidebar, header, dan tanda terima.",
+   142→    recommended: "SVG / PNG transparan, rasio 1:1, min 64×64px",
+   143→    accept: "image/svg+xml,image/png,image/jpeg,image/webp,image/gif",
+   144→    maxMb: 2,
+   145→    previewClass: "aspect-square w-full",
+   146→    iconBg: "bg-primary/10 border border-primary/20",
+   147→  },
+   148→  {
+   149→    type: "favicon",
+   150→    label: "Favicon",
+   151→    description: "Ikon kecil pada tab browser dan bookmark.",
+   152→    recommended: "ICO / PNG / SVG, 16×16 atau 32×32px",
+   153→    accept: "image/svg+xml,image/png,image/x-icon,image/vnd.microsoft.icon,image/jpeg,image/webp",
+   154→    maxMb: 1,
+   155→    previewClass: "aspect-square w-full max-w-[120px] mx-auto",
+   156→    iconBg: "bg-amber-500/10 border border-amber-500/30",
+   157→  },
+   158→  {
+   159→    type: "app_icon_192",
+   160→    label: "Ikon PWA 192×192",
+   161→    description: "Ikon aplikasi saat diinstal di Android / desktop (kecil).",
+   162→    recommended: "PNG 192×192px",
+   163→    accept: "image/png,image/jpeg,image/webp",
+   164→    maxMb: 1,
+   165→    previewClass: "aspect-square w-full max-w-[150px] mx-auto",
+   166→    iconBg: "bg-blue-500/10 border border-blue-500/30",
+   167→  },
+   168→  {
+   169→    type: "app_icon_512",
+   170→    label: "Ikon PWA 512×512",
+   171→    description: "Ikon aplikasi resolusi tinggi (splash screen, Play Store).",
+   172→    recommended: "PNG 512×512px",
+   173→    accept: "image/png,image/jpeg,image/webp",
+   174→    maxMb: 2,
+   175→    previewClass: "aspect-square w-full",
+   176→    iconBg: "bg-emerald-500/10 border border-emerald-500/30",
+   177→  },
+   178→  {
+   179→    type: "login_bg",
+   180→    label: "Background Halaman Login",
+   181→    description: "Gambar latar untuk modal login petugas (opsional).",
+   182→    recommended: "Lanskap, min 1280×720px",
+   183→    accept: "image/png,image/jpeg,image/webp",
+   184→    maxMb: 5,
+   185→    previewClass: "aspect-video w-full",
+   186→    iconBg: "bg-purple-500/10 border border-purple-500/30",
+   187→  },
+   188→  {
+   189→    type: "hero_banner",
+   190→    label: "Banner Landing Publik",
+   191→    description: "Banner besar di halaman pelacakan publik (opsional).",
+   192→    recommended: "Lanskap, min 1600×500px",
+   193→    accept: "image/png,image/jpeg,image/webp",
+   194→    maxMb: 5,
+   195→    previewClass: "aspect-[3/1] w-full",
+   196→    iconBg: "bg-rose-500/10 border border-rose-500/30",
+   197→  },
+   198→];
+   199→
+   200→/* ============================================================
+   201→   Reusable setting row
+   202→   ============================================================ */
+   203→function SettingRow({ field, value, onChange }: { field: FieldDef; value: string; onChange: (v: string) => void }) {
+   204→  const Icon = field.icon;
+   205→  return (
+   206→    <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+   207→      <div className="flex items-center gap-2.5 sm:w-56 shrink-0">
+   208→        <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+   209→          <Icon className="w-4 h-4 text-primary" />
+   210→        </div>
+   211→        <div className="min-w-0">
+   212→          <p className="text-sm font-medium leading-tight">{field.label}</p>
+   213→          {field.description && (
+   214→            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{field.description}</p>
+   215→          )}
+   216→        </div>
+   217→      </div>
+   218→      <div className="flex-1 sm:pt-0.5">
+   219→        {field.type === "switch" ? (
+   220→          <div className="flex items-center gap-3">
+   221→            <Switch
+   222→              checked={value === "true"}
+   223→              onCheckedChange={(checked) => onChange(checked ? "true" : "false")}
+   224→            />
+   225→            <span className="text-sm text-muted-foreground">
+   226→              {value === "true" ? "Aktif" : "Nonaktif"}
+   227→            </span>
+   228→          </div>
+   229→        ) : (
+   230→          <Input
+   231→            type={field.type}
+   232→            placeholder={field.placeholder}
+   233→            value={field.type === "number" ? (value || "") : value}
+   234→            onChange={(e) => onChange(e.target.value)}
+   235→            className="max-w-xs"
+   236→          />
+   237→        )}
+   238→      </div>
+   239→    </div>
+   240→  );
+   241→}
+   242→
+   243→/* ============================================================
+   244→   Loading skeleton
+   245→   ============================================================ */
+   246→function SettingsSkeleton() {
+   247→  return (
+   248→    <div className="space-y-6">
+   249→      {Array.from({ length: 4 }).map((_, i) => (
+   250→        <Card key={i} className="glass-card border-primary/15">
+   251→          <CardContent className="p-6">
+   252→            <Skeleton className="h-6 w-48 mb-5" />
+   253→            <div className="space-y-5">
+   254→              {Array.from({ length: 3 }).map((_, j) => (
+   255→                <div key={j} className="flex items-center gap-4">
+   256→                  <Skeleton className="h-8 w-8 rounded-lg" />
+   257→                  <Skeleton className="h-4 w-36" />
+   258→                  <Skeleton className="h-9 w-48 ml-auto" />
+   259→                </div>
+   260→              ))}
+   261→            </div>
+   262→          </CardContent>
+   263→        </Card>
+   264→      ))}
+   265→    </div>
+   266→  );
+   267→}
+   268→
+   269→/* ============================================================
+   270→   Main SettingsManagement component
+   271→   ============================================================ */
+   272→export function SettingsManagement() {
+   273→  const { can, setBranding, setAppName } = useAppStore();
+   274→  const allowed = can("manage_settings");
+   275→
+   276→  const [settings, setSettings] = useState<Record<string, string>>(DEFAULTS);
+   277→  const [initialSettings, setInitialSettings] = useState<Record<string, string>>(DEFAULTS);
+   278→  const [branding, setBrandingState] = useState<Record<string, string>>({});
+   279→  const [loading, setLoading] = useState(true);
+   280→  const [saving, setSaving] = useState(false);
+   281→  const [activeSection, setActiveSection] = useState<string | null>(null);
+   282→
+   283→  // Load settings on mount
+   284→  const loadSettings = useCallback(async () => {
+   285→    setLoading(true);
+   286→    try {
+   287→      const [r, b] = await Promise.all([api.settings(), api.getBranding()]);
+   288→      const merged = { ...DEFAULTS, ...r.settings };
+   289→      setSettings(merged);
+   290→      setInitialSettings(merged);
+   291→      setBrandingState(b.branding || {});
+   292→      setBranding(b.branding || {});
+   293→      // sync app name to global store so LogoFull uses the latest
+   294→      setAppName(merged.app_name, merged.app_subtitle);
+   295→    } catch {
+   296→      toast.error("Gagal memuat pengaturan");
+   297→    } finally {
+   298→      setLoading(false);
+   299→    }
+   300→  }, [setBranding, setAppName]);
+   301→
+   302→  useEffect(() => {
+   303→    loadSettings();
+   304→  }, [loadSettings]);
+   305→
+   306→  // Called whenever a branding asset is uploaded / deleted
+   307→  const handleBrandingChange = useCallback(
+   308→    (newBranding: Record<string, string>) => {
+   309→      setBrandingState(newBranding);
+   310→      setBranding(newBranding);
+   311→    },
+   312→    [setBranding]
+   313→  );
+   314→
+   315→  // Check if settings have changed
+   316→  const hasChanges = Object.keys(settings).some(
+   317→    (k) => settings[k] !== initialSettings[k]
+   318→  );
+   319→
+   320→  // Save handler
+   321→  const handleSave = async () => {
+   322→    setSaving(true);
+   323→    try {
+   324→      // Only send changed settings
+   325→      const changed: Record<string, string> = {};
+   326→      for (const [k, v] of Object.entries(settings)) {
+   327→        if (v !== initialSettings[k]) {
+   328→          changed[k] = v;
+   329→        }
+   330→      }
+   331→      if (Object.keys(changed).length === 0) {
+   332→        toast.info("Tidak ada perubahan untuk disimpan");
+   333→        setSaving(false);
+   334→        return;
+   335→      }
+   336→      const r = await api.updateSettings(changed);
+   337→      const merged = { ...DEFAULTS, ...r.settings };
+   338→      setSettings(merged);
+   339→      setInitialSettings(merged);
+   340→      setAppName(merged.app_name, merged.app_subtitle);
+   341→      toast.success("Pengaturan berhasil disimpan");
+   342→    } catch (e: any) {
+   343→      toast.error(e?.message || "Gagal menyimpan pengaturan");
+   344→    } finally {
+   345→      setSaving(false);
+   346→    }
+   347→  };
+   348→
+   349→  // Save specific section
+   350→  const handleSaveSection = async (sectionKeys: string[]) => {
+   351→    setSaving(true);
+   352→    setActiveSection(sectionKeys[0]);
+   353→    try {
+   354→      const changed: Record<string, string> = {};
+   355→      for (const k of sectionKeys) {
+   356→        if (settings[k] !== initialSettings[k]) {
+   357→          changed[k] = settings[k];
+   358→        }
+   359→      }
+   360→      if (Object.keys(changed).length === 0) {
+   361→        toast.info("Tidak ada perubahan untuk disimpan");
+   362→        setSaving(false);
+   363→        setActiveSection(null);
+   364→        return;
+   365→      }
+   366→      const r = await api.updateSettings(changed);
+   367→      const merged = { ...DEFAULTS, ...r.settings };
+   368→      setSettings(merged);
+   369→      setInitialSettings(merged);
+   370→      setAppName(merged.app_name, merged.app_subtitle);
+   371→      toast.success("Pengaturan berhasil disimpan");
+   372→    } catch (e: any) {
+   373→      toast.error(e?.message || "Gagal menyimpan pengaturan");
+   374→    } finally {
+   375→      setSaving(false);
+   376→      setActiveSection(null);
+   377→    }
+   378→  };
+   379→
+   380→  // Update a setting value
+   381→  const updateSetting = (key: string, value: string) => {
+   382→    setSettings((prev) => ({ ...prev, [key]: value }));
+   383→  };
+   384→
+   385→  // Register preview — reflects current settings (random token if random mode on)
+   386→  const registerPreview = useMemo(() => {
+   387→    const prefix = (settings.register_prefix || "KPII-TNH").trim().toUpperCase() || "KPII-TNH";
+   388→    const year = new Date().getFullYear();
+   389→    const digits = Math.max(4, Math.min(16, Number(settings.register_digit_count) || 8));
+   390→    const useRandom = (settings.register_use_random ?? "true") === "true";
+   391→    if (useRandom) {
+   392→      const alphabet = "ABCDEFGHJKMNPQRSTVWXYZ23456789"; // no I, L, O, U, 0, 1
+   393→      let token = "";
+   394→      for (let i = 0; i < digits; i++) {
+   395→        token += alphabet[Math.floor(Math.random() * alphabet.length)];
+   396→      }
+   397→      return `${prefix}-${year}-${token}`;
+   398→    }
+   399→    return `${prefix}-${year}-${"1".padStart(digits, "0")}`;
+   400→  }, [settings.register_prefix, settings.register_digit_count, settings.register_use_random]);
+   401→
+   402→  if (!allowed) {
+   403→    return (
+   404→      <div className="flex items-center justify-center py-20">
+   405→        <p className="text-muted-foreground">Anda tidak memiliki akses ke halaman ini.</p>
+   406→      </div>
+   407→    );
+   408→  }
+   409→
+   410→  if (loading) {
+   411→    return (
+   412→      <div className="p-4 md:p-6 space-y-4">
+   413→        <SectionHeader title="Pengaturan Sistem" subtitle="Konfigurasi sistem SI-TRACK TANAH" icon={Settings} />
+   414→        <SettingsSkeleton />
+   415→      </div>
+   416→    );
+   417→  }
+   418→
+   419→  return (
+   420→    <div className="p-4 md:p-6 space-y-6">
+   421→      <SectionHeader
+   422→        title="Pengaturan Sistem"
+   423→        subtitle="Konfigurasi sistem SI-TRACK TANAH"
+   424→        icon={Settings}
+   425→        action={
+   426→          <Button
+   427→            onClick={handleSave}
+   428→            disabled={saving || !hasChanges}
+   429→            className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90 shadow-lg shadow-[#d4af37]/20"
+   430→          >
+   431→            {saving ? (
+   432→              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+   433→            ) : (
+   434→              <Save className="w-4 h-4 mr-2" />
+   435→            )}
+   436→            Simpan Semua
+   437→          </Button>
+   438→        }
+   439→      />
+   440→
+   441→      {/* Section 1: Informasi Kelurahan */}
+   442→      <Card className="glass-card border-primary/15">
+   443→        <CardContent className="p-6 space-y-5">
+   444→          <div className="flex items-center gap-2.5 mb-1">
+   445→            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+   446→              <Building2 className="w-4 h-4 text-primary" />
+   447→            </div>
+   448→            <h3 className="font-semibold text-base">Informasi Kelurahan</h3>
+   449→          </div>
+   450→          <Separator className="opacity-50" />
+   451→          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+   452→            {KELURAHAN_FIELDS.map((field) => (
+   453→              <SettingRow
+   454→                key={field.key}
+   455→                field={field}
+   456→                value={settings[field.key] ?? DEFAULTS[field.key]}
+   457→                onChange={(v) => updateSetting(field.key, v)}
+   458→              />
+   459→            ))}
+   460→          </div>
+   461→          <div className="flex justify-end pt-2">
+   462→            <Button
+   463→              onClick={() => handleSaveSection(KELURAHAN_FIELDS.map((f) => f.key))}
+   464→              disabled={saving}
+   465→              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+   466→            >
+   467→              {saving && activeSection === "nama_kelurahan" ? (
+   468→                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+   469→              ) : (
+   470→                <Save className="w-4 h-4 mr-2" />
+   471→              )}
+   472→              Simpan
+   473→            </Button>
+   474→          </div>
+   475→        </CardContent>
+   476→      </Card>
+   477→
+   478→      {/* Section 2: Pengaturan Sistem */}
+   479→      <Card className="glass-card border-primary/15">
+   480→        <CardContent className="p-6 space-y-5">
+   481→          <div className="flex items-center gap-2.5 mb-1">
+   482→            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+   483→              <Cog className="w-4 h-4 text-primary" />
+   484→            </div>
+   485→            <h3 className="font-semibold text-base">Pengaturan Sistem</h3>
+   486→          </div>
+   487→          <Separator className="opacity-50" />
+   488→          <div className="space-y-5">
+   489→            {SYSTEM_FIELDS.map((field) => (
+   490→              <SettingRow
+   491→                key={field.key}
+   492→                field={field}
+   493→                value={settings[field.key] ?? DEFAULTS[field.key]}
+   494→                onChange={(v) => updateSetting(field.key, v)}
+   495→              />
+   496→            ))}
+   497→          </div>
+   498→          <div className="flex justify-end pt-2">
+   499→            <Button
+   500→              onClick={() => handleSaveSection(SYSTEM_FIELDS.map((f) => f.key))}
+   501→              disabled={saving}
+   502→              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+   503→            >
+   504→              {saving && activeSection === "maintenance_mode" ? (
+   505→                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+   506→              ) : (
+   507→                <Save className="w-4 h-4 mr-2" />
+   508→              )}
+   509→              Simpan
+   510→            </Button>
+   511→          </div>
+   512→        </CardContent>
+   513→      </Card>
+   514→
+   515→      {/* Section 3: Format Nomor Register */}
+   516→      <Card className="glass-card border-primary/15">
+   517→        <CardContent className="p-6 space-y-5">
+   518→          <div className="flex items-center gap-2.5 mb-1">
+   519→            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+   520→              <FileDigit className="w-4 h-4 text-primary" />
+   521→            </div>
+   522→            <h3 className="font-semibold text-base">Format Nomor Register</h3>
+   523→          </div>
+   524→          <Separator className="opacity-50" />
+   525→          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+   526→            {REGISTER_FIELDS.map((field) => (
+   527→              <SettingRow
+   528→                key={field.key}
+   529→                field={field}
+   530→                value={settings[field.key] ?? DEFAULTS[field.key]}
+   531→                onChange={(v) => updateSetting(field.key, v)}
+   532→              />
+   533→            ))}
+   534→          </div>
+   535→          {/* Preview */}
+   536→          <div className="mt-2 p-4 rounded-lg bg-primary/5 border border-primary/15">
+   537→            <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+   538→              <div className="flex items-center gap-2">
+   539→                <Eye className="w-4 h-4 text-primary" />
+   540→                <span className="text-sm font-medium">Pratinjau Nomor Register</span>
+   541→              </div>
+   542→              {(settings.register_use_random ?? "true") === "true" ? (
+   543→                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-green-500/15 text-green-600 border border-green-500/30">
+   544→                  <ShieldCheck className="w-3 h-3" /> Mode Acak Aktif
+   545→                </span>
+   546→              ) : (
+   547→                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
+   548→                  <Shuffle className="w-3 h-3" /> Mode Berurutan
+   549→                </span>
+   550→              )}
+   551→            </div>
+   552→            <p className="text-lg font-mono font-bold gold-gradient-text tracking-wide break-all">
+   553→              {registerPreview}
+   554→            </p>
+   555→            <p className="text-xs text-muted-foreground mt-1.5">
+   556→              {(settings.register_use_random ?? "true") === "true" ? (
+   557→                <>Format: <span className="font-mono">{settings.register_prefix || "KPII-TNH"}-TAHUN-TOKEN_ACAK</span> · Token dihasilkan acak setiap pendaftaran, tidak berurutan, anti-tebak.</>
+   558→              ) : (
+   559→                <>Format: <span className="font-mono">{settings.register_prefix || "KPII-TNH"}-TAHUN-SERIAL</span> · Nomor urut berurutan (mudah ditebak, kurang privat).</>
+   560→              )}
+   561→            </p>
+   562→          </div>
+   563→          <div className="flex justify-end pt-2">
+   564→            <Button
+   565→              onClick={() => handleSaveSection(REGISTER_FIELDS.map((f) => f.key))}
+   566→              disabled={saving}
+   567→              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+   568→            >
+   569→              {saving && activeSection === "register_prefix" ? (
+   570→                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+   571→              ) : (
+   572→                <Save className="w-4 h-4 mr-2" />
+   573→              )}
+   574→              Simpan
+   575→            </Button>
+   576→          </div>
+   577→        </CardContent>
+   578→      </Card>
+   579→
+   580→      {/* Section 4: Tampilan */}
+   581→      <Card className="glass-card border-primary/15">
+   582→        <CardContent className="p-6 space-y-5">
+   583→          <div className="flex items-center gap-2.5 mb-1">
+   584→            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+   585→              <LayoutTemplate className="w-4 h-4 text-primary" />
+   586→            </div>
+   587→            <h3 className="font-semibold text-base">Tampilan</h3>
+   588→          </div>
+   589→          <Separator className="opacity-50" />
+   590→          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+   591→            {APPEARANCE_FIELDS.map((field) => (
+   592→              <SettingRow
+   593→                key={field.key}
+   594→                field={field}
+   595→                value={settings[field.key] ?? DEFAULTS[field.key]}
+   596→                onChange={(v) => updateSetting(field.key, v)}
+   597→              />
+   598→            ))}
+   599→          </div>
+   600→          <div className="flex justify-end pt-2">
+   601→            <Button
+   602→              onClick={() => handleSaveSection(APPEARANCE_FIELDS.map((f) => f.key))}
+   603→              disabled={saving}
+   604→              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+   605→            >
+   606→              {saving && activeSection === "app_name" ? (
+   607→                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+   608→              ) : (
+   609→                <Save className="w-4 h-4 mr-2" />
+   610→              )}
+   611→              Simpan
+   612→            </Button>
+   613→          </div>
+   614→        </CardContent>
+   615→      </Card>
+   616→
+   617→      {/* Section 5: Branding & Media */}
+   618→      <Card className="glass-card border-primary/15">
+   619→        <CardContent className="p-6 space-y-5">
+   620→          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
+   621→            <div className="flex items-center gap-2.5">
+   622→              <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+   623→                <Palette className="w-4 h-4 text-primary" />
+   624→              </div>
+   625→              <div>
+   626→                <h3 className="font-semibold text-base leading-tight">Branding &amp; Media</h3>
+   627→                <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+   628→                  Unggah logo, favicon, dan aset gambar lainnya. Aset akan langsung tampil di seluruh aplikasi setelah unggah berhasil.
+   629→                </p>
+   630→              </div>
+   631→            </div>
+   632→            <Button
+   633→              variant="outline"
+   634→              size="sm"
+   635→              className="h-8 text-xs"
+   636→              onClick={() => {
+   637→                loadSettings();
+   638→                toast.success("Pratinjau branding dimuat ulang");
+   639→              }}
+   640→            >
+   641→              <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Muat Ulang
+   642→            </Button>
+   643→          </div>
+   644→          <Separator className="opacity-50" />
+   645→
+   646→          {/* Live preview header — shows how logo + app name render in the sidebar */}
+   647→          <div className="p-4 rounded-lg bg-primary/5 border border-primary/15">
+   648→            <p className="text-[11px] text-muted-foreground mb-3 flex items-center gap-1.5">
+   649→              <Sparkles className="w-3.5 h-3.5 text-primary" />
+   650→              Pratinjau Live — Logo &amp; Nama Aplikasi
+   651→            </p>
+   652→            <div className="flex flex-wrap items-center gap-6">
+   653→              <div className="flex items-center gap-2.5">
+   654→                <Logo size={38} src={branding.branding_logo_url} alt="Logo" />
+   655→                <div className="flex flex-col leading-tight">
+   656→                  <span className="gold-gradient-text font-extrabold tracking-tight text-lg">
+   657→                    {settings.app_name || "SI-TRACK TANAH"}
+   658→                  </span>
+   659→                  <span className="text-[10px] text-muted-foreground tracking-wide uppercase">
+   660→                    {settings.app_subtitle || "Kuala Pembuang II"}
+   661→                  </span>
+   662→                </div>
+   663→              </div>
+   664→              <div className="text-[11px] text-muted-foreground">
+   665→                {branding.branding_logo_url ? (
+   666→                  <span className="inline-flex items-center gap-1 text-green-600">
+   667→                    <Sparkles className="w-3 h-3" /> Logo kustom aktif
+   668→                  </span>
+   669→                ) : (
+   670→                  <span className="inline-flex items-center gap-1 text-amber-600">
+   671→                    <Palette className="w-3 h-3" /> Menggunakan logo default
+   672→                  </span>
+   673→                )}
+   674→              </div>
+   675→            </div>
+   676→          </div>
+   677→
+   678→          {/* Asset grid */}
+   679→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   680→            {BRANDING_SPECS.map((spec) => (
+   681→              <BrandingUploader
+   682→                key={spec.type}
+   683→                spec={spec}
+   684→                url={branding[`branding_${spec.type}_url`]}
+   685→                onChange={handleBrandingChange}
+   686→              />
+   687→            ))}
+   688→          </div>
+   689→
+   690→          {/* PWA manifest note */}
+   691→          <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+   692→            <div className="flex items-start gap-2">
+   693→              <Smartphone className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+   694→              <div className="text-[11px] leading-snug text-muted-foreground">
+   695→                <span className="font-semibold text-foreground">Catatan PWA:</span> Ikon PWA 192×192 dan 512×512
+   696→                digunakan saat aplikasi diinstal di perangkat (Add to Home Screen). Manifest dihasilkan
+   697→                dinamis dari <span className="font-mono text-blue-500">/api/manifest</span> dan ikon akan
+   698→                otomatis dipakai setelah unggah.
+   699→              </div>
+   700→            </div>
+   701→          </div>
+   702→
+   703→          {/* Favicon note */}
+   704→          <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+   705→            <div className="flex items-start gap-2">
+   706→              <Star className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+   707→              <div className="text-[11px] leading-snug text-muted-foreground">
+   708→                <span className="font-semibold text-foreground">Catatan Favicon:</span> Setelah mengunggah
+   709→                favicon, refresh halaman (Ctrl+R) agar browser memuat ikon baru. Cache browser mungkin
+   710→                menyimpan favicon lama selama beberapa jam.
+   711→              </div>
+   712→            </div>
+   713→          </div>
+   714→        </CardContent>
+   715→      </Card>
+   716→
+   717→      {/* ===== Section 6: Notifikasi Email & WhatsApp ===== */}
+   718→      <NotifySection
+   719→        settings={settings}
+   720→        updateSetting={updateSetting}
+   721→        activeSection={activeSection}
+   722→        saving={saving}
+   723→        onSaveSection={handleSaveSection}
+   724→      />
+   725→    </div>
+   726→  );
+   727→}
+   728→
+   729→/* ============================================================
+   730→   Section 6 — Notifikasi Email & WhatsApp (Fonnte)
+   731→   ============================================================ */
+   732→const NOTIFY_FIELDS = [
+   733→  "notify_email_enabled",
+   734→  "notify_wa_enabled",
+   735→  "notify_fonnte_token",
+   736→  "notify_email_provider",
+   737→  "notify_email_from",
+   738→  "notify_email_api_url",
+   739→  "notify_email_api_key",
+   740→  "notify_tpl_selesai_subject",
+   741→  "notify_tpl_selesai_email",
+   742→  "notify_tpl_selesai_wa",
+   743→  "notify_tpl_revisi_subject",
+   744→  "notify_tpl_revisi_email",
+   745→  "notify_tpl_revisi_wa",
+   746→];
+   747→
+   748→// Placeholders help text for template editors
+   749→const TEMPLATE_VARS = [
+   750→  "{nomor_register}", "{pemohon_nama}", "{pemohon_hp}", "{pemohon_email}",
+   751→  "{status_nama}", "{catatan}", "{alasan_ditolak}", "{jenis_surat}",
+   752→  "{kelurahan_nama}", "{kelurahan_alamat}", "{kelurahan_telepon}", "{kelurahan_email}",
+   753→  "{tanggal}", "{app_url}",
+   754→];
+   755→
+   756→function NotifySection({
+   757→  settings,
+   758→  updateSetting,
+   759→  activeSection,
+   760→  saving,
+   761→  onSaveSection,
+   762→}: {
+   763→  settings: Record<string, string>;
+   764→  updateSetting: (key: string, value: string) => void;
+   765→  activeSection: string | null;
+   766→  saving: boolean;
+   767→  onSaveSection: (keys: string[]) => void;
+   768→}) {
+   769→  const [showToken, setShowToken] = useState(false);
+   770→  const [showApiKey, setShowApiKey] = useState(false);
+   771→  const [testingWa, setTestingWa] = useState(false);
+   772→  const [testingEmail, setTestingEmail] = useState(false);
+   773→  const [testTarget, setTestTarget] = useState("");
+   774→  const [testResult, setTestResult] = useState<
+   775→    null | { channel: string; ok: boolean; error?: string; recipient?: string }
+   776→  >(null);
+   777→
+   778→  const emailEnabled = (settings.notify_email_enabled ?? "true") === "true";
+   779→  const waEnabled = (settings.notify_wa_enabled ?? "true") === "true";
+   780→  const fonnteTokenSet = !!(settings.notify_fonnte_token || "").trim();
+   781→  const emailProvider = settings.notify_email_provider || "log";
+   782→
+   783→  const handleTest = async (channel: "wa" | "email") => {
+   784→    if (channel === "wa" && !fonnteTokenSet) {
+   785→      toast.error("Isi dulu Fonnte API Token sebelum menguji WhatsApp");
+   786→      return;
+   787→    }
+   788→    setTestingWa(channel === "wa");
+   789→    setTestingEmail(channel === "email");
+   790→    setTestResult(null);
+   791→    try {
+   792→      const r = await api.testNotify(channel, testTarget.trim() || undefined);
+   793→      setTestResult({ channel, ok: r.ok, error: r.error, recipient: r.recipient });
+   794→      if (r.ok) {
+   795→        toast.success(
+   796→          `Notifikasi ${channel === "wa" ? "WhatsApp" : "Email"} uji coba berhasil dikirim ke ${r.recipient || testTarget || "(self)"}`
+   797→        );
+   798→      } else {
+   799→        toast.error(`Gagal: ${r.error || "unknown error"}`);
+   800→      }
+   801→    } catch (e: any) {
+   802→      const msg = e?.message || "Network error";
+   803→      setTestResult({ channel, ok: false, error: msg });
+   804→      toast.error(`Gagal: ${msg}`);
+   805→    } finally {
+   806→      setTestingWa(false);
+   807→      setTestingEmail(false);
+   808→    }
+   809→  };
+   810→
+   811→  return (
+   812→    <Card className="glass-card border-primary/15">
+   813→      <CardContent className="p-6 space-y-5">
+   814→        {/* Header */}
+   815→        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
+   816→          <div className="flex items-center gap-2.5">
+   817→            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+   818→              <Send className="w-4 h-4 text-emerald-500" />
+   819→            </div>
+   820→            <div>
+   821→              <h3 className="font-semibold text-base leading-tight">Notifikasi Email &amp; WhatsApp</h3>
+   822→              <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+   823→                Kirim notifikasi otomatis ke pemohon saat status berubah menjadi <span className="font-semibold">Perbaikan Dokumen (REVISI)</span> atau <span className="font-semibold">Surat Selesai (SELESAI)</span>. WhatsApp menggunakan <a href="https://fonnte.com" target="_blank" rel="noreferrer" className="text-emerald-500 underline">Fonnte API</a>.
+   824→              </p>
+   825→            </div>
+   826→          </div>
+   827→          <Button
+   828→            variant="outline"
+   829→            size="sm"
+   830→            className="h-8 text-xs"
+   831→            onClick={() => onSaveSection(NOTIFY_FIELDS)}
+   832→            disabled={saving}
+   833→          >
+   834→            {saving && activeSection === "notify_email_enabled" ? (
+   835→              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+   836→            ) : (
+   837→              <Save className="w-3.5 h-3.5 mr-1.5" />
+   838→            )}
+   839→            Simpan
+   840→          </Button>
+   841→        </div>
+   842→        <Separator className="opacity-50" />
+   843→
+   844→        {/* ===== Channel toggles ===== */}
+   845→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   846→          <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/15">
+   847→            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+   848→              <Mail className="w-4 h-4 text-emerald-500" />
+   849→            </div>
+   850→            <div className="flex-1 min-w-0">
+   851→              <div className="flex items-center justify-between gap-2">
+   852→                <div>
+   853→                  <p className="text-sm font-medium">Notifikasi Email</p>
+   854→                  <p className="text-[11px] text-muted-foreground">Kirim email saat REVISI / SELESAI</p>
+   855→                </div>
+   856→                <Switch
+   857→                  checked={emailEnabled}
+   858→                  onCheckedChange={(c) => updateSetting("notify_email_enabled", c ? "true" : "false")}
+   859→                />
+   860→              </div>
+   861→            </div>
+   862→          </div>
+   863→
+   864→          <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/15">
+   865→            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+   866→              <MessageCircle className="w-4 h-4 text-emerald-500" />
+   867→            </div>
+   868→            <div className="flex-1 min-w-0">
+   869→              <div className="flex items-center justify-between gap-2">
+   870→                <div>
+   871→                  <p className="text-sm font-medium">Notifikasi WhatsApp</p>
+   872→                  <p className="text-[11px] text-muted-foreground">Kirim WA via Fonnte saat REVISI / SELESAI</p>
+   873→                </div>
+   874→                <Switch
+   875→                  checked={waEnabled}
+   876→                  onCheckedChange={(c) => updateSetting("notify_wa_enabled", c ? "true" : "false")}
+   877→                />
+   878→              </div>
+   879→            </div>
+   880→          </div>
+   881→        </div>
+   882→
+   883→        {/* ===== Fonnte config ===== */}
+   884→        <div className="p-4 rounded-lg border border-emerald-500/15 bg-emerald-500/[0.03]">
+   885→          <div className="flex items-center gap-2 mb-3">
+   886→            <Key className="w-4 h-4 text-emerald-500" />
+   887→            <p className="text-sm font-semibold">Konfigurasi Fonnte (WhatsApp Gateway)</p>
+   888→            {fonnteTokenSet ? (
+   889→              <span className="ml-auto text-[10px] font-medium inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+   890→                <CheckCircle2 className="w-3 h-3" /> Token aktif
+   891→              </span>
+   892→            ) : (
+   893→              <span className="ml-auto text-[10px] font-medium inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 border border-amber-500/30">
+   894→                <XCircle className="w-3 h-3" /> Token belum diisi
+   895→              </span>
+   896→            )}
+   897→          </div>
+   898→          <div className="space-y-2">
+   899→            <Label className="text-xs">Fonnte API Token</Label>
+   900→            <div className="flex gap-2">
+   901→              <Input
+   902→                type={showToken ? "text" : "password"}
+   903→                value={settings.notify_fonnte_token ?? ""}
+   904→                onChange={(e) => updateSetting("notify_fonnte_token", e.target.value)}
+   905→                placeholder="Tempel token dari dashboard Fonnte"
+   906→                className="font-mono text-xs"
+   907→              />
+   908→              <Button
+   909→                type="button"
+   910→                variant="outline"
+   911→                size="sm"
+   912→                className="shrink-0"
+   913→                onClick={() => setShowToken((s) => !s)}
+   914→              >
+   915→                {showToken ? <Eye className="w-3.5 h-3.5" /> : <Key className="w-3.5 h-3.5" />}
+   916→                <span className="ml-1.5 text-xs">{showToken ? "Sembunyikan" : "Lihat"}</span>
+   917→              </Button>
+   918→            </div>
+   919→            <p className="text-[11px] text-muted-foreground leading-snug">
+   920→              Dapatkan token gratis di <a href="https://fonnte.com" target="_blank" rel="noreferrer" className="text-emerald-500 underline">fonnte.com</a> → menu <span className="font-mono">API</span>. Nomor pengirim ditentukan oleh perangkat yang Anda scan-pair di Fonnte.
+   921→            </p>
+   922→          </div>
+   923→        </div>
+   924→
+   925→        {/* ===== Email config ===== */}
+   926→        <div className="p-4 rounded-lg border border-blue-500/15 bg-blue-500/[0.03]">
+   927→          <div className="flex items-center gap-2 mb-3">
+   928→            <Server className="w-4 h-4 text-blue-500" />
+   929→            <p className="text-sm font-semibold">Konfigurasi Email (SMTP)</p>
+   930→          </div>
+   931→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   932→            <div className="space-y-1.5">
+   933→              <Label className="text-xs">Provider Email</Label>
+   934→              <Select
+   935→                value={emailProvider}
+   936→                onValueChange={(v) => updateSetting("notify_email_provider", v)}
+   937→              >
+   938→                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+   939→                <SelectContent>
+   940→                  <SelectItem value="log">Log (Dev — tidak benar-benar mengirim)</SelectItem>
+   941→                  <SelectItem value="smtp_api">SMTP API Bridge (HTTP → SMTP)</SelectItem>
+   942→                </SelectContent>
+   943→              </Select>
+   944→            </div>
+   945→            <div className="space-y-1.5">
+   946→              <Label className="text-xs">Email Pengirim (From)</Label>
+   947→              <Input
+   948→                type="email"
+   949→                value={settings.notify_email_from ?? ""}
+   950→                onChange={(e) => updateSetting("notify_email_from", e.target.value)}
+   951→                placeholder="noreply@kelurahan.go.id"
+   952→              />
+   953→            </div>
+   954→          </div>
+   955→
+   956→          {emailProvider === "smtp_api" && (
+   957→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+   958→              <div className="space-y-1.5 sm:col-span-2">
+   959→                <Label className="text-xs">SMTP API URL (Bridge Endpoint)</Label>
+   960→                <Input
+   961→                  value={settings.notify_email_api_url ?? ""}
+   962→                  onChange={(e) => updateSetting("notify_email_api_url", e.target.value)}
+   963→                  placeholder="https://smtp-bridge.example.com/send"
+   964→                  className="font-mono text-xs"
+   965→                />
+   966→              </div>
+   967→              <div className="space-y-1.5 sm:col-span-2">
+   968→                <Label className="text-xs">SMTP API Key (Bearer Token)</Label>
+   969→                <div className="flex gap-2">
+   970→                  <Input
+   971→                    type={showApiKey ? "text" : "password"}
+   972→                    value={settings.notify_email_api_key ?? ""}
+   973→                    onChange={(e) => updateSetting("notify_email_api_key", e.target.value)}
+   974→                    placeholder="opsional"
+   975→                    className="font-mono text-xs"
+   976→                  />
+   977→                  <Button
+   978→                    type="button"
+   979→                    variant="outline"
+   980→                    size="sm"
+   981→                    className="shrink-0"
+   982→                    onClick={() => setShowApiKey((s) => !s)}
+   983→                  >
+   984→                    {showApiKey ? <Eye className="w-3.5 h-3.5" /> : <Key className="w-3.5 h-3.5" />}
+   985→                  </Button>
+   986→                </div>
+   987→              </div>
+   988→              <p className="text-[11px] text-muted-foreground leading-snug sm:col-span-2">
+   989→                Mode <span className="font-semibold">SMTP API Bridge</span>: sistem akan POST JSON <span className="font-mono">{`{ from, to, subject, html }`}</span> ke URL di atas. Gunakan layanan seperti Mailgun, SendGrid, Resend, atau SMTP2GO yang menyediakan REST API.
+   990→              </p>
+   991→            </div>
+   992→          )}
+   993→          {emailProvider === "log" && (
+   994→            <p className="text-[11px] text-amber-600 mt-3 leading-snug flex items-start gap-1.5">
+   995→              <TestTube2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+   996→              <span>
+   997→                <span className="font-semibold">Mode Log aktif:</span> Email tidak benar-benar dikirim — body email hanya dicetak di server log. Berguna untuk development. Untuk produksi, ganti ke <span className="font-semibold">SMTP API Bridge</span>.
+   998→              </span>
+   999→            </p>
+  1000→          )}
+  1001→        </div>
+  1002→
+  1003→        {/* ===== Test buttons ===== */}
+  1004→        <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+  1005→          <div className="flex items-center gap-2 mb-3">
+  1006→            <TestTube2 className="w-4 h-4 text-primary" />
+  1007→            <p className="text-sm font-semibold">Uji Coba Notifikasi</p>
+  1008→          </div>
+  1009→          <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+  1010→            <div className="flex-1 space-y-1.5">
+  1011→              <Label className="text-xs">Tujuan (opsional — kosongkan untuk kirim ke kontak Anda sendiri)</Label>
+  1012→              <Input
+  1013→                value={testTarget}
+  1014→                onChange={(e) => setTestTarget(e.target.value)}
+  1015→                placeholder="Nomor HP (628xxx) atau email tujuan"
+  1016→              />
+  1017→            </div>
+  1018→            <div className="flex gap-2">
+  1019→              <Button
+  1020→                type="button"
+  1021→                variant="outline"
+  1022→                size="sm"
+  1023→                onClick={() => handleTest("wa")}
+  1024→                disabled={testingWa || !waEnabled || !fonnteTokenSet}
+  1025→                className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+  1026→              >
+  1027→                {testingWa ? (
+  1028→                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+  1029→                ) : (
+  1030→                  <MessageCircle className="w-3.5 h-3.5 mr-1.5" />
+  1031→                )}
+  1032→                Test WA
+  1033→              </Button>
+  1034→              <Button
+  1035→                type="button"
+  1036→                variant="outline"
+  1037→                size="sm"
+  1038→                onClick={() => handleTest("email")}
+  1039→                disabled={testingEmail || !emailEnabled}
+  1040→                className="border-blue-500/40 text-blue-600 hover:bg-blue-500/10"
+  1041→              >
+  1042→                {testingEmail ? (
+  1043→                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+  1044→                ) : (
+  1045→                  <Mail className="w-3.5 h-3.5 mr-1.5" />
+  1046→                )}
+  1047→                Test Email
+  1048→              </Button>
+  1049→            </div>
+  1050→          </div>
+  1051→          {testResult && (
+  1052→            <div
+  1053→              className={`mt-3 p-3 rounded-lg border text-[11px] leading-snug ${
+  1054→                testResult.ok
+  1055→                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+  1056→                  : "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-400"
+  1057→              }`}
+  1058→            >
+  1059→              <div className="flex items-start gap-1.5">
+  1060→                {testResult.ok ? (
+  1061→                  <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+  1062→                ) : (
+  1063→                  <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+  1064→                )}
+  1065→                <div>
+  1066→                  <p className="font-semibold">
+  1067→                    {testResult.channel === "wa" ? "WhatsApp" : "Email"} —{" "}
+  1068→                    {testResult.ok ? "BERHASIL" : "GAGAL"}
+  1069→                  </p>
+  1070→                  {testResult.recipient && <p>Penerima: {testResult.recipient}</p>}
+  1071→                  {testResult.error && <p>Error: {testResult.error}</p>}
+  1072→                </div>
+  1073→              </div>
+  1074→            </div>
+  1075→          )}
+  1076→        </div>
+  1077→
+  1078→        {/* ===== Template editor ===== */}
+  1079→        <div>
+  1080→          <div className="flex items-center gap-2 mb-1">
+  1081→            <Bell className="w-4 h-4 text-primary" />
+  1082→            <p className="text-sm font-semibold">Template Pesan</p>
+  1083→          </div>
+  1084→          <p className="text-[11px] text-muted-foreground mb-3 leading-snug">
+  1085→            Kustomisasi pesan yang dikirim ke pemohon. Gunakan variabel dalam kurung kurawal untuk
+  1086→            mensubstitusi data pemohon secara otomatis.
+  1087→          </p>
+  1088→          {/* Variable chips */}
+  1089→          <div className="flex flex-wrap gap-1.5 mb-3 p-2.5 rounded-lg bg-muted/30 border border-border/40">
+  1090→            {TEMPLATE_VARS.map((v) => (
+  1091→              <code
+  1092→                key={v}
+  1093→                className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-mono border border-primary/20"
+  1094→                title={`Klik untuk menyalin: ${v}`}
+  1095→              >
+  1096→                {v}
+  1097→              </code>
+  1098→            ))}
+  1099→          </div>
+  1100→
+  1101→          {/* SELESAI templates */}
+  1102→          <div className="space-y-3">
+  1103→            <TemplateEditor
+  1104→              title="1. Surat Selesai — Subject Email"
+  1105→              hint="Subjek email yang dikirim saat status = SELESAI"
+  1106→              value={settings.notify_tpl_selesai_subject ?? ""}
+  1107→              onChange={(v) => updateSetting("notify_tpl_selesai_subject", v)}
+  1108→              rows={1}
+  1109→              accent="emerald"
+  1110→            />
+  1111→            <TemplateEditor
+  1112→              title="2. Surat Selesai — Body Email"
+  1113→              hint="Isi email (teks plain, otomatis dikonversi ke HTML)"
+  1114→              value={settings.notify_tpl_selesai_email ?? ""}
+  1115→              onChange={(v) => updateSetting("notify_tpl_selesai_email", v)}
+  1116→              rows={8}
+  1117→              accent="emerald"
+  1118→            />
+  1119→            <TemplateEditor
+  1120→              title="3. Surat Selesai — Pesan WhatsApp"
+  1121→              hint="Pesan WA. Gunakan *teks* untuk bold. Maks 1000 karakter."
+  1122→              value={settings.notify_tpl_selesai_wa ?? ""}
+  1123→              onChange={(v) => updateSetting("notify_tpl_selesai_wa", v)}
+  1124→              rows={6}
+  1125→              accent="emerald"
+  1126→            />
+  1127→
+  1128→            {/* REVISI templates */}
+  1129→            <TemplateEditor
+  1130→              title="4. Perbaikan Dokumen — Subject Email"
+  1131→              hint="Subjek email yang dikirim saat status = REVISI"
+  1132→              value={settings.notify_tpl_revisi_subject ?? ""}
+  1133→              onChange={(v) => updateSetting("notify_tpl_revisi_subject", v)}
+  1134→              rows={1}
+  1135→              accent="amber"
+  1136→            />
+  1137→            <TemplateEditor
+  1138→              title="5. Perbaikan Dokumen — Body Email"
+  1139→              hint="Isi email (teks plain, otomatis dikonversi ke HTML)"
+  1140→              value={settings.notify_tpl_revisi_email ?? ""}
+  1141→              onChange={(v) => updateSetting("notify_tpl_revisi_email", v)}
+  1142→              rows={8}
+  1143→              accent="amber"
+  1144→            />
+  1145→            <TemplateEditor
+  1146→              title="6. Perbaikan Dokumen — Pesan WhatsApp"
+  1147→              hint="Pesan WA. Gunakan *teks* untuk bold. Maks 1000 karakter."
+  1148→              value={settings.notify_tpl_revisi_wa ?? ""}
+  1149→              onChange={(v) => updateSetting("notify_tpl_revisi_wa", v)}
+  1150→              rows={6}
+  1151→              accent="amber"
+  1152→            />
+  1153→          </div>
+  1154→        </div>
+  1155→
+  1156→        {/* Info box — when notifications fire */}
+  1157→        <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+  1158→          <div className="flex items-start gap-2">
+  1159→            <Bell className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+  1160→            <div className="text-[11px] leading-snug text-muted-foreground">
+  1161→              <span className="font-semibold text-foreground">Kapan notifikasi dikirim?</span> Notifikasi
+  1162→              otomatis dipicu saat petugas mengubah status permohonan menjadi <span className="font-semibold">Perbaikan Dokumen</span> (REVISI)
+  1163→              atau <span className="font-semibold">Surat Selesai</span> (SELESAI). Kegagalan pengiriman tidak membatalkan perubahan status —
+  1164→              kegagalan dicatat di Audit Log. Anda juga dapat mengirim ulang notifikasi manual dari halaman detail permohonan.
+  1165→            </div>
+  1166→          </div>
+  1167→        </div>
+  1168→      </CardContent>
+  1169→    </Card>
+  1170→  );
+  1171→}
+  1172→
+  1173→/* ============================================================
+  1174→   Reusable template editor (textarea + label + reset)
+  1175→   ============================================================ */
+  1176→function TemplateEditor({
+  1177→  title,
+  1178→  hint,
+  1179→  value,
+  1180→  onChange,
+  1181→  rows = 4,
+  1182→  accent = "primary",
+  1183→}: {
+  1184→  title: string;
+  1185→  hint?: string;
+  1186→  value: string;
+  1187→  onChange: (v: string) => void;
+  1188→  rows?: number;
+  1189→  accent?: "primary" | "emerald" | "amber" | "blue";
+  1190→}) {
+  1191→  const accentClasses = {
+  1192→    primary: "border-primary/30 bg-primary/[0.04]",
+  1193→    emerald: "border-emerald-500/30 bg-emerald-500/[0.04]",
+  1194→    amber: "border-amber-500/30 bg-amber-500/[0.04]",
+  1195→    blue: "border-blue-500/30 bg-blue-500/[0.04]",
+  1196→  }[accent];
+  1197→  return (
+  1198→    <div className={`rounded-lg border ${accentClasses} p-3`}>
+  1199→      <div className="flex items-baseline justify-between gap-2 mb-1.5">
+  1200→        <Label className="text-xs font-semibold">{title}</Label>
+  1201→        <span className="text-[10px] text-muted-foreground">{value.length} karakter</span>
+  1202→      </div>
+  1203→      {hint && <p className="text-[10px] text-muted-foreground mb-2 leading-snug">{hint}</p>}
+  1204→      <Textarea
+  1205→        value={value}
+  1206→        onChange={(e) => onChange(e.target.value)}
+  1207→        rows={rows}
+  1208→        className="text-xs font-mono leading-relaxed resize-y"
+  1209→      />
+  1210→    </div>
+  1211→  );
+  1212→}
+  1213→

@@ -49,6 +49,13 @@ import {
   TestTube2,
   CheckCircle2,
   XCircle,
+  FileText,
+  Heart,
+  ExternalLink,
+  Clock,
+  PanelBottom,
+  MapPin,
+  Info,
 } from "lucide-react";
 import { BrandingUploader, type BrandingAssetSpec } from "@/components/app/shared/BrandingUploader";
 import { Logo } from "@/components/app/Logo";
@@ -90,6 +97,18 @@ const DEFAULTS: Record<string, string> = {
     "Yth. {pemohon_nama},\n\nPermohonan surat tanah Anda dengan Nomor Register {nomor_register} memerlukan kelengkapan dokumen.\n\nJenis Surat: {jenis_surat}\nStatus: {status_nama}\nCatatan: {catatan}\nTanggal: {tanggal}\n\nMohon segera melengkapi dokumen yang diminta dengan mengunjungi {kelurahan_nama} atau menghubungi petugas kami.\n\nAlamat: {kelurahan_alamat}\nTelepon: {kelurahan_telepon}\nEmail: {kelurahan_email}\n\nTerima kasih.\n\nHormat kami,\n{kelurahan_nama}",
   notify_tpl_revisi_wa:
     "*{kelurahan_nama}*\n\nYth. {pemohon_nama},\n\nPermohonan surat tanah Anda dengan Nomor Register *{nomor_register}* memerlukan *kelengkapan dokumen*.\n\nCatatan: {catatan}\nTanggal: {tanggal}\n\nMohon segera lengkapi dokumen yang diminta. Hubungi {kelurahan_telepon} untuk info lebih lanjut.\n\nTerima kasih. 🙏",
+  // ===== Footer defaults (Task 17) =====
+  footer_about_text:
+    "Sistem Informasi Tracking Pendaftaran Surat Tanah. Memberikan transparansi pelayanan publik bagi masyarakat Kelurahan Kuala Pembuang II.",
+  footer_service_hours_weekday: "Senin – Jumat: 08.00 – 15.00 WIB",
+  footer_service_hours_saturday: "Sabtu: 08.00 – 12.00 WIB",
+  footer_service_hours_sunday: "Minggu & Hari Libur: Tutup",
+  footer_copyright_text: "© {year} Pemerintah Kelurahan Kuala Pembuang II. Hak Cipta Dilindungi.",
+  footer_credit_text: "Dibuat dengan ❤ oleh {app_name} · v1.0",
+  footer_show_shield_badge: "true",
+  footer_show_service_hours: "true",
+  footer_show_links: "true",
+  footer_show_contact: "true",
 };
 
 /* ============================================================
@@ -100,8 +119,9 @@ interface FieldDef {
   label: string;
   description?: string;
   icon: any;
-  type: "text" | "number" | "switch";
+  type: "text" | "number" | "switch" | "textarea";
   placeholder?: string;
+  rows?: number;
 }
 
 const KELURAHAN_FIELDS: FieldDef[] = [
@@ -129,6 +149,81 @@ const REGISTER_FIELDS: FieldDef[] = [
 const APPEARANCE_FIELDS: FieldDef[] = [
   { key: "app_name", label: "Nama Aplikasi", icon: Type, type: "text", placeholder: "SI-TRACK TANAH" },
   { key: "app_subtitle", label: "Subjudul", icon: LayoutTemplate, type: "text", placeholder: "Kelurahan Kuala Pembuang II" },
+];
+
+const FOOTER_FIELDS: FieldDef[] = [
+  {
+    key: "footer_about_text",
+    label: "Teks Deskripsi Footer",
+    description: "Paragraf deskripsi singkat tentang aplikasi di kolom pertama footer.",
+    icon: FileText,
+    type: "textarea",
+    rows: 3,
+    placeholder: "Sistem Informasi Tracking Pendaftaran Surat Tanah...",
+  },
+  {
+    key: "footer_service_hours_weekday",
+    label: "Jam Layanan Senin–Jumat",
+    icon: Clock,
+    type: "text",
+    placeholder: "Senin – Jumat: 08.00 – 15.00 WIB",
+  },
+  {
+    key: "footer_service_hours_saturday",
+    label: "Jam Layanan Sabtu",
+    icon: Clock,
+    type: "text",
+    placeholder: "Sabtu: 08.00 – 12.00 WIB",
+  },
+  {
+    key: "footer_service_hours_sunday",
+    label: "Jam Layanan Minggu/Libur",
+    icon: Clock,
+    type: "text",
+    placeholder: "Minggu & Hari Libur: Tutup",
+  },
+  {
+    key: "footer_copyright_text",
+    label: "Teks Hak Cipta",
+    description: "Gunakan {year} untuk tahun berjalan otomatis.",
+    icon: ShieldCheck,
+    type: "text",
+    placeholder: "© {year} Pemerintah Kelurahan...",
+  },
+  {
+    key: "footer_credit_text",
+    label: "Teks Kredit",
+    description: "Gunakan {app_name} untuk nama aplikasi otomatis. Gunakan ❤ untuk ikon hati.",
+    icon: Heart,
+    type: "text",
+    placeholder: "Dibuat dengan ❤ oleh {app_name} · v1.0",
+  },
+  {
+    key: "footer_show_shield_badge",
+    label: "Tampilkan Badge 'Resmi & Terpercaya'",
+    description: "Badge kepercayaan di kolom pertama footer.",
+    icon: ShieldCheck,
+    type: "switch",
+  },
+  {
+    key: "footer_show_contact",
+    label: "Tampilkan Kolom Kontak",
+    description: "Kolom alamat, telepon, dan email (menggunakan data Informasi Kelurahan).",
+    icon: Phone,
+    type: "switch",
+  },
+  {
+    key: "footer_show_service_hours",
+    label: "Tampilkan Kolom Jam Pelayanan",
+    icon: Clock,
+    type: "switch",
+  },
+  {
+    key: "footer_show_links",
+    label: "Tampilkan Kolom Tautan",
+    icon: ExternalLink,
+    type: "switch",
+  },
 ];
 
 /* ============================================================
@@ -226,6 +321,14 @@ function SettingRow({ field, value, onChange }: { field: FieldDef; value: string
               {value === "true" ? "Aktif" : "Nonaktif"}
             </span>
           </div>
+        ) : field.type === "textarea" ? (
+          <Textarea
+            placeholder={field.placeholder}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            rows={field.rows || 3}
+            className="text-sm resize-y"
+          />
         ) : (
           <Input
             type={field.type}
@@ -270,7 +373,7 @@ function SettingsSkeleton() {
    Main SettingsManagement component
    ============================================================ */
 export function SettingsManagement() {
-  const { can, setBranding, setAppName } = useAppStore();
+  const { can, setBranding, setAppName, setSettings: setGlobalSettings } = useAppStore();
   const allowed = can("manage_settings");
 
   const [settings, setSettings] = useState<Record<string, string>>(DEFAULTS);
@@ -292,12 +395,14 @@ export function SettingsManagement() {
       setBranding(b.branding || {});
       // sync app name to global store so LogoFull uses the latest
       setAppName(merged.app_name, merged.app_subtitle);
+      // sync all settings to global store so Footer reads live values
+      setGlobalSettings(merged);
     } catch {
       toast.error("Gagal memuat pengaturan");
     } finally {
       setLoading(false);
     }
-  }, [setBranding, setAppName]);
+  }, [setBranding, setAppName, setGlobalSettings]);
 
   useEffect(() => {
     loadSettings();
@@ -338,6 +443,7 @@ export function SettingsManagement() {
       setSettings(merged);
       setInitialSettings(merged);
       setAppName(merged.app_name, merged.app_subtitle);
+      setGlobalSettings(merged);
       toast.success("Pengaturan berhasil disimpan");
     } catch (e: any) {
       toast.error(e?.message || "Gagal menyimpan pengaturan");
@@ -368,6 +474,7 @@ export function SettingsManagement() {
       setSettings(merged);
       setInitialSettings(merged);
       setAppName(merged.app_name, merged.app_subtitle);
+      setGlobalSettings(merged);
       toast.success("Pengaturan berhasil disimpan");
     } catch (e: any) {
       toast.error(e?.message || "Gagal menyimpan pengaturan");
@@ -614,7 +721,118 @@ export function SettingsManagement() {
         </CardContent>
       </Card>
 
-      {/* Section 5: Branding & Media */}
+      {/* Section 5: Footer */}
+      <Card className="glass-card border-primary/15">
+        <CardContent className="p-6 space-y-5">
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <PanelBottom className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base leading-tight">Footer</h3>
+              <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                Kustomisasi teks dan tampilan footer yang tampil di seluruh halaman.
+              </p>
+            </div>
+          </div>
+          <Separator className="opacity-50" />
+          <div className="space-y-5">
+            {FOOTER_FIELDS.map((field) => (
+              <SettingRow
+                key={field.key}
+                field={field}
+                value={settings[field.key] ?? DEFAULTS[field.key]}
+                onChange={(v) => updateSetting(field.key, v)}
+              />
+            ))}
+          </div>
+
+          {/* Live preview */}
+          <div className="mt-2 p-4 rounded-lg bg-primary/5 border border-primary/15">
+            <p className="text-[11px] text-muted-foreground mb-3 flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5 text-primary" />
+              Pratinjau Live Footer
+            </p>
+            <div className="rounded-lg border border-border/40 bg-card/30 p-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-[10px]">
+                <div className="space-y-1.5">
+                  <p className="font-bold gold-text text-[11px]">{settings.app_name || "SI-TRACK TANAH"}</p>
+                  <p className="text-foreground/55 leading-snug line-clamp-3">
+                    {settings.footer_about_text || DEFAULTS.footer_about_text}
+                  </p>
+                  {settings.footer_show_shield_badge !== "false" && (
+                    <p className="text-foreground/40 flex items-center gap-1">
+                      <ShieldCheck className="w-2.5 h-2.5 text-primary" /> Resmi & Terpercaya
+                    </p>
+                  )}
+                </div>
+                {settings.footer_show_contact !== "false" && (
+                  <div>
+                    <p className="font-semibold gold-text mb-1.5 flex items-center gap-1"><MapPin className="w-2.5 h-2.5" /> Kontak</p>
+                    <p className="text-foreground/55 leading-snug">{settings.alamat_kelurahan || "Jl. Iskandar No. 1..."}</p>
+                    <p className="text-foreground/55">{settings.telepon_kelurahan || "(0532) 000-0000"}</p>
+                    <p className="text-foreground/55">{settings.email_kelurahan || "kelurahan@..."}</p>
+                  </div>
+                )}
+                {settings.footer_show_service_hours !== "false" && (
+                  <div>
+                    <p className="font-semibold gold-text mb-1.5 flex items-center gap-1"><Clock className="w-2.5 h-2.5" /> Jam Layanan</p>
+                    <p className="text-foreground/55">{settings.footer_service_hours_weekday || "Senin – Jumat: 08.00 – 15.00"}</p>
+                    <p className="text-foreground/55">{settings.footer_service_hours_saturday || "Sabtu: 08.00 – 12.00"}</p>
+                    <p className="text-foreground/40">{settings.footer_service_hours_sunday || "Minggu: Tutup"}</p>
+                  </div>
+                )}
+                {settings.footer_show_links !== "false" && (
+                  <div>
+                    <p className="font-semibold gold-text mb-1.5 flex items-center gap-1"><ExternalLink className="w-2.5 h-2.5" /> Tautan</p>
+                    <p className="text-foreground/55">Lacak Surat Tanah</p>
+                    <p className="text-foreground/55">Syarat & Dokumen</p>
+                    <p className="text-foreground/55">FAQ</p>
+                  </div>
+                )}
+              </div>
+              <div className="mt-3 pt-2 border-t border-border/30 flex justify-between text-[9px] text-foreground/45">
+                <span>{(settings.footer_copyright_text || "").replace("{year}", String(new Date().getFullYear())) || `© ${new Date().getFullYear()} Pemerintah...`}</span>
+                <span className="text-foreground/35 flex items-center gap-0.5">
+                  {(settings.footer_credit_text || "").replace(/\{app_name\}/g, settings.app_name || "SI-TRACK TANAH").split(/❤/).map((part, i, arr) => (
+                    <span key={i}>{part}{i < arr.length - 1 && <Heart className="w-2 h-2 text-primary/60 inline" />}</span>
+                  ))}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+              <div className="text-[11px] leading-snug text-muted-foreground">
+                <span className="font-semibold text-foreground">Tips:</span> Gunakan{" "}
+                <code className="px-1 py-0.5 rounded bg-muted/30 text-blue-500 font-mono text-[10px]">{"{year}"}</code>{" "}
+                untuk tahun otomatis dan{" "}
+                <code className="px-1 py-0.5 rounded bg-muted/30 text-blue-500 font-mono text-[10px]">{"{app_name}"}</code>{" "}
+                untuk nama aplikasi otomatis pada teks hak cipta/kredit. Kolom Kontak menggunakan data dari Informasi Kelurahan.
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              onClick={() => handleSaveSection(FOOTER_FIELDS.map((f) => f.key))}
+              disabled={saving}
+              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+            >
+              {saving && activeSection === "footer_about_text" ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Simpan
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 6: Branding & Media */}
       <Card className="glass-card border-primary/15">
         <CardContent className="p-6 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">

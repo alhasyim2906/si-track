@@ -13,7 +13,6 @@ import { useAppStore } from "@/store/app-store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 const tipeColor: Record<string, string> = {
@@ -121,7 +120,7 @@ export function NotificationsBell() {
             </Button>
           )}
         </div>
-        <ScrollArea className="max-h-80">
+        <div className="max-h-80 overflow-y-scroll notif-scroll">
           {items.length === 0 ? (
             <div className="py-8 flex flex-col items-center text-center px-4">
               <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/25 flex items-center justify-center mb-2">
@@ -175,7 +174,7 @@ export function NotificationsBell() {
               })}
             </div>
           )}
-        </ScrollArea>
+        </div>
         {items.length > 0 && (
           <div className="border-t border-border/50">
             <button

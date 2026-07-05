@@ -16,7 +16,6 @@ import { useAppStore } from "@/store/app-store";
 import { SectionHeader } from "@/components/app/StatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -426,7 +425,7 @@ export function NotificationCenter() {
           </p>
         </div>
       ) : (
-        <ScrollArea className="max-h-[600px] pr-1">
+        <div className="max-h-[600px] overflow-y-scroll notif-scroll pr-1.5">
           <div className="space-y-5">
             {groups.map(([label, groupItems]) => (
               <div key={label}>
@@ -441,7 +440,7 @@ export function NotificationCenter() {
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       )}
     </div>
   );
