@@ -2532,3 +2532,114 @@ Stage Summary:
 - Hydration mismatch on <body> RESOLVED. The fix is a one-line attribute addition (`suppressHydrationWarning`) consistent with the existing <html> tag pattern.
 - No behavioral change; React still hydrates the body's children normally — only attribute-level warnings on the body element itself are suppressed.
 - This is a defensive fix that handles ALL browser extensions (Grammarly, LastPass, password managers, dark readers, etc.) that inject data-* / class attributes into <body>.
+
+---
+Task ID: 25
+Agent: main
+Task: Fix QR code masih menampilkan localhost ketika di-scan — QR code pada tanda terima meng-encode URL `http://localhost:3000/?track=...` yang tidak bisa diakses dari HP pemohon.
+
+## Root Cause
+QR code API route (`src/app/api/permohonan/[id]/qr/route.ts`) memakai `new URL(req.url).origin` untuk membangun URL tracking. Di dev server / container, ini returns `http://localhost:3000`. Akibatnya QR code pada tanda terima meng-encode URL localhost — saat pemohon memindai dengan HP, URL tersebut unreachable (localhost di HP ≠ localhost di server).
+
+Hal yang sama juga terjadi di:
+- `src/app/layout.tsx` `metadataBase: new URL("http://localhost:3000")` — OpenGraph/Twitter card URLs juga localhost.
+- `src/app/api/permohonan/[id]/notify/route.ts` dan `src/app/api/permohonan/[id]/status/route.ts` — `{app_url}` placeholder di template notifikasi juga localhost (dari `process.env.NEXT_PUBLIC_APP_URL` yang tidak diset).
+
+## Work Completed
+
+### 1. New helper: `src/lib/public-url.ts` (~110 lines)
+- `getPublicBaseUrlSetting()` — baca setting `public_base_url` dari DB dengan in-memory cache 60 detik (TTL-bounded) untuk avoid DB hit di setiap QR/notify call.
+- `invalidatePublicBaseUrlCache()` — bust cache setelah admin update setting (dipanggil dari settings PUT + setup/complete POST) agar QR berikutnya langsung pakai domain baru.
+- `normalizeBaseUrl(raw)` — strip path/trailing slash, return origin only (`https://si-track.seruyan.go.id/` → `https://si-track.seruyan.go.id`). Return "" jika invalid.
+- `resolvePublicBaseUrl(requestOrigin?)` — resolusi berlapis: DB setting → `NEXT_PUBLIC_APP_URL` env → request origin fallback.
+- `buildTrackingUrl(nomorRegister, requestOrigin?)` — helper siap pakai untuk QR code.
+
+### 2. QR code API route — `src/app/api/permohonan/[id]/qr/route.ts`
+- Ganti `new URL(req.url).origin` → `await resolvePublicBaseUrl(requestOrigin)`.
+- Response kini include `baseUrl` (untuk display) + `isFallback` boolean (true jika pakai localhost fallback).
+- `isFallback` digunakan frontend untuk show warning banner.
+
+### 3. Settings PUT route — `src/app/api/settings/route.ts`
+- Normalize `public_base_url` sebelum persist (strip path/trailing slash → origin only).
+- Panggil `invalidatePublicBaseUrlCache()` setelah upsert jika `public_base_url` bagian dari payload.
+
+### 4. Setup complete route — `src/app/api/setup/complete/route.ts`
+- Tambah `public_base_url: normalizeBaseUrl(app.publicBaseUrl)` ke settingsToUpsert.
+- Panggil `invalidatePublicBaseUrlCache()` setelah bulk upsert.
+
+### 5. Notify routes — `src/app/api/permohonan/[id]/status/route.ts` + `notify/route.ts`
+- Ganti `appUrl: process.env.NEXT_PUBLIC_APP_URL || ""` → `appUrl: await resolvePublicBaseUrl(new URL(req.url).origin)`.
+- Sekarang `{app_url}` di template email/WA juga pakai domain publik.
+
+### 6. Layout — `src/app/layout.tsx`
+- `metadataBase: new URL("http://localhost:3000")` → `metadataBase: metadataBaseUrl` dimana `metadataBaseUrl = new URL(publicBaseUrl || "http://localhost:3000")`.
+- OpenGraph / Twitter card / canonical URLs kini resolve ke domain publik.
+
+### 7. SettingsManagement — `src/components/app/admin/SettingsManagement.tsx`
+- Tambah `public_base_url: ""` ke DEFAULTS.
+- Tambah field "URL Publik Aplikasi" ke KELURAHAN_FIELDS dengan icon ExternalLink, description lengkap (jelaskan dipakai untuk QR code, OpenGraph, {app_url} notifikasi).
+- Enhance `SettingRow` dengan special-case untuk `public_base_url`: render 3-state validation badge (empty=amber "Belum dikonfigurasi — QR code akan memakai localhost" / invalid=red "URL tidak valid" / valid=emerald "URL valid — QR code akan memakai domain publik") + live preview box showing contoh URL tracking yang akan di-encode di QR code.
+
+### 8. Setup Wizard — `src/components/app/shared/SetupWizard.tsx`
+- Tambah `publicBaseUrl: string` ke WizardState.app + DEFAULT_STATE.app.
+- Import `ExternalLink` + `QrCode` icons.
+- AppStep: tambah field "URL Publik Aplikasi" (type=url, full-width) dengan info banner amber explaining pentingnya untuk QR code.
+- validateStep(1): validasi optional — jika diisi, harus valid http(s) URL.
+- ReviewStep: tambah ReviewRow "URL Publik" dengan fallback text "— (QR code akan memakai localhost)" jika kosong.
+
+### 9. PermohonanDetail — `src/components/app/shared/PermohonanDetail.tsx`
+- Extend qrData state type dengan `baseUrl?` + `isFallback?`.
+- QR Code tab: tambah warning banner amber (dengan icon AlertTriangle) saat `qrData.isFallback === true` — pesan "QR code memakai URL localhost — tidak bisa dipindai dari HP pemohon!" + instruksi buka Pengaturan → Identitas Kelurahan → URL Publik Aplikasi.
+- Bug fix: `fetchQr` callback guard `if (!selectedPermohonanId || qrData) return;` dihapus — guard ini menyebabkan tombol "Muat ulang" tidak re-fetch setelah qrData ter-set. Sekarang tombol reload benar-benar re-fetch QR terbaru (penting setelah admin ubah public_base_url).
+
+### 10. Seed — `scripts/seed.ts`
+- Tambah upsert `public_base_url: ""` (kosong → admin diprompt set via Settings, badge amber muncul).
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**
+- Dev server: clean compile, no runtime errors in `/home/z/my-project/dev.log`.
+- **API tests (curl with admin cookie)**:
+  - Set `public_base_url: "https://si-track.seruyan.go.id/"` (trailing slash) → stored as `https://si-track.seruyan.go.id` (normalized) ✓
+  - `GET /api/permohonan/{id}/qr` → `{ url: "https://si-track.seruyan.go.id/?track=KPII-TNH-2026-WP9XK2D7", baseUrl: "https://si-track.seruyan.go.id", isFallback: false }` ✓
+  - Clear `public_base_url: ""` → cache invalidated → `GET /api/permohonan/{id}/qr` → `{ url: "http://localhost:3000/?track=...", isFallback: true }` ✓ (fallback works)
+  - Restore `public_base_url: "https://si-track.seruyan.go.id"` → cache invalidated → QR URL kembali ke public domain ✓
+- **Agent-browser E2E tests**:
+  - Login admin → Pengaturan → field "URL Publik Aplikasi" muncul dengan value `https://si-track.seruyan.go.id` + badge emerald "URL valid — QR code akan memakai domain publik" + preview box "https://si-track.seruyan.go.id/?track=KPII-TNH-2026-CONTOH1" ✓
+  - Buka permohonan → QR Code tab → URL Tracking Publik shows `https://si-track.seruyan.go.id/?track=KPII-TNH-2026-WP9XK2D7` (BUKAN localhost) + NO warning banner ✓
+  - Clear setting → reload → QR Code tab → warning banner amber muncul: "QR code memakai URL localhost — tidak bisa dipindai dari HP pemohon!" + URL shows `http://localhost:3000/?track=...` ✓
+  - Klik "Muat ulang" → QR re-fetch dengan URL terbaru (bug fix verified — sebelumnya tombol ini tidak berfungsi setelah qrData ter-set) ✓
+  - Restore setting → reload → QR kembali ke public domain, warning banner hilang ✓
+
+## Files Changed (summary)
+- NEW: `src/lib/public-url.ts` (~110 lines) — resolver + cache + normalizer
+- Updated: `src/app/api/permohonan/[id]/qr/route.ts` — use resolvePublicBaseUrl + expose isFallback
+- Updated: `src/app/api/settings/route.ts` — normalize public_base_url on save + invalidate cache
+- Updated: `src/app/api/setup/complete/route.ts` — persist public_base_url + invalidate cache
+- Updated: `src/app/api/permohonan/[id]/status/route.ts` — appUrl via resolvePublicBaseUrl
+- Updated: `src/app/api/permohonan/[id]/notify/route.ts` — appUrl via resolvePublicBaseUrl
+- Updated: `src/app/layout.tsx` — metadataBase via resolvePublicBaseUrl
+- Updated: `src/components/app/admin/SettingsManagement.tsx` — DEFAULTS + KELURAHAN_FIELDS + SettingRow special-case (badge + preview)
+- Updated: `src/components/app/shared/SetupWizard.tsx` — WizardState.app.publicBaseUrl + AppStep field + validation + ReviewStep row
+- Updated: `src/components/app/shared/PermohonanDetail.tsx` — qrData type extended + warning banner + fetchQr guard fix
+- Updated: `scripts/seed.ts` — seed public_base_url=""
+
+## Stage Summary
+- **QR code localhost issue RESOLVED.** Admin kini dapat mengkonfigurasi "URL Publik Aplikasi" di Pengaturan → Identitas Kelurahan (atau via Setup Wizard). QR code pada tanda terima akan meng-encode domain publik tersebut. Jika belum dikonfigurasi, sistem jatuh ke fallback localhost DAN menampilkan warning banner visual di QR Code tab + badge amber di Settings page, sehingga admin tahu persis apa yang perlu diperbaiki.
+- **3-layer resolution**: DB setting (prioritas tertinggi, configurable admin) → NEXT_PUBLIC_APP_URL env (untuk staging/prod) → request origin (localhost fallback).
+- **Cache invalidation**: settings PUT + setup/complete POST langsung bust cache, jadi QR code berikutnya (bahkan di session yang sama) langsung pakai domain baru tanpa restart server.
+- **Normalization otomatis**: trailing slash & path di-strip → hanya origin yang disimpan. `"https://si-track.seruyan.go.id/apa/apa"` → `"https://si-track.seruyan.go.id"`.
+- **Bug fix bonus**: tombol "Muat ulang" di QR Code tab sebelumnya tidak re-fetch karena guard `qrData` di `fetchQr`. Sekarang berfungsi normal.
+- Lint: 0 errors. Dev server: no runtime errors. Semua fitur verified end-to-end via curl API tests + agent-browser UI tests.
+
+## Unresolved Issues / Risks
+- **Default kosong di seed**: sengaja dikosongkan agar admin diprompt untuk set (badge amber). Tapi jika admin lupa set, QR code tetap memakai localhost. Mitigasi: warning banner visual di QR Code tab + badge di Settings.
+- **Cache 60 detik**: jika admin ubah setting langsung via DB (bukan via API), cache tidak ter-bust. Tapi ini edge case — admin normal akan ubah via UI yang sudah invalidate cache.
+- **No HTTPS enforcement**: admin bisa set `http://...` URL. Untuk produksi sebaiknya enforce HTTPS, tapi untuk dev/staging HTTP diperlukan. Dibiarkan fleksibel.
+- **NEXT_PUBLIC_APP_URL env masih dipakai sebagai fallback layer 2**: jika admin tidak set DB setting tapi env var diset, env var dipakai. Berguna untuk deployment yang domainnya diketahui di build time.
+
+## Priority Recommendations for Next Round
+1. **Auto-detect public URL dari Host header**: tambah layer resolusi yang baca `x-forwarded-host` / `host` header dari request (untuk deployment di balik reverse proxy seperti Caddy/Nginx). Hati-hati dengan spoofing — hanya pakai jika header ada dan trusted.
+2. **Validasi HTTPS di produksi**: jika `NODE_ENV=production` dan admin set `http://...`, tampilkan warning tambahan.
+3. **Test kirim email/WA dengan URL publik**: verify bahwa link di email/WA notifikasi juga mengarah ke domain publik (bukan localhost).
+4. **Tanda terima PDF**: pastikan QR code di Tanda Terima PDF (component TandaTerima) juga memakai URL publik — kemungkinan sudah benar karena memakai qrData yang sama, tapi perlu verify.
+5. **History log**: tambah audit log entry khusus saat public_base_url diubah, agar ada trail siapa/berapa kali domain diubah (compliance).

@@ -546,7 +546,13 @@ export function PermohonanDetail() {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   // qr state
-  const [qrData, setQrData] = useState<{ qr: string; url: string; nomorRegister: string } | null>(null);
+  const [qrData, setQrData] = useState<{
+    qr: string;
+    url: string;
+    nomorRegister: string;
+    baseUrl?: string;
+    isFallback?: boolean;
+  } | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
   const [qrCopied, setQrCopied] = useState(false);
 
@@ -606,7 +612,7 @@ export function PermohonanDetail() {
   }, [fetchDetail]);
 
   const fetchQr = useCallback(async () => {
-    if (!selectedPermohonanId || qrData) return;
+    if (!selectedPermohonanId) return;
     setQrLoading(true);
     try {
       const r = await api.getQr(selectedPermohonanId);
@@ -616,7 +622,7 @@ export function PermohonanDetail() {
     } finally {
       setQrLoading(false);
     }
-  }, [selectedPermohonanId, qrData]);
+  }, [selectedPermohonanId]);
 
   const role = user?.role;
   const isPetugasOrAdmin = role === "PETUGAS" || role === "ADMIN";
@@ -1494,6 +1500,24 @@ export function PermohonanDetail() {
 
                 {/* Info & actions */}
                 <div className="space-y-4">
+                  {/* Localhost fallback warning — QR encodes an unreachable URL */}
+                  {qrData?.isFallback && (
+                    <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 flex items-start gap-2.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                          QR code memakai URL localhost — tidak bisa dipindai dari HP pemohon!
+                        </p>
+                        <p className="text-[11px] leading-snug text-muted-foreground">
+                          URL publik aplikasi belum dikonfigurasi. Buka{" "}
+                          <strong>Pengaturan → Identitas Kelurahan → URL Publik Aplikasi</strong>{" "}
+                          dan isi dengan domain publik (contoh:{" "}
+                          <code className="px-1 py-0.5 rounded bg-muted">https://si-track.seruyan.go.id</code>),{" "}
+                          lalu muat ulang QR code ini.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <div className="rounded-lg bg-primary/5 border border-primary/15 p-3">
                     <p className="text-xs font-medium flex items-center gap-1.5 mb-1">
                       <ScanLine className="w-3.5 h-3.5 text-primary" /> URL Tracking Publik

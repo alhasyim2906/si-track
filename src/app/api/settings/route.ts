@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
+import { normalizeBaseUrl, invalidatePublicBaseUrlCache } from "@/lib/public-url";
 
 export async function GET() {
   const items = await db.settings.findMany();
@@ -28,20 +29,38 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "Field 'settings' wajib diisi" }, { status: 400 });
   }
 
-  // Upsert each key-value pair
+  // Normalize certain keys before persisting:
+  //  - public_base_url: strip path/trailing slash → keep only origin, so QR
+  //    codes encode a clean URL. Empty string is preserved (means "use fallback").
+  const normalized: Record<string, string> = {};
   for (const [key, value] of Object.entries(settings)) {
+    if (key === "public_base_url") {
+      normalized[key] = normalizeBaseUrl(String(value).trim());
+    } else {
+      normalized[key] = String(value);
+    }
+  }
+
+  // Upsert each key-value pair
+  for (const [key, value] of Object.entries(normalized)) {
     await db.settings.upsert({
       where: { key },
-      update: { value: String(value) },
-      create: { key, value: String(value) },
+      update: { value },
+      create: { key, value },
     });
+  }
+
+  // If public_base_url was part of this save, bust the resolver cache so the
+  // next QR code / notification renders with the new domain immediately.
+  if ("public_base_url" in normalized) {
+    invalidatePublicBaseUrlCache();
   }
 
   // Audit trail
   await writeAudit(result.session, {
     aksi: "UPDATE",
     modul: "SETTINGS",
-    detail: `Mengubah pengaturan: ${Object.keys(settings).join(", ")}`,
+    detail: `Mengubah pengaturan: ${Object.keys(normalized).join(", ")}`,
   });
 
   // Return updated settings map

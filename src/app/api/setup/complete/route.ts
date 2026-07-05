@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { hashPassword, setSessionCookie, getCurrentUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { STATUS_DEFINITIONS, JENIS_SURAT_SEED, STATUS_PENGUASAAN_SEED } from "@/lib/constants";
+import { normalizeBaseUrl, invalidatePublicBaseUrlCache } from "@/lib/public-url";
 
 /**
  * POST /api/setup/complete — finalize the first-run Setup Wizard.
@@ -132,6 +133,10 @@ export async function POST(req: NextRequest) {
       alamat_kelurahan: app.alamatKantor?.trim() || "",
       telepon_kelurahan: app.teleponKelurahan?.trim() || "",
       email_kelurahan: app.emailKelurahan?.trim() || "",
+      // Public base URL — normalized to origin (no trailing slash) so QR codes
+      // encode a clean tracking URL. Empty string is allowed (falls back to
+      // request origin / env), but admin is encouraged to set it.
+      public_base_url: normalizeBaseUrl(app.publicBaseUrl?.trim() || ""),
     };
 
     // Register format
@@ -191,6 +196,10 @@ export async function POST(req: NextRequest) {
         create: { key, value },
       });
     }
+
+    // Bust the public-base-url cache so the next QR code renders with the
+    // newly-configured domain (instead of waiting up to 60s for cache expiry).
+    invalidatePublicBaseUrlCache();
 
     // ===== Seed master data if empty (StatusProses, JenisSurat, StatusPenguasaan) =====
     const seedPromises: Promise<unknown>[] = [];

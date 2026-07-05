@@ -45,6 +45,8 @@ import {
   TestTube2,
   RefreshCw,
   AlertTriangle,
+  ExternalLink,
+  QrCode,
 } from "lucide-react";
 
 /* ============================================================
@@ -78,6 +80,7 @@ interface WizardState {
     alamatKantor: string;
     teleponKelurahan: string;
     emailKelurahan: string;
+    publicBaseUrl: string;
   };
   admin: {
     name: string;
@@ -115,6 +118,7 @@ const DEFAULT_STATE: WizardState = {
     alamatKantor: "",
     teleponKelurahan: "",
     emailKelurahan: "",
+    publicBaseUrl: "",
   },
   admin: {
     name: "",
@@ -216,6 +220,18 @@ export function SetupWizard({
       if (!state.app.kelurahan.trim()) return "Nama kelurahan wajib diisi";
       if (state.app.emailKelurahan && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(state.app.emailKelurahan)) {
         return "Format email kelurahan tidak valid";
+      }
+      // Public base URL — optional, but if provided must be a valid http(s) URL
+      const pub = state.app.publicBaseUrl.trim();
+      if (pub) {
+        try {
+          const u = new URL(pub);
+          if (u.protocol !== "http:" && u.protocol !== "https:") {
+            return "URL publik harus diawali http:// atau https://";
+          }
+        } catch {
+          return "URL publik tidak valid (contoh: https://si-track.seruyan.go.id)";
+        }
       }
     }
     if (s === 2 && !skipAdminStep) {
@@ -647,6 +663,30 @@ function AppStep({
             />
           </div>
         </div>
+        <div className="space-y-1.5 sm:col-span-2">
+          <FieldLabel>URL Publik Aplikasi</FieldLabel>
+          <div className="relative">
+            <ExternalLink className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input
+              type="url"
+              value={state.publicBaseUrl}
+              onChange={(e) => set("publicBaseUrl", e.target.value)}
+              placeholder="https://si-track.seruyan.go.id"
+              className="bg-input/50 pl-8"
+            />
+          </div>
+          <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-2">
+            <QrCode className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              <strong className="text-foreground">Penting untuk QR code.</strong> Domain publik
+              tempat masyarakat mengakses aplikasi. QR code pada tanda terima akan{" "}
+              <em>meng-encode</em> URL ini — jika kosong, QR akan memakai{" "}
+              <code className="px-1 py-0.5 rounded bg-muted">localhost</code> dan tidak bisa
+              dipindai dari HP pemohon. Contoh:{" "}
+              <code className="px-1 py-0.5 rounded bg-muted">https://si-track.seruyan.go.id</code>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1029,6 +1069,14 @@ function ReviewStep({
         <ReviewRow label="Alamat" value={state.app.alamatKantor || "—"} />
         <ReviewRow label="Telepon" value={state.app.teleponKelurahan || "—"} />
         <ReviewRow label="Email" value={state.app.emailKelurahan || "—"} />
+        <ReviewRow
+          label="URL Publik"
+          value={
+            state.app.publicBaseUrl.trim()
+              ? state.app.publicBaseUrl.trim()
+              : "— (QR code akan memakai localhost)"
+          }
+        />
       </ReviewCard>
 
       <ReviewCard icon={ShieldCheck} title="Akun Administrator" color="#d4af37">

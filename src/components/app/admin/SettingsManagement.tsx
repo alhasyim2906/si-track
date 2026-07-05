@@ -75,6 +75,10 @@ const DEFAULTS: Record<string, string> = {
   telepon_kelurahan: "(0532) 123456",
   email_kelurahan: "kppi@seruyankab.go.id",
   kode_pos: "74214",
+  // Public base URL — used for QR code tracking URLs, OpenGraph metadata, and
+  // {app_url} in notification templates. MUST be set to the real public domain
+  // (e.g. https://si-track.seruyan.go.id) so QR codes scanned on a phone work.
+  public_base_url: "",
   maintenance_mode: "false",
   auto_notify: "true",
   require_pengukuran: "true",
@@ -152,6 +156,15 @@ const KELURAHAN_FIELDS: FieldDef[] = [
   { key: "telepon_kelurahan", label: "Telepon", icon: Phone, type: "text", placeholder: "Nomor telepon" },
   { key: "email_kelurahan", label: "Email", icon: Mail, type: "text", placeholder: "Alamat email" },
   { key: "kode_pos", label: "Kode Pos", icon: Hash, type: "text", placeholder: "Kode pos" },
+  {
+    key: "public_base_url",
+    label: "URL Publik Aplikasi",
+    description:
+      "Domain publik tempat aplikasi diakses oleh masyarakat (contoh: https://si-track.seruyan.go.id). Digunakan untuk QR code tracking, metadata OpenGraph, dan template {app_url} notifikasi. Jika kosong, QR code akan menampilkan URL internal (localhost) dan tidak bisa dipindai dari HP.",
+    icon: ExternalLink,
+    type: "text",
+    placeholder: "https://si-track.seruyan.go.id",
+  },
 ];
 
 const SYSTEM_FIELDS: FieldDef[] = [
@@ -319,6 +332,26 @@ const BRANDING_SPECS: BrandingAssetSpec[] = [
    ============================================================ */
 function SettingRow({ field, value, onChange }: { field: FieldDef; value: string; onChange: (v: string) => void }) {
   const Icon = field.icon;
+  // Special preview for public_base_url: show a live QR tracking URL preview
+  // + warning badge so the admin immediately sees whether the value is valid
+  // and what the QR code will encode.
+  const isPublicUrlField = field.key === "public_base_url";
+  const trimmedVal = (value || "").trim();
+  let urlState: "empty" | "invalid" | "valid" = "empty";
+  if (trimmedVal) {
+    try {
+      const u = new URL(trimmedVal);
+      urlState = u.protocol === "http:" || u.protocol === "https:" ? "valid" : "invalid";
+    } catch {
+      urlState = "invalid";
+    }
+  }
+  // Normalize for preview (strip trailing slash)
+  const normalizedBase = urlState === "valid" ? new URL(trimmedVal).origin : "";
+  const previewTrackUrl = normalizedBase
+    ? `${normalizedBase}/?track=KPII-TNH-2026-CONTOH1`
+    : "http://localhost:3000/?track=KPII-TNH-2026-CONTOH1 (fallback — belum dikonfigurasi)";
+
   return (
     <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
       <div className="flex items-center gap-2.5 sm:w-56 shrink-0">
@@ -357,8 +390,42 @@ function SettingRow({ field, value, onChange }: { field: FieldDef; value: string
             placeholder={field.placeholder}
             value={field.type === "number" ? (value || "") : value}
             onChange={(e) => onChange(e.target.value)}
-            className="max-w-xs"
+            className={isPublicUrlField ? "max-w-md" : "max-w-xs"}
           />
+        )}
+
+        {/* Live preview + validation badge for public_base_url */}
+        {isPublicUrlField && (
+          <div className="mt-2 space-y-1.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              {urlState === "empty" && (
+                <Badge variant="outline" className="text-amber-600 border-amber-500/40 bg-amber-500/10">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Belum dikonfigurasi — QR code akan memakai localhost
+                </Badge>
+              )}
+              {urlState === "invalid" && (
+                <Badge variant="outline" className="text-destructive border-destructive/40 bg-destructive/10">
+                  <XCircle className="w-3 h-3 mr-1" />
+                  URL tidak valid — harus diawali http:// atau https://
+                </Badge>
+              )}
+              {urlState === "valid" && (
+                <Badge variant="outline" className="text-emerald-600 border-emerald-500/40 bg-emerald-500/10">
+                  <CheckCircle2 className="w-3 h-3 mr-1" />
+                  URL valid — QR code akan memakai domain publik
+                </Badge>
+              )}
+            </div>
+            <div className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">
+                Preview URL tracking (ter Encode di QR code)
+              </p>
+              <p className="text-xs font-mono break-all leading-snug">
+                {previewTrackUrl}
+              </p>
+            </div>
+          </div>
         )}
       </div>
     </div>

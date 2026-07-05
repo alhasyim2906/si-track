@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegistrar } from "@/components/app/ServiceWorkerRegistrar";
 import { db } from "@/lib/db";
+import { resolvePublicBaseUrl } from "@/lib/public-url";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,8 +56,16 @@ export async function generateMetadata(): Promise<Metadata> {
   const icon512 = s.branding_app_icon_512_url || "/logo.svg";
   const appleIcon = s.branding_app_icon_192_url || s.branding_logo_url || "/logo.svg";
 
+  // Resolve the public base URL (from DB setting → env → fallback).
+  // Used as metadataBase so OpenGraph / Twitter card / canonical URLs resolve
+  // to the real public domain instead of http://localhost:3000.
+  const publicBaseUrl = await resolvePublicBaseUrl();
+  const metadataBaseUrl = publicBaseUrl
+    ? new URL(publicBaseUrl)
+    : new URL("http://localhost:3000");
+
   return {
-    metadataBase: new URL("http://localhost:3000"),
+    metadataBase: metadataBaseUrl,
     title,
     description,
     keywords: [appName, "Tracking Surat Tanah", "Kelurahan Kuala Pembuang II", "Pelayanan Publik"],

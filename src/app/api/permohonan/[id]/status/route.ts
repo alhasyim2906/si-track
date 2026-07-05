@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { STATUS_BY_KODE, nextStatus, NOTIF_TEMPLATES } from "@/lib/constants";
 import { dispatchPermohonanNotification, type NotifyContext } from "@/lib/notify";
+import { resolvePublicBaseUrl } from "@/lib/public-url";
 
 // POST /api/permohonan/[id]/status — advance / change status
 // body: { statusKode?: string, catatan?: string, alasanDitolak?: string }
@@ -124,7 +125,7 @@ export async function POST(
         kelurahanAlamat: kMap.alamat_kelurahan,
         kelurahanTelepon: kMap.telepon_kelurahan,
         kelurahanEmail: kMap.email_kelurahan,
-        appUrl: process.env.NEXT_PUBLIC_APP_URL || "",
+        appUrl: await resolvePublicBaseUrl(new URL(req.url).origin),
       };
       notifyResults = await dispatchPermohonanNotification(
         id,

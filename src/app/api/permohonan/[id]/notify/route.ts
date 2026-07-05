@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { dispatchPermohonanNotification, type NotifyContext } from "@/lib/notify";
+import { resolvePublicBaseUrl } from "@/lib/public-url";
 
 /**
  * POST /api/permohonan/[id]/notify
@@ -64,7 +65,7 @@ export async function POST(
     kelurahanAlamat: kMap.alamat_kelurahan,
     kelurahanTelepon: kMap.telepon_kelurahan,
     kelurahanEmail: kMap.email_kelurahan,
-    appUrl: process.env.NEXT_PUBLIC_APP_URL || "",
+    appUrl: await resolvePublicBaseUrl(new URL(req.url).origin),
   };
 
   const results = await dispatchPermohonanNotification(id, triggerStatus, ctx, current.user.id, {

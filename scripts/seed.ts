@@ -292,6 +292,15 @@ async function main() {
   await db.settings.upsert({ where: { key: "register_prefix" }, update: {}, create: { key: "register_prefix", value: "KPII-TNH" } });
   await db.settings.upsert({ where: { key: "register_digit_count" }, update: {}, create: { key: "register_digit_count", value: "8" } });
   await db.settings.upsert({ where: { key: "register_use_random" }, update: {}, create: { key: "register_use_random", value: "true" } });
+  // Public base URL — left empty on fresh seed so admin is prompted to set it
+  // (Settings page shows an amber warning badge). Admin should set this to the
+  // real public domain (e.g. https://si-track.seruyan.go.id) so QR codes in
+  // tanda terima don't encode a localhost URL.
+  await db.settings.upsert({
+    where: { key: "public_base_url" },
+    update: {},
+    create: { key: "public_base_url", value: "" },
+  });
   // Mark setup as complete for the seeded demo data so the Setup Wizard
   // doesn't auto-trigger on an already-seeded database. New/empty databases
   // will have no `setup_complete` row → wizard triggers automatically.
