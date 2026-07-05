@@ -2516,3 +2516,19 @@ Project stable setelah Task 22 (scrollbar Daftar Permohonan + manajemen Status P
 6. **Audit log export**: tambah tombol "Export CSV" di Audit Log page untuk download entries (berguna untuk compliance).
 7. **Pagination di Reports & SlaTracking**: tambah PaginationBar di Reports table dan SlaTracking list agar list panjang bisa di-paging (bukan hanya scroll).
 8. **Continue with previously-queued features**: PWA polish, map integration, Tanda Terima PDF polish (include riwayat tanah + status penguasaan + branding logo).
+
+---
+Task ID: 24
+Agent: main
+Task: Fix hydration mismatch error on <body> tag caused by browser extension (Grammarly) injecting data-* attributes.
+
+Work Log:
+- User reported console hydration mismatch error: server-rendered <body> did not match client because Grammarly browser extension injected `data-new-gr-c-s-check-loaded="14.1307.0"` and `data-gr-ext-installed=""` attributes into <body> before React hydrated.
+- Root cause: the <html> tag already had `suppressHydrationWarning` but the <body> tag did not, so React flagged the attribute diff as a hydration mismatch.
+- Fix: added `suppressHydrationWarning` attribute to the <body> element in `src/app/layout.tsx` (line 123). This tells React to skip attribute-level diffing on <body>, which is the documented solution for browser-extension-injected attributes.
+- Verified: `bun run lint` → 0 errors. Dev server compiled clean (`✓ Compiled in 213ms`). agent-browser opened http://localhost:3000/ → `agent-browser console` showed only React DevTools info + HMR connected (NO hydration warning). `agent-browser errors` → empty. Page snapshot confirmed full render (header, hero, tracking form, stats, footer).
+
+Stage Summary:
+- Hydration mismatch on <body> RESOLVED. The fix is a one-line attribute addition (`suppressHydrationWarning`) consistent with the existing <html> tag pattern.
+- No behavioral change; React still hydrates the body's children normally — only attribute-level warnings on the body element itself are suppressed.
+- This is a defensive fix that handles ALL browser extensions (Grammarly, LastPass, password managers, dark readers, etc.) that inject data-* / class attributes into <body>.
