@@ -40,7 +40,7 @@ import {
   Phone, MapPinned, Tag, Gauge, ScanLine, FileType2, Printer,
   ChevronDown, FileImage, IdCard, Home, Compass, Paperclip,
   Mail, Send, Bell, Inbox, UserRound, FileCheck2, Plus, Landmark,
-  Wallet,
+  Wallet, FileDown, ExternalLink,
 } from "lucide-react";
 import { TandaTerima } from "@/components/app/shared/TandaTerima";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -573,6 +573,13 @@ export function PermohonanDetail() {
   // resend notification state (manual re-dispatch email + WA)
   const [resendingNotify, setResendingNotify] = useState(false);
 
+  // tanda terima dispatch state (PDF receipt via Email + WA)
+  const [sendingTandaTerima, setSendingTandaTerima] = useState(false);
+  const [tandaTerimaResult, setTandaTerimaResult] = useState<
+    null | { ok: boolean; ok_count: number; fail_count: number; fails: { channel: string; error: string }[]; ts: number }
+  >(null);
+  const [waLinkLoading, setWaLinkLoading] = useState(false);
+
   // collapsible section state
   const [pemohonOpen, setPemohonOpen] = useState(true);
   const [tanahOpen, setTanahOpen] = useState(true);
@@ -747,6 +754,95 @@ export function PermohonanDetail() {
     } finally {
       setResendingNotify(false);
     }
+  };
+
+  // Manual dispatch of the Tanda Terima PDF via Email + WhatsApp.
+  // Generates the PDF server-side, attaches to email, sends WhatsApp message
+  // with tracking link. Failures are surfaced in a result banner so the
+  // petugas knows which channels succeeded/failed.
+  const handleSendTandaTerima = async () => {
+    if (!selectedPermohonanId) return;
+    if (!p) return;
+    if (!p.pemohonEmail && !p.pemohonHp) {
+      toast.error("Pemohon tidak memiliki email maupun nomor HP. Lengkapi data pemohon terlebih dahulu.");
+      return;
+    }
+    setSendingTandaTerima(true);
+    setTandaTerimaResult(null);
+    try {
+      const r = await api.sendTandaTerima(selectedPermohonanId, true);
+      if (!r.ok) {
+        toast.error(r.error || "Gagal mengirim tanda terima");
+        setTandaTerimaResult({
+          ok: false,
+          ok_count: 0,
+          fail_count: 1,
+          fails: [{ channel: "system", error: r.error || "unknown" }],
+          ts: Date.now(),
+        });
+        return;
+      }
+      const ok = r.results.filter((x) => x.success).length;
+      const fails = r.results.filter((x) => !x.success);
+      setTandaTerimaResult({
+        ok: ok > 0,
+        ok_count: ok,
+        fail_count: fails.length,
+        fails: fails.map((f) => ({ channel: f.channel, error: f.error || "unknown" })),
+        ts: Date.now(),
+      });
+      if (ok > 0 && fails.length === 0) {
+        toast.success(
+          `Tanda terima berhasil dikirim ke ${ok} channel (${r.results.map((x) => x.channel.toUpperCase()).join(", ")})`
+        );
+      } else if (ok > 0 && fails.length > 0) {
+        toast.warning(
+          `${ok} channel berhasil, ${fails.length} gagal: ${fails.map((f) => `${f.channel.toUpperCase()} (${f.error})`).join(", ")}`
+        );
+      } else {
+        const reasons = r.results.map((x) => `${x.channel.toUpperCase()}: ${x.error || "unknown"}`).join(" | ");
+        toast.error(`Tanda terima gagal dikirim — ${reasons}`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal mengirim tanda terima");
+      setTandaTerimaResult({
+        ok: false,
+        ok_count: 0,
+        fail_count: 1,
+        fails: [{ channel: "system", error: e?.message || "unknown" }],
+        ts: Date.now(),
+      });
+    } finally {
+      setSendingTandaTerima(false);
+    }
+  };
+
+  // Open WhatsApp with pre-filled tanda terima message (manual fallback).
+  // Useful when Fonnte is not configured — petugas clicks this, WhatsApp
+  // Web/App opens with the message ready to send.
+  const handleOpenWaLink = async () => {
+    if (!selectedPermohonanId) return;
+    setWaLinkLoading(true);
+    try {
+      const r = await api.getTandaTerimaWaLink(selectedPermohonanId);
+      if (!r.link) {
+        toast.error("Nomor HP pemohon tidak valid atau tidak tersedia");
+        return;
+      }
+      window.open(r.link, "_blank", "noopener,noreferrer");
+      toast.info("WhatsApp terbuka di tab baru — kirim pesan + lampirkan PDF secara manual.");
+    } catch (e: any) {
+      toast.error(e?.message || "Gagal membuka WhatsApp");
+    } finally {
+      setWaLinkLoading(false);
+    }
+  };
+
+  // Download the Tanda Terima PDF (opens in new tab as inline preview).
+  const handleDownloadPdf = () => {
+    if (!selectedPermohonanId) return;
+    const url = api.tandaTerimaPdfUrl(selectedPermohonanId);
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const handleEditSave = async () => {
@@ -977,30 +1073,110 @@ export function PermohonanDetail() {
 
           {/* Action buttons row */}
           {isPetugasOrAdmin && (
-            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-border/40">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={openTandaTerima}
-                className="gold-border text-primary hover:bg-primary/10"
-              >
-                <Printer className="w-4 h-4" /> Cetak Tanda Terima
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResendNotify}
-                disabled={resendingNotify}
-                className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
-                title="Kirim ulang notifikasi Email & WhatsApp ke pemohon"
-              >
-                {resendingNotify ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}{" "}
-                Kirim Ulang Notifikasi
-              </Button>
+            <div className="space-y-3 pt-3 border-t border-border/40">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openTandaTerima}
+                  className="gold-border text-primary hover:bg-primary/10"
+                >
+                  <Printer className="w-4 h-4" /> Cetak Tanda Terima
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadPdf}
+                  className="border-[#d4af37]/40 text-[#b8941f] hover:bg-[#d4af37]/10"
+                  title="Unduh / pratinjau PDF tanda terima"
+                >
+                  <FileDown className="w-4 h-4" /> Unduh PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSendTandaTerima}
+                  disabled={sendingTandaTerima}
+                  className="border-[#d4af37]/50 text-[#b8941f] hover:bg-[#d4af37]/10 bg-[#d4af37]/[0.04]"
+                  title="Kirim PDF tanda terima ke pemohon via Email + WhatsApp"
+                >
+                  {sendingTandaTerima ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}{" "}
+                  Kirim Tanda Terima
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenWaLink}
+                  disabled={waLinkLoading || !p?.pemohonHp}
+                  className="border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10"
+                  title="Buka WhatsApp dengan pesan tanda terima terisi (manual fallback)"
+                >
+                  {waLinkLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-4 h-4" />
+                  )}{" "}
+                  Buka WA
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleResendNotify}
+                  disabled={resendingNotify}
+                  className="border-blue-500/40 text-blue-600 hover:bg-blue-500/10"
+                  title="Kirim ulang notifikasi status (REVISI/SELESAI) ke pemohon"
+                >
+                  {resendingNotify ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Bell className="w-4 h-4" />
+                  )}{" "}
+                  Kirim Ulang Notifikasi
+                </Button>
+              </div>
+
+              {/* Tanda Terima dispatch result banner */}
+              {tandaTerimaResult && (
+                <div
+                  className={`p-3 rounded-lg border text-[11px] leading-snug ${
+                    tandaTerimaResult.ok && tandaTerimaResult.fail_count === 0
+                      ? "bg-emerald-500/5 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                      : tandaTerimaResult.ok && tandaTerimaResult.fail_count > 0
+                      ? "bg-amber-500/5 border-amber-500/30 text-amber-700 dark:text-amber-400"
+                      : "bg-rose-500/5 border-rose-500/30 text-rose-700 dark:text-rose-400"
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    {tandaTerimaResult.ok && tandaTerimaResult.fail_count === 0 ? (
+                      <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <p className="font-semibold">
+                        Tanda Terima — {tandaTerimaResult.ok_count} channel berhasil
+                        {tandaTerimaResult.fail_count > 0 && `, ${tandaTerimaResult.fail_count} gagal`}
+                      </p>
+                      {tandaTerimaResult.fails.length > 0 && (
+                        <ul className="mt-1 space-y-0.5">
+                          {tandaTerimaResult.fails.map((f, i) => (
+                            <li key={i}>
+                              <span className="font-mono uppercase">{f.channel}</span>: {f.error}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p className="mt-1 text-[10px] opacity-70">
+                        Detail pengiriman dicatat di Audit Log.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

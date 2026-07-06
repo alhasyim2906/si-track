@@ -153,6 +153,18 @@ export async function sendWhatsApp(
 /* Email — pluggable transport (Gmail SMTP / SMTP-API / log)            */
 /* ------------------------------------------------------------------ */
 /**
+ * Optional attachment spec for `sendEmail` / `sendEmailWithAttachment`.
+ * nodemailer accepts either a path or raw content; we use content + filename
+ * + contentType so we can attach a freshly-generated PDF Buffer without
+ * having to write it to disk first.
+ */
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer | string;
+  contentType?: string;
+}
+
+/**
  * Send an email. Strategy:
  *   1. `gmail` — direct SMTP via nodemailer to smtp.gmail.com:465 (SSL).
  *      Uses `notify_email_gmail_user` + `notify_email_gmail_app_password`.
@@ -161,12 +173,19 @@ export async function sendWhatsApp(
  *   2. `smtp_api` — POST JSON {from, to, subject, html} to an external
  *      SMTP-to-HTTP bridge URL (Mailgun, SendGrid, Resend, SMTP2GO, …).
  *   3. `log` — dev mode, just prints to server console.
+ *
+ * Attachments are only supported by the `gmail` provider (which uses
+ * nodemailer's full MIME support). The `smtp_api` and `log` providers
+ * ignore attachments — callers that need attachment delivery should
+ * configure Gmail (or upgrade the SMTP-API bridge to a multipart-aware
+ * endpoint).
  */
 export async function sendEmail(
   settings: Record<string, string>,
   to: string,
   subject: string,
-  html: string
+  html: string,
+  attachments?: EmailAttachment[]
 ): Promise<NotifyResult> {
   if (!to) {
     return { channel: "email", success: false, error: "Alamat email penerima tidak tersedia" };
@@ -201,13 +220,21 @@ export async function sendEmail(
           pass: settings.notify_email_gmail_app_password,
         },
       });
-      const info = await transporter.sendMail({
+      const mailOptions: any = {
         from: `${fromName} <${gmailUser}>`,
         to,
         subject,
         html,
         text: html.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, ""),
-      });
+      };
+      if (attachments && attachments.length > 0) {
+        mailOptions.attachments = attachments.map((a) => ({
+          filename: a.filename,
+          content: a.content,
+          contentType: a.contentType || "application/octet-stream",
+        }));
+      }
+      await transporter.sendMail(mailOptions);
       return { channel: "email", success: true, recipient: to, error: undefined };
     } catch (e: any) {
       // Common Gmail errors: 535-5.7.1 = bad app password, EAUTH = auth failed
@@ -229,10 +256,23 @@ export async function sendEmail(
       if (settings.notify_email_api_key) {
         headers.Authorization = `Bearer ${settings.notify_email_api_key}`;
       }
+      const body: any = { from, to, subject, html };
+      if (attachments && attachments.length > 0) {
+        // SMTP-API bridges that want attachments must accept a base64-encoded
+        // `attachments` array (Mailgun / Resend / SendGrid convention).
+        body.attachments = attachments.map((a) => ({
+          filename: a.filename,
+          contentType: a.contentType || "application/octet-stream",
+          content: Buffer.isBuffer(a.content)
+            ? a.content.toString("base64")
+            : Buffer.from(a.content).toString("base64"),
+          encoding: "base64",
+        }));
+      }
       const res = await fetch(settings.notify_email_api_url, {
         method: "POST",
         headers,
-        body: JSON.stringify({ from, to, subject, html }),
+        body: JSON.stringify(body),
       });
       const text = await res.text();
       if (!res.ok) {
@@ -256,6 +296,13 @@ export async function sendEmail(
 
   // Provider = "log" — dev mode, just print to server log
   console.log(`[EMAIL:LOG-MODE] To: ${to} | From: ${fromGmail} | Subject: ${subject}`);
+  if (attachments && attachments.length > 0) {
+    console.log(
+      `[EMAIL:LOG-MODE] Attachments: ${attachments
+        .map((a) => `${a.filename} (${Buffer.isBuffer(a.content) ? a.content.length : a.content.length} bytes)`)
+        .join(", ")}`
+    );
+  }
   console.log(`[EMAIL:LOG-MODE] Body: ${html.slice(0, 500)}...`);
   return { channel: "email", success: true, recipient: to };
 }
@@ -354,6 +401,235 @@ export async function dispatchPermohonanNotification(
       modul: "PERMOHONAN",
       entitasId: permohonanId,
       detail: `Notifikasi ${triggerStatus} → ${summary}`,
+    },
+  });
+
+  return results;
+}
+
+/* ------------------------------------------------------------------ */
+/* WhatsApp with file attachment (Fonnte `url` field)                  */
+/* ------------------------------------------------------------------ */
+/**
+ * Send a WhatsApp message with a file attachment via Fonnte API.
+ *
+ * Fonnte supports sending documents/images by passing a public `url` field
+ * pointing to the file. The file must be reachable from Fonnte's servers
+ * (i.e., NOT localhost). We resolve the public base URL the same way the
+ * QR code does — so the file URL works as long as the admin has configured
+ * `public_base_url` in Settings.
+ *
+ * If `fileUrl` is empty or `schedule` is omitted, this falls back to plain
+ * `sendWhatsApp` (text-only).
+ *
+ * Reference: https://docs.fonnte.com/en/api/send-message.html
+ */
+export async function sendWhatsAppWithAttachment(
+  token: string,
+  phone: string,
+  message: string,
+  opts: {
+    fileUrl?: string;
+    filename?: string;
+    fileType?: "pdf" | "image" | "audio" | "video" | "document";
+  } = {}
+): Promise<NotifyResult> {
+  if (!token) {
+    return { channel: "wa", success: false, error: "Fonnte API token belum dikonfigurasi" };
+  }
+  const target = normalizePhone(phone);
+  if (!target) {
+    return { channel: "wa", success: false, error: "Nomor telepon tidak valid" };
+  }
+
+  // No attachment → fall back to plain text WhatsApp
+  if (!opts.fileUrl) {
+    return sendWhatsApp(token, phone, message);
+  }
+
+  try {
+    const fd = new FormData();
+    fd.append("target", target);
+    fd.append("message", message);
+    fd.append("countryCode", "62");
+    fd.append("url", opts.fileUrl);
+    if (opts.filename) fd.append("filename", opts.filename);
+    // Fonnte auto-detects type from URL when `fileType` is omitted; we send
+    // it anyway for explicitness when known.
+    if (opts.fileType) fd.append("fileType", opts.fileType);
+
+    const res = await fetch("https://api.fonnte.com/send", {
+      method: "POST",
+      headers: { Authorization: token },
+      body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data?.status === false) {
+      return {
+        channel: "wa",
+        success: false,
+        error: data?.message || data?.reason || `HTTP ${res.status}`,
+        recipient: target,
+      };
+    }
+    return { channel: "wa", success: true, recipient: target };
+  } catch (e: any) {
+    return {
+      channel: "wa",
+      success: false,
+      error: e?.message || "Network error",
+      recipient: target,
+    };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Tanda Terima dispatcher — fired on permohonan creation              */
+/* ------------------------------------------------------------------ */
+/**
+ * Build the WhatsApp "tanda terima" deep-link URL as a fallback when the
+ * Fonnte API token is not configured. The user (petugas) can click this
+ * link to open WhatsApp Web/App with the message pre-filled, then send
+ * manually. This keeps the feature usable even without a paid WA gateway.
+ *
+ * The link opens a chat with the pemohon's phone number and pre-fills the
+ * tanda terima message. The PDF file cannot be attached via wa.me (WhatsApp
+ * deep links don't support attachments) — the message includes a download
+ * link instead.
+ */
+export function buildWhatsAppDeepLink(phone: string, message: string): string {
+  const target = normalizePhone(phone);
+  if (!target) return "";
+  // wa.me requires the message to be URL-encoded; line breaks use %0A.
+  const text = encodeURIComponent(message);
+  return `https://wa.me/${target}?text=${text}`;
+}
+
+/**
+ * Dispatch the "Tanda Terima Permohonan" notification when a new permohonan
+ * is registered. This sends BOTH:
+ *   - An email with the PDF Tanda Terima attached.
+ *   - A WhatsApp message with a download link to the PDF (and the PDF
+ *     attached directly if Fonnte token is set + public URL reachable).
+ *
+ * Templates are read from Settings (notify_tpl_tanda_terima_email,
+ * notify_tpl_tanda_terima_wa, notify_tpl_tanda_terima_subject) with
+ * sensible defaults.
+ *
+ * The PDF Buffer is generated by the caller (using
+ * `generateTandaTerimaPdf` from `src/lib/tanda-terima-pdf.ts`) and passed
+ * in — this keeps the dispatcher pure and easy to unit-test.
+ */
+export async function dispatchTandaTerimaNotification(
+  permohonanId: string,
+  ctx: NotifyContext & {
+    pdfBuffer: Buffer;
+    pdfFilename: string;
+    pdfPublicUrl?: string; // optional public download URL (for WA fallback)
+  },
+  actorUserId: string,
+  opts: { force?: boolean } = {}
+): Promise<NotifyResult[]> {
+  const settings = await getNotifySettings();
+  const results: NotifyResult[] = [];
+
+  const emailEnabled =
+    opts.force || (settings.notify_email_enabled ?? "true") === "true";
+  const waEnabled =
+    opts.force || (settings.notify_wa_enabled ?? "true") === "true";
+  const autoEnabled =
+    opts.force || (settings.notify_tanda_terima_auto ?? "true") === "true";
+  const fonnteToken = settings.notify_fonnte_token || "";
+
+  // If auto-send is disabled (and not forced), skip entirely.
+  if (!autoEnabled && !opts.force) {
+    await db.auditLog.create({
+      data: {
+        userId: actorUserId,
+        aksi: "NOTIFY_SKIP",
+        modul: "PERMOHONAN",
+        entitasId: permohonanId,
+        detail: "Tanda Terima tidak dikirim otomatis (notify_tanda_terima_auto=false)",
+      },
+    });
+    return [];
+  }
+
+  // Default templates — short, professional, includes register + tracking URL.
+  const DEFAULT_SUBJECT = `Tanda Terima Permohonan Surat Tanah — {nomor_register}`;
+  const DEFAULT_EMAIL = `Yth. {pemohon_nama},\n\nPermohonan pendaftaran surat tanah Anda telah kami terima dan didaftarkan dengan rincian:\n\nNomor Register: {nomor_register}\nJenis Surat: {jenis_surat}\nTanggal: {tanggal}\n\nTanda terima resmi terlampir dalam email ini (format PDF). Mohon simpan baik-baik — Anda dapat melacak status permohonan melalui Nomor Register atau QR Code pada tanda terima.\n\nLacak status: {app_url}\n\nUntuk pertanyaan, hubungi:\n{kelurahan_nama}\n{kelurahan_alamat}\nTelepon: {kelurahan_telepon}\nEmail: {kelurahan_email}\n\nTerima kasih atas kepercayaan Anda.\n\nHormat kami,\n{kelurahan_nama}`;
+  const DEFAULT_WA = `*{kelurahan_nama}*\n\nYth. {pemohon_nama},\n\nPermohonan surat tanah Anda telah kami terima & daftarkan.\n\n*Nomor Register:* {nomor_register}\n*Jenis Surat:* {jenis_surat}\n*Tanggal:* {tanggal}\n\n📄 Tanda terima resmi terlampir (PDF).\n\nLacak status: {app_url}\n\nSimpan nomor register untuk referensi. Terima kasih. 🙏`;
+
+  const subjectTemplate =
+    settings.notify_tpl_tanda_terima_subject || DEFAULT_SUBJECT;
+  const emailTemplate =
+    settings.notify_tpl_tanda_terima_email || DEFAULT_EMAIL;
+  const waTemplate = settings.notify_tpl_tanda_terima_wa || DEFAULT_WA;
+
+  const subject = renderTemplate(subjectTemplate, ctx);
+  const emailBody = renderTemplate(emailTemplate, ctx);
+  const waBody = renderTemplate(waTemplate, ctx);
+  const emailHtml = emailBody.replace(/\n/g, "<br/>");
+
+  const attachment: EmailAttachment = {
+    filename: ctx.pdfFilename,
+    content: ctx.pdfBuffer,
+    contentType: "application/pdf",
+  };
+
+  // Fire both channels in parallel
+  const tasks: Promise<NotifyResult>[] = [];
+  if (emailEnabled && ctx.pemohonEmail) {
+    tasks.push(sendEmail(settings, ctx.pemohonEmail, subject, emailHtml, [attachment]));
+  } else if (emailEnabled && !ctx.pemohonEmail) {
+    tasks.push(
+      Promise.resolve<NotifyResult>({
+        channel: "email",
+        success: false,
+        error: "Pemohon tidak memiliki alamat email",
+      })
+    );
+  }
+  if (waEnabled && ctx.pemohonHp) {
+    // If we have a public URL for the PDF, send via Fonnte with attachment.
+    // Otherwise, fall back to text-only WhatsApp (the message includes the
+    // {app_url} link to the tracking page, where the pemohon can download
+    // the receipt via the "Unduh Tanda Terima" button).
+    if (ctx.pdfPublicUrl && fonnteToken) {
+      tasks.push(
+        sendWhatsAppWithAttachment(fonnteToken, ctx.pemohonHp, waBody, {
+          fileUrl: ctx.pdfPublicUrl,
+          filename: ctx.pdfFilename,
+          fileType: "pdf",
+        })
+      );
+    } else {
+      tasks.push(sendWhatsApp(fonnteToken, ctx.pemohonHp, waBody));
+    }
+  } else if (waEnabled && !ctx.pemohonHp) {
+    tasks.push(
+      Promise.resolve<NotifyResult>({
+        channel: "wa",
+        success: false,
+        error: "Pemohon tidak memiliki nomor HP",
+      })
+    );
+  }
+
+  const settled = await Promise.all(tasks);
+  results.push(...settled);
+
+  // Persist a single audit-log entry summarizing the dispatch
+  const summary = results
+    .map((r) => `${r.channel.toUpperCase()}: ${r.success ? "OK" : `FAIL (${r.error})`}`)
+    .join(" | ");
+  await db.auditLog.create({
+    data: {
+      userId: actorUserId,
+      aksi: "TANDA_TERIMA_DISPATCH",
+      modul: "PERMOHONAN",
+      entitasId: permohonanId,
+      detail: `Tanda Terima dikirim → ${summary}`,
     },
   });
 

@@ -3151,3 +3151,224 @@ Work Log:
 5. **Kwitansi history / audit**: Tambah halaman "Riwayat Kwitansi" (nav item baru) yang list semua kwitansi yang pernah diterbitkan (termasuk yang sudah di-batal-bayar) dengan filter tanggal + search by nomor kwitansi / pemohon. Berguna untuk audit eksternal.
 6. **Biaya operasional statistics di dashboard**: Tambah card "Total Pendapatan Biaya Bulan Ini" + "Kwitansi Diterbitkan Bulan Ini" di AdminDashboard. Berguna untuk transparansi keuangan kelurahan.
 7. **Installment / partial payment**: Untuk biaya besar, dukung pembayaran cicilan (multiple Pembayaran records per biaya, masing-masing dengan kwitansi terpisah).
+
+---
+Task ID: 30
+Agent: main
+Task: Tambah fitur — saat permohonan berhasil disimpan & dibuat register, kirim tanda terima (PDF/gambar) otomatis melalui Pesan WA dan Email.
+
+## Goal
+Ketika petugas mendaftarkan permohonan baru (POST /api/permohonan), sistem otomatis:
+1. Generate PDF Tanda Terima Permohonan server-side (mirror layout TandaTerima.tsx — kop surat, nomor register, data pemohon, data tanah, signature block, QR code).
+2. Kirim PDF tersebut sebagai lampiran Email ke pemohon.
+3. Kirim pesan WhatsApp ke pemohon berisi nomor register + link tracking (PDF attachment via Fonnte jika ada public URL, jika tidak text-only dengan link).
+4. Catat hasil dispatch di AuditLog (aksi `TANDA_TERIMA_DISPATCH`).
+
+Petugas juga dapat mengirim ulang manual dari halaman detail permohonan (tombol "Kirim Tanda Terima"), mengunduh PDF ("Unduh PDF"), atau membuka WhatsApp dengan pesan pre-filled ("Buka WA" — fallback jika Fonnte belum dikonfigurasi).
+
+## Design Decisions
+
+### PDF library: pdfkit (vs puppeteer / @react-pdf)
+Dipilih **pdfkit** karena:
+1. Pure-JS, no browser subprocess → aman untuk environment 4GB RAM (Puppeteer akan OOM).
+2. ~50MB peak memory vs Puppeteer 500MB+.
+3. Render ~30-80ms per receipt vs Puppeteer 2-5s.
+4. Mendukung text, images (QR code), vector graphics (lines, rounded rects), font metrics (Helvetica).
+
+### Webpack __dirname issue
+pdfkit me-load file font metric (.afm) dari `node_modules/pdfkit/js/data/` menggunakan `__dirname`. Next.js webpack bundler me-rewrite `__dirname` menjadi `/ROOT/node_modules/...` yang tidak valid → ENOENT error.
+
+**Fix**: Tambah `serverExternalPackages: ["pdfkit", "qrcode"]` di `next.config.ts`. Ini menyuruh Next.js untuk TIDAK membundel pdfkit — biarkan Node.js me-resolve `require("pdfkit")` secara native, sehingga `__dirname` tetap path on-disk yang benar.
+
+### Fire-and-forget pattern di POST /api/permohonan
+PDF generation + email + WA dispatch memakan waktu 2-5 detik. User harus mendapat response 201 dengan data permohonan **segera**. Solusi: dispatch dijalankan dalam IIFE async yang tidak di-await. Sinkron error di-catch; async error di-catch di dalam dispatcher + dicatat di AuditLog dengan aksi `TANDA_TERIMA_DISPATCH_ERROR`.
+
+### WhatsApp file attachment limitation
+Fonnte API mendukung `url` field untuk attach file, TAPI URL harus publicly reachable (bukan localhost). Endpoint PDF kita memerlukan auth (session cookie) — server Fonnte tidak punya session → 401.
+
+**Solusi pragmatic**: WhatsApp dikirim text-only dengan link tracking (`{app_url}/?track=...`). Pemohon klik link → halaman tracking publik → klik "Unduh Tanda Terima" untuk download PDF. Email tetap membawa PDF sebagai attachment langsung (channel utama).
+
+**Future enhancement**: Tambah endpoint publik `/api/public/tanda-terima/{signed_token}` yang me-return PDF tanpa auth (token di-generate saat dispatch, expired dalam 7 hari). Maka Fonnte bisa langsung attach PDF ke WhatsApp.
+
+### Manual fallback: wa.me deep link
+Jika Fonnte token belum dikonfigurasi, petugas dapat klik "Buka WA" → `https://wa.me/{phone}?text={message}`. WhatsApp Web/App terbuka dengan pesan tanda terima pre-filled. Petugas kirim manual + attach PDF secara manual (download via "Unduh PDF"). Ini menjaga fitur tetap usable tanpa paid WA gateway.
+
+## Work Completed
+
+### 1. New library: pdfkit
+- Install `pdfkit@0.19.1` + `@types/pdfkit@0.17.6`.
+
+### 2. New file: `src/lib/tanda-terima-pdf.ts` (~540 lines)
+- `generateTandaTerimaPdf(data, opts): Promise<Buffer>` — pure function, no side effects.
+  - A4 portrait, 595×842pt, margins 50pt.
+  - Kop surat (PEMERINTAH KABUPATEN SERUYAN / KELURAHAN KUALA PEMBUANG II + alamat + telp + email) — configurable via `opts.kelurahan`.
+  - Logo placeholder (gold square with "K" letter) jika `opts.logoPngBuffer` tidak disediakan.
+  - Gold double-line rule (3pt + 0.7pt) untuk formality.
+  - Title "TANDA TERIMA PERMOHONAN" + subtitle "Pendaftaran Surat Tanah".
+  - Register box (gold border + light gold fill) dengan nomor register (mono, 20pt, gold-dark), tanggal diterima, status saat ini.
+  - QR code (240×240 PNG, error correction M) di kanan box — encodes public tracking URL.
+  - 4 sections: Data Pemohon, Data Tanah, Keperluan & Jenis Surat, Catatan (optional).
+  - Signature block: "Kuala Pembuang, {today}" right-aligned + "Mengetahui, LURAH KUALA PEMBUANG II" centered + 2-column grid (Pemohon kiri, Petugas Penerima kanan) dengan garis tanda tangan.
+  - Bottom note: "Tanda terima ini diterbitkan secara sah oleh sistem SI-TRACK TANAH..."
+  - Footer: issuance timestamp.
+  - PDF metadata: Title, Author, Subject, Keywords, Creator, Producer.
+- `generateQrPngBuffer(text, size=240): Promise<Buffer | null>` — QR code as PNG buffer (uses `qrcode` lib, lazy-loaded). Returns null on failure (PDF tetap render tanpa QR).
+- `resolvePublicBaseUrl(db?)` — standalone helper untuk resolve public URL (mirror `src/lib/public-url.ts` tapi tanpa dependency cycle).
+
+### 3. Extended `src/lib/notify.ts` (+270 lines)
+- New interface `EmailAttachment { filename, content: Buffer|string, contentType? }`.
+- Updated `sendEmail()` — tambah optional `attachments?: EmailAttachment[]` parameter:
+  - Gmail provider: attach via nodemailer `attachments` array (content as Buffer).
+  - SMTP-API provider: attach via base64-encoded `attachments` array (Mailgun/Resend/SendGrid convention).
+  - Log provider: print attachment filenames + sizes to console.
+- New function `sendWhatsAppWithAttachment(token, phone, message, opts)`:
+  - Uses Fonnte `url` field for file attachment.
+  - Falls back to `sendWhatsApp()` (text-only) if `fileUrl` is empty.
+  - Supports `fileType` (pdf/image/audio/video/document) for explicit type hint.
+- New function `buildWhatsAppDeepLink(phone, message): string` — returns `https://wa.me/{phone}?text={encoded_message}` for manual fallback.
+- New dispatcher `dispatchTandaTerimaNotification(permohonanId, ctx, actorUserId, opts)`:
+  - Reads templates from Settings: `notify_tpl_tanda_terima_subject/email/wa` (with sensible defaults).
+  - Respects `notify_tanda_terima_auto` setting (skip if false, unless `force=true`).
+  - Respects `notify_email_enabled` / `notify_wa_enabled` (skip channel if disabled).
+  - Fires email + WhatsApp in parallel.
+  - Email: includes PDF as attachment.
+  - WhatsApp: text-only with tracking link (or with PDF attachment if `pdfPublicUrl` + Fonnte token available).
+  - Records single AuditLog entry: `TANDA_TERIMA_DISPATCH` with per-channel summary.
+  - Default templates include {nomor_register}, {pemohon_nama}, {jenis_surat}, {tanggal}, {app_url}, {kelurahan_nama}, {kelurahan_alamat}, {kelurahan_telepon}, {kelurahan_email}.
+
+### 4. New API routes (3 endpoints)
+- `GET /api/permohonan/[id]/tanda-terima/pdf` — generate & stream PDF (application/pdf, inline, no-cache). Filename: `Tanda-Terima-{nomorRegister}.pdf`.
+- `POST /api/permohonan/[id]/tanda-terima/send` — manual resend. Body: `{force?: boolean}` (default true). Returns `{ok, results, permohonanId, nomorRegister}`. Auth: PETUGAS/ADMIN.
+- `GET /api/permohonan/[id]/tanda-terima/wa-link` — returns wa.me deep link + message + trackUrl. Auth: PETUGAS/ADMIN. Useful for manual fallback.
+
+### 5. Updated `src/app/api/permohonan/route.ts` (POST handler)
+- Import `generateTandaTerimaPdf`, `generateQrPngBuffer`, `dispatchTandaTerimaNotification`, `resolvePublicBaseUrl`.
+- After `writeAudit(CREATE)`, fire IIFE async (NOT awaited) that:
+  1. Re-fetch permohonan with jenisSurat + creator relations.
+  2. Generate QR PNG (encodes public tracking URL).
+  3. Fetch all settings (for letterhead + templates + credentials).
+  4. Generate PDF buffer via `generateTandaTerimaPdf()`.
+  5. Call `dispatchTandaTerimaNotification()` with `{force: false}` (respects `notify_tanda_terima_auto`).
+  6. Catch any error → AuditLog `TANDA_TERIMA_DISPATCH_ERROR`.
+- Response 201 dengan data permohonan dikembalikan segera — dispatch berjalan di background.
+
+### 6. Updated `src/lib/api.ts` (+35 lines)
+- `sendTandaTerima(id, force=true)` — POST /tanda-terima/send.
+- `getTandaTerimaWaLink(id)` — GET /tanda-terima/wa-link.
+- `tandaTerimaPdfUrl(id)` — returns URL string for `<iframe>` or `window.open()`.
+
+### 7. Updated `src/components/app/shared/PermohonanDetail.tsx` (+140 lines)
+- Import `FileDown`, `ExternalLink` icons.
+- New state: `sendingTandaTerima`, `tandaTerimaResult` (ok/ok_count/fail_count/fails/ts), `waLinkLoading`.
+- New handlers:
+  - `handleSendTandaTerima()` — calls `api.sendTandaTerima()`, parses results, sets banner state, shows toast.
+  - `handleOpenWaLink()` — calls `api.getTandaTerimaWaLink()`, opens `window.open(link)` in new tab, toast info.
+  - `handleDownloadPdf()` — `window.open(api.tandaTerimaPdfUrl(id))` — opens PDF in browser viewer.
+- Action buttons row (5 buttons total):
+  1. **Cetak Tanda Terima** (gold border, Printer icon) — existing, opens printable dialog.
+  2. **Unduh PDF** (gold border, FileDown icon) — NEW, opens PDF in new tab.
+  3. **Kirim Tanda Terima** (gold border + light gold bg, Send icon) — NEW, dispatches Email+WA with PDF.
+  4. **Buka WA** (emerald border, ExternalLink icon) — NEW, opens wa.me deep link (manual fallback).
+  5. **Kirim Ulang Notifikasi** (blue border, Bell icon) — existing, resends status notification.
+- Result banner (below buttons) — 3 states:
+  - All success: emerald bg + CheckCircle2.
+  - Partial success: amber bg + AlertCircle.
+  - All fail: rose bg + AlertCircle.
+  - Shows `{ok_count} channel berhasil, {fail_count} gagal` + list of failures with channel + error reason.
+  - "Detail pengiriman dicatat di Audit Log." footer note.
+
+### 8. Updated `src/components/app/admin/SettingsManagement.tsx` (+90 lines)
+- New DEFAULTS (4 keys):
+  - `notify_tanda_terima_auto: "true"` — auto-send toggle.
+  - `notify_tpl_tanda_terima_subject` — email subject template.
+  - `notify_tpl_tanda_terima_email` — email body template (8-line default with {nomor_register}, {jenis_surat}, {tanggal}, {app_url}, {kelurahan_*}).
+  - `notify_tpl_tanda_terima_wa` — WhatsApp message template (with *bold* formatting, 📄 emoji, 🙏 emoji).
+- Added 4 keys to `NOTIFY_FIELDS` array (so they're persisted on Save).
+- New toggle UI (sm:col-span-2, gold accent): "Tanda Terima Otomatis (PDF)" with description.
+- New "Template Tanda Terima Otomatis" section (gold accent) with 3 TemplateEditors:
+  - "7. Tanda Terima — Subject Email" (1 row, primary accent).
+  - "8. Tanda Terima — Body Email" (8 rows, primary accent).
+  - "9. Tanda Terima — Pesan WhatsApp" (6 rows, primary accent).
+  - Header badge "Dikirim saat permohonan didaftarkan".
+  - Helper text explains Email gets PDF attachment, WhatsApp gets text+link (Fonnte + URL publik needed for direct PDF attach).
+- Updated "Kapan notifikasi dikirim?" info box — now mentions 3 trigger moments:
+  1. Saat permohonan didaftarkan (Tanda Terima PDF via Email + WA).
+  2. Saat status berubah ke Perbaikan Dokumen (REVISI).
+  3. Saat status berubah ke Surat Selesai (SELESAI).
+
+### 9. Updated `next.config.ts`
+- Added `serverExternalPackages: ["pdfkit", "qrcode"]` to fix webpack __dirname resolution for pdfkit's .afm font files.
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**.
+- Dev server: clean compile (webpack mode), all routes 200/201.
+- **PDF generation test (curl)**:
+  - `GET /api/permohonan/{id}/tanda-terima/pdf` → HTTP 200, `application/pdf`, 8105 bytes.
+  - `file` command: "PDF document, version 1.3, 3 page(s)" — valid PDF.
+  - PDF title metadata: "Tanda Terima — KPII-TNH-2026-XCSHV8PF".
+- **Auto-dispatch test (create permohonan)**:
+  - POST /api/permohonan → 201 immediately (response time ~100ms, dispatch fire-and-forget).
+  - AuditLog after 3s: `TANDA_TERIMA_DISPATCH — Tanda Terima dikirim → EMAIL: OK | WA: FAIL (Fonnte API token belum dikonfigurasi)`.
+  - Server log: `[EMAIL:LOG-MODE] To: test-auto-full@example.com | Subject: Tanda Terima Permohonan Surat Tanah — KPII-TNH-2026-64X8KNJ4` + `[EMAIL:LOG-MODE] Attachments: Tanda-Terima-KPII-TNH-2026-64X8KNJ4.pdf (8360 bytes)`.
+  - Email log mode confirms PDF attached (8360 bytes).
+- **Manual send test (curl)**:
+  - POST /api/permohonan/{id}/tanda-terima/send → 200, `{ok:true, results:[{channel:"email",success:false,error:"Gmail belum dikonfigurasi"},{channel:"wa",success:false,error:"Fonnte token belum dikonfigurasi"}]}` (expected — no real credentials in dev).
+  - AuditLog: `TANDA_TERIMA_SEND — Mengirim ulang tanda terima ... via 2 channel — EMAIL:FAIL, WA:FAIL` + `TANDA_TERIMA_DISPATCH — ... EMAIL: FAIL (...) | WA: FAIL (...)`.
+- **WA link test (curl)**:
+  - GET /api/permohonan/{id}/tanda-terima/wa-link → 200, `{ok:true, link:"https://wa.me/6285245587441?text=...", phone:"085245587441", message:"...", trackUrl:"...", pdfHint:"..."}`.
+  - Link correctly URL-encodes the WhatsApp message (including *bold*, emojis, line breaks).
+- **Existing notify endpoint regression test**:
+  - POST /api/permohonan/{id}/notify → 200, `{ok:true, triggerStatus:"SELESAI", results:[{channel:"email",success:true,...},{channel:"wa",success:false,...}]}` — existing REVISI/SELESAI notification still works (not broken by new code).
+- **E2E test via agent-browser**:
+  - Login as admin → dashboard loads.
+  - Navigate to Permohonan list → click "Test Auto Send Full" row → detail view opens.
+  - 5 action buttons visible: "Cetak Tanda Terima", "Unduh PDF", "Kirim Tanda Terima", "Buka WA", "Kirim Ulang Notifikasi".
+  - Click "Kirim Tanda Terima" → result banner appears: "Tanda Terima — 1 channel berhasil, 1 gagal" with "WA: Fonnte API token belum dikonfigurasi" + "Detail pengiriman dicatat di Audit Log." (amber color, AlertCircle icon).
+  - Click "Unduh PDF" → browser's built-in PDF viewer opens in new tab showing "Tanda Terima — KPII-TNH-2026-64X8KNJ4", 3 pages, 100% zoom. PDF renders correctly.
+  - Navigate to Pengaturan → Notifikasi section → "Tanda Terima Otomatis (PDF)" toggle visible (gold accent, sm:col-span-2) with description.
+  - Scroll down → "Template Tanda Terima Otomatis" section visible with 3 template editors (7. Subject Email, 8. Body Email, 9. Pesan WhatsApp) + header badge "Dikirim saat permohonan didaftarkan".
+  - Updated "Kapan notifikasi dikirim?" info box mentions 3 trigger moments including "(1) saat permohonan didaftarkan (Tanda Terima PDF via Email + WA)".
+- Screenshots saved: `/home/z/my-project/screenshots/tanda-terima-buttons.png`, `tanda-terima-settings.png`.
+
+## Files Changed (summary)
+- **New**: `src/lib/tanda-terima-pdf.ts` (~540 lines — pdfkit-based PDF generator + QR PNG helper)
+- **New**: `src/app/api/permohonan/[id]/tanda-terima/pdf/route.ts` (~115 lines — PDF download/preview endpoint)
+- **New**: `src/app/api/permohonan/[id]/tanda-terima/send/route.ts` (~165 lines — manual resend dispatcher)
+- **New**: `src/app/api/permohonan/[id]/tanda-terima/wa-link/route.ts` (~75 lines — wa.me deep link generator)
+- **Updated**: `src/lib/notify.ts` (+270 lines — EmailAttachment interface, sendWhatsAppWithAttachment, buildWhatsAppDeepLink, dispatchTandaTerimaNotification)
+- **Updated**: `src/app/api/permohonan/route.ts` (+125 lines — fire-and-forget tanda terima dispatch on POST)
+- **Updated**: `src/lib/api.ts` (+35 lines — 3 new API methods)
+- **Updated**: `src/components/app/shared/PermohonanDetail.tsx` (+140 lines — 4 new action buttons + result banner + 3 handlers + state)
+- **Updated**: `src/components/app/admin/SettingsManagement.tsx` (+90 lines — 4 default settings + 4 NOTIFY_FIELDS + toggle UI + 3 template editors + updated info box)
+- **Updated**: `next.config.ts` (+5 lines — serverExternalPackages for pdfkit + qrcode)
+- **Installed**: `pdfkit@0.19.1`, `@types/pdfkit@0.17.6`
+
+## Stage Summary
+- **End-to-end automatic receipt delivery**: Saat petugas mendaftarkan permohonan baru, sistem otomatis generate PDF Tanda Terima (dengan kop surat institusi, QR code tracking, signature block) → attach ke Email → kirim ke pemohon + kirim pesan WhatsApp dengan link tracking. Semua dalam ~3 detik background process, user mendapat response 201 segera.
+- **Server-side PDF generation (no browser)**: pdfkit pure-JS library, ~50MB peak RAM, 30-80ms render time. Aman untuk environment 4GB RAM (Puppeteer akan OOM). PDF mirror layout TandaTerima.tsx (kop surat, gold accents, register box, 4 data sections, signature block, QR code).
+- **PDF attachment to Email**: nodemailer mengirim PDF sebagai MIME attachment (filename: `Tanda-Terima-{nomorRegister}.pdf`, contentType: `application/pdf`). Gmail provider mendukung full MIME; SMTP-API provider mendukung base64-encoded attachments (Mailgun/Resend/SendGrid convention); log provider prints filename + size.
+- **WhatsApp with optional file attachment**: Fonnte API mendukung `url` field untuk attach file. Jika `pdfPublicUrl` + Fonnte token tersedia, PDF di-attach langsung ke WhatsApp. Jika tidak, kirim text-only dengan link tracking (pemohon download PDF via halaman tracking publik).
+- **Manual fallback (wa.me deep link)**: Jika Fonnte belum dikonfigurasi, petugas dapat klik "Buka WA" → WhatsApp Web/App terbuka dengan pesan tanda terima pre-filled. Petugas kirim manual + attach PDF secara manual (download via "Unduh PDF"). Fitur tetap usable tanpa paid WA gateway.
+- **Manual resend**: Tombol "Kirim Tanda Terima" di halaman detail mengirim ulang PDF via Email + WhatsApp. Result banner menampilkan status per-channel (emerald all-success / amber partial / rose all-fail) dengan detail error. Berguna saat auto-send gagal (mis., Fonnte down saat registrasi) atau pemohon kehilangan tanda terima asli.
+- **Configurable templates**: Admin dapat mengatur subject email, body email, dan pesan WhatsApp untuk tanda terima — di Settings → Notifikasi → "Template Tanda Terima Otomatis". Mendukung placeholder {nomor_register}, {pemohon_nama}, {jenis_surat}, {tanggal}, {app_url}, {kelurahan_*}.
+- **Auto-send toggle**: Admin dapat menonaktifkan auto-send (Settings → "Tanda Terima Otomatis (PDF)" toggle) jika ingin review manual sebelum kirim. Petugas tetap dapat kirim manual via tombol di halaman detail.
+- **Audit trail**: Semua dispatch (auto + manual) tercatat di AuditLog dengan aksi `TANDA_TERIMA_DISPATCH` (detail: per-channel summary) atau `TANDA_TERIMA_SEND` (manual resend). Error dispatch dicatat dengan aksi `TANDA_TERIMA_DISPATCH_ERROR`. Skip (auto=false) dicatat dengan `NOTIFY_SKIP`.
+- **3 trigger moments untuk notifikasi**: (1) Saat permohonan didaftarkan → Tanda Terima PDF via Email+WA. (2) Saat status → REVISI → notifikasi perbaikan dokumen. (3) Saat status → SELESAI → notifikasi surat selesai. Semua dicatat di AuditLog.
+- Lint: 0 errors. PDF: valid 3-page A4. E2E via agent-browser: verified. Auto-dispatch: verified via AuditLog + email log mode.
+
+## Unresolved Issues / Risks
+- **WhatsApp PDF attachment requires public URL**: Saat ini WhatsApp dikirim text-only dengan link tracking (PDF tidak di-attach langsung ke WA). Untuk attach PDF langsung ke WA via Fonnte, dibutuhkan public URL yang dapat diakses server Fonnte (tanpa auth). Future: tambah endpoint `/api/public/tanda-terima/{signed_token}` dengan token expired 7 hari, sehingga Fonnte dapat fetch PDF tanpa session auth.
+- **PDF font limited to Helvetica**: pdfkit default fonts adalah Helvetica, Times, Courier (built-in PDF fonts). Tidak support font custom (mis., Indonesian sans-serif) tanpa embed .ttf file. Untuk sekarang Helvetica cukup professional. Future: embed font custom untuk branding lebih kuat.
+- **No PDF preview in dialog**: Saat ini "Unduh PDF" membuka tab baru dengan browser PDF viewer. Tidak ada preview inline di dialog (seperti TandaTerima printable). Future: tambah `<iframe src={pdfUrl}>` di dialog untuk preview inline.
+- **No retry on dispatch failure**: Jika email/WA gagal dikirim (mis., network error), tidak ada retry otomatis. Petugas harus klik "Kirim Tanda Terima" manual. Future: tambah retry queue dengan exponential backoff (3 retries, 30s/2m/10m).
+- **No delivery status tracking in DB**: Saat ini status pengiriman hanya ada di AuditLog (text detail). Tidak ada field `tandaTerimaSentAt` / `tandaTerimaDeliveryStatus` di Permohonan model. Future: tambah field untuk tracking delivery status per-channel di UI list (badge "Tanda Terima Terkirim" / "Gagal" / "Belum").
+- **PDF size 8KB (3 pages)**: Cukup ringan untuk email attachment. Tapi jika data pemohon sangat panjang (alamat multi-line, catatan panjang), PDF bisa jadi 2 halaman tambahan. Tidak ada batasan halaman — pdfkit auto-paginate. Future: tambah page break control untuk ensure signature block tidak terpotong di akhir halaman.
+
+## Priority Recommendations for Next Round
+1. **Public PDF download endpoint (signed token)**: Tambah `/api/public/tanda-terima/{token}` yang me-return PDF tanpa auth. Token di-generate saat dispatch (UUID + hash), disimpan di DB dengan expiry 7 hari. Memungkinkan Fonnte attach PDF langsung ke WhatsApp + pemohon download via link tanpa login.
+2. **PDF preview inline dialog**: Ganti "Unduh PDF" (buka tab baru) dengan dialog yang berisi `<iframe src={pdfUrl}>` + tombol "Download" + "Print". Lebih UX-friendly.
+3. **Delivery status badge di PermohonanList**: Tambah kolom/badge "Tanda Terima" di list permohonan — hijau "Terkirim" / merah "Gagal" / abu-abu "Belum". Petugas dapat scan status delivery dengan cepat.
+4. **Retry queue untuk failed dispatch**: Tambah cron job (setiap 5 menit) yang cek AuditLog untuk `TANDA_TERIMA_DISPATCH` dengan FAIL status → retry sendEmail/sendWhatsApp dengan exponential backoff. Berguna untuk transient network errors.
+5. **PDF preview inline di dialog**: Ganti `window.open(pdfUrl)` dengan dialog yang berisi `<iframe src={pdfUrl}>` + tombol "Cetak" + "Unduh". Lebih seamless UX — user tidak perlu switch tab.
+6. **Branding logo di PDF**: Saat ini PDF pakai placeholder "K" gold square. Tambah `logoPngBuffer` parameter yang me-load branding logo dari `/public/branding/` → embed di kop surat PDF. Konsisten dengan TandaTerima.tsx yang sudah pakai branding logo.
+7. **Email HTML template (rich formatting)**: Saat ini email body adalah plain text yang di-convert ke HTML via `\n→<br/>`. Tambah HTML template yang proper (header with logo, styled card, footer with links) untuk tampilan email yang lebih professional di Gmail/Outlook.

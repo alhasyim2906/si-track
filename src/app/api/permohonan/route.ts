@@ -3,6 +3,9 @@ import { db } from "@/lib/db";
 import { getCurrentUser, generateNomorRegister } from "@/lib/auth";
 import { writeAudit } from "@/lib/audit";
 import { STATUS_BY_KODE, NOTIF_TEMPLATES } from "@/lib/constants";
+import { generateTandaTerimaPdf, generateQrPngBuffer } from "@/lib/tanda-terima-pdf";
+import { dispatchTandaTerimaNotification } from "@/lib/notify";
+import { resolvePublicBaseUrl } from "@/lib/public-url";
 
 // GET /api/permohonan — list with filters (auth: staff)
 // Query params:
@@ -182,6 +185,134 @@ export async function POST(req: NextRequest) {
       entitasId: permohonan.id,
       detail: `Mendaftarkan permohonan ${nomorRegister} atas nama ${permohonan.pemohonNama}`,
     });
+
+    // ===== Fire-and-forget: send Tanda Terima via Email + WhatsApp =====
+    // The PDF is generated server-side and attached to the email. WhatsApp
+    // gets a text message with the tracking link (PDF attachment via Fonnte
+    // requires a public URL — see /tanda-terima/send route for details).
+    //
+    // We deliberately do NOT `await` this — the user should get an immediate
+    // 201 response with the permohonan data, and the notification dispatch
+    // continues in the background. Failures are logged to AuditLog inside
+    // `dispatchTandaTerimaNotification`.
+    //
+    // We wrap it in a try/catch + IIFE so any sync error before the first
+    // `await` doesn't crash the process. Async errors are caught inside the
+    // dispatcher.
+    (async () => {
+      try {
+        // Re-fetch the permohonan with relations needed for the PDF.
+        const pForPdf = await db.permohonan.findUnique({
+          where: { id: permohonan.id },
+          include: {
+            jenisSurat: { select: { nama: true, kode: true } },
+            creator: { select: { name: true, position: true } },
+          },
+        });
+        if (!pForPdf) return;
+
+        // Build the QR code (encodes public tracking URL).
+        const baseUrl = await resolvePublicBaseUrl();
+        const trackUrl = `${baseUrl}/?track=${encodeURIComponent(pForPdf.nomorRegister)}`;
+        const qrPng = await generateQrPngBuffer(trackUrl, 240);
+
+        // Fetch kelurahan settings for letterhead + notify templates/creds.
+        const settings = await db.settings.findMany();
+        const settingsMap: Record<string, string> = {};
+        for (const s of settings) settingsMap[s.key] = s.value || "";
+
+        // Generate the PDF buffer (kept in memory).
+        const pdfBuffer = await generateTandaTerimaPdf(
+          {
+            nomorRegister: pForPdf.nomorRegister,
+            statusSaatIni: pForPdf.statusSaatIni,
+            statusNama: STATUS_BY_KODE[pForPdf.statusSaatIni]?.nama || pForPdf.statusSaatIni,
+            prioritas: pForPdf.prioritas,
+            keperluan: pForPdf.keperluan,
+            catatan: pForPdf.catatan,
+            createdAt: pForPdf.createdAt,
+            jenisSurat: {
+              nama: pForPdf.jenisSurat.nama,
+              kode: pForPdf.jenisSurat.kode || undefined,
+            },
+            creator: pForPdf.creator
+              ? { name: pForPdf.creator.name, position: pForPdf.creator.position }
+              : null,
+            pemohonNik: pForPdf.pemohonNik,
+            pemohonNama: pForPdf.pemohonNama,
+            pemohonTempatLahir: pForPdf.pemohonTempatLahir,
+            pemohonTanggalLahir: pForPdf.pemohonTanggalLahir,
+            pemohonAlamat: pForPdf.pemohonAlamat,
+            pemohonRt: pForPdf.pemohonRt,
+            pemohonRw: pForPdf.pemohonRw,
+            pemohonHp: pForPdf.pemohonHp,
+            pemohonEmail: pForPdf.pemohonEmail,
+            lokasiTanah: pForPdf.lokasiTanah,
+            tanahRt: pForPdf.tanahRt,
+            tanahRw: pForPdf.tanahRw,
+            luasTanah: pForPdf.luasTanah,
+            batasUtara: pForPdf.batasUtara,
+            batasSelatan: pForPdf.batasSelatan,
+            batasTimur: pForPdf.batasTimur,
+            batasBarat: pForPdf.batasBarat,
+            statusPenguasaan: pForPdf.statusPenguasaan,
+          },
+          {
+            qrPngBuffer: qrPng,
+            kelurahan: {
+              nama: settingsMap.nama_kelurahan || undefined,
+              alamat: settingsMap.alamat_kelurahan || undefined,
+              telepon: settingsMap.telepon_kelurahan || undefined,
+              email: settingsMap.email_kelurahan || undefined,
+            },
+          }
+        );
+
+        const pdfFilename = `Tanda-Terima-${pForPdf.nomorRegister}.pdf`;
+
+        // Dispatch email + WhatsApp (fire-and-forget within fire-and-forget
+        // is fine — the dispatcher handles its own errors + audit log).
+        await dispatchTandaTerimaNotification(
+          pForPdf.id,
+          {
+            nomorRegister: pForPdf.nomorRegister,
+            pemohonNama: pForPdf.pemohonNama,
+            pemohonHp: pForPdf.pemohonHp,
+            pemohonEmail: pForPdf.pemohonEmail,
+            statusNama: STATUS_BY_KODE[pForPdf.statusSaatIni]?.nama || pForPdf.statusSaatIni,
+            jenisSuratNama: pForPdf.jenisSurat.nama,
+            kelurahanNama: settingsMap.nama_kelurahan,
+            kelurahanAlamat: settingsMap.alamat_kelurahan,
+            kelurahanTelepon: settingsMap.telepon_kelurahan,
+            kelurahanEmail: settingsMap.email_kelurahan,
+            appUrl: trackUrl,
+            pdfBuffer,
+            pdfFilename,
+            // pdfPublicUrl is intentionally undefined — see /tanda-terima/send
+            // route comment for why we can't attach the PDF directly via Fonnte.
+            pdfPublicUrl: undefined,
+          },
+          current.user.id,
+          { force: false } // respect notify_tanda_terima_auto setting
+        );
+      } catch (e: any) {
+        // Don't let the notification failure crash the request — log it.
+        console.error("[permohonan POST] tanda terima dispatch failed:", e);
+        try {
+          await db.auditLog.create({
+            data: {
+              userId: current.user.id,
+              aksi: "TANDA_TERIMA_DISPATCH_ERROR",
+              modul: "PERMOHONAN",
+              entitasId: permohonan.id,
+              detail: `Gagal mengirim tanda terima otomatis: ${e?.message || String(e)}`,
+            },
+          });
+        } catch {
+          // swallow — last-resort
+        }
+      }
+    })();
 
     return NextResponse.json({ permohonan }, { status: 201 });
   } catch (e) {

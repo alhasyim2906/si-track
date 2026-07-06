@@ -137,6 +137,41 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ alasan }),
     }),
+
+  // ===== Tanda Terima (PDF receipt) =====
+  // Auto-sent on permohonan creation (via Email + WhatsApp). Manual resend
+  // is available via `sendTandaTerima` for cases where the auto-send failed
+  // or the pemohon lost the original message.
+  // Returns the per-channel dispatch result.
+  sendTandaTerima: (id: string, force = true) =>
+    req<{
+      ok: boolean;
+      results: { channel: string; success: boolean; error?: string; recipient?: string }[];
+      permohonanId: string;
+      nomorRegister: string;
+      error?: string;
+    }>(`/api/permohonan/${id}/tanda-terima/send`, {
+      method: "POST",
+      body: JSON.stringify({ force }),
+    }),
+
+  // Build a wa.me deep-link URL for manual WhatsApp sending (fallback when
+  // Fonnte token is not configured). The petugas clicks the returned link
+  // to open WhatsApp with the tanda terima message pre-filled.
+  getTandaTerimaWaLink: (id: string) =>
+    req<{
+      ok: boolean;
+      link: string;
+      phone: string | null;
+      message: string;
+      trackUrl: string;
+      pdfHint: string;
+    }>(`/api/permohonan/${id}/tanda-terima/wa-link`),
+
+  // URL for embedding the PDF in an <iframe> or <object> for preview.
+  // Returns the raw PDF as application/pdf — not JSON.
+  tandaTerimaPdfUrl: (id: string) =>
+    `/api/permohonan/${id}/tanda-terima/pdf`,
   kwitansiQr: (id: string) =>
     req<{ qr: string; payload: any; nomorKwitansi: string }>(`/api/permohonan/${id}/biaya/kwitansi-qr`),
 

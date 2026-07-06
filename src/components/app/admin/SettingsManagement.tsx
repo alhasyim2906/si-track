@@ -147,6 +147,17 @@ const DEFAULTS: Record<string, string> = {
   kwitansi_default_keterangan: "Biaya operasional pendaftaran surat tanah",
   kwitansi_pejabat_nama: "Lurah Kuala Pembuang II",
   kwitansi_pejabat_jabatan: "Lurah Kuala Pembuang II",
+  // ===== Tanda Terima otomatis (Task 30) =====
+  // Auto-send the PDF Tanda Terima to the pemohon via Email + WhatsApp
+  // immediately after a permohonan is registered. Set to "false" to disable
+  // auto-send (petugas can still send manually from detail page).
+  notify_tanda_terima_auto: "true",
+  notify_tpl_tanda_terima_subject:
+    "Tanda Terima Permohonan Surat Tanah — {nomor_register}",
+  notify_tpl_tanda_terima_email:
+    "Yth. {pemohon_nama},\n\nPermohonan pendaftaran surat tanah Anda telah kami terima dan didaftarkan dengan rincian:\n\nNomor Register: {nomor_register}\nJenis Surat: {jenis_surat}\nTanggal: {tanggal}\n\nTanda terima resmi terlampir dalam email ini (format PDF). Mohon simpan baik-baik — Anda dapat melacak status permohonan melalui Nomor Register atau QR Code pada tanda terima.\n\nLacak status: {app_url}\n\nUntuk pertanyaan, hubungi:\n{kelurahan_nama}\n{kelurahan_alamat}\nTelepon: {kelurahan_telepon}\nEmail: {kelurahan_email}\n\nTerima kasih atas kepercayaan Anda.\n\nHormat kami,\n{kelurahan_nama}",
+  notify_tpl_tanda_terima_wa:
+    "*{kelurahan_nama}*\n\nYth. {pemohon_nama},\n\nPermohonan surat tanah Anda telah kami terima & daftarkan.\n\n*Nomor Register:* {nomor_register}\n*Jenis Surat:* {jenis_surat}\n*Tanggal:* {tanggal}\n\n📄 Tanda terima resmi terlampir (PDF).\n\nLacak status: {app_url}\n\nSimpan nomor register untuk referensi. Terima kasih. 🙏",
 };
 
 /* ============================================================
@@ -1255,6 +1266,10 @@ const NOTIFY_FIELDS = [
   "notify_tpl_revisi_subject",
   "notify_tpl_revisi_email",
   "notify_tpl_revisi_wa",
+  "notify_tanda_terima_auto",
+  "notify_tpl_tanda_terima_subject",
+  "notify_tpl_tanda_terima_email",
+  "notify_tpl_tanda_terima_wa",
 ];
 
 // Placeholders help text for template editors
@@ -1401,6 +1416,28 @@ function NotifySection({
                 <Switch
                   checked={waEnabled}
                   onCheckedChange={(c) => updateSetting("notify_wa_enabled", c ? "true" : "false")}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Tanda Terima otomatis toggle (Task 30) */}
+          <div className="flex items-start gap-3 p-3 rounded-lg bg-[#d4af37]/[0.04] border border-[#d4af37]/25 sm:col-span-2">
+            <div className="w-9 h-9 rounded-lg bg-[#d4af37]/10 border border-[#d4af37]/30 flex items-center justify-center shrink-0">
+              <FileText className="w-4 h-4 text-[#d4af37]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">Tanda Terima Otomatis (PDF)</p>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Kirim PDF Tanda Terima ke pemohon via Email & WhatsApp <span className="font-semibold">saat permohonan didaftarkan</span>.
+                    Email berisi PDF terlampir, WhatsApp berisi link tracking.
+                  </p>
+                </div>
+                <Switch
+                  checked={(settings.notify_tanda_terima_auto ?? "true") === "true"}
+                  onCheckedChange={(c) => updateSetting("notify_tanda_terima_auto", c ? "true" : "false")}
                 />
               </div>
             </div>
@@ -1828,15 +1865,61 @@ function NotifySection({
           </div>
         </div>
 
+        {/* ===== Tanda Terima templates (Task 30) ===== */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-[#d4af37]" />
+            <p className="text-sm font-semibold">Template Tanda Terima Otomatis</p>
+            <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-[#d4af37]/15 text-[#b8941f] border border-[#d4af37]/30">
+              Dikirim saat permohonan didaftarkan
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-snug -mt-1">
+            Email berisi PDF Tanda Terima sebagai lampiran. WhatsApp berisi pesan teks
+            dengan link tracking (lampiran PDF via WhatsApp membutuhkan Fonnte + URL publik).
+            Gunakan tombol <span className="font-semibold">&quot;Kirim Tanda Terima&quot;</span> di halaman
+            detail untuk mengirim ulang manual.
+          </p>
+          <div className="space-y-3">
+            <TemplateEditor
+              title="7. Tanda Terima — Subject Email"
+              hint="Subjek email tanda terima (dikirim saat permohonan dibuat)"
+              value={settings.notify_tpl_tanda_terima_subject ?? ""}
+              onChange={(v) => updateSetting("notify_tpl_tanda_terima_subject", v)}
+              rows={1}
+              accent="primary"
+            />
+            <TemplateEditor
+              title="8. Tanda Terima — Body Email"
+              hint="Isi email (teks plain, otomatis dikonversi ke HTML). PDF dilampirkan otomatis."
+              value={settings.notify_tpl_tanda_terima_email ?? ""}
+              onChange={(v) => updateSetting("notify_tpl_tanda_terima_email", v)}
+              rows={8}
+              accent="primary"
+            />
+            <TemplateEditor
+              title="9. Tanda Terima — Pesan WhatsApp"
+              hint="Pesan WA. Gunakan *teks* untuk bold. Maks 1000 karakter."
+              value={settings.notify_tpl_tanda_terima_wa ?? ""}
+              onChange={(v) => updateSetting("notify_tpl_tanda_terima_wa", v)}
+              rows={6}
+              accent="primary"
+            />
+          </div>
+        </div>
+
         {/* Info box — when notifications fire */}
         <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20">
           <div className="flex items-start gap-2">
             <Bell className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
             <div className="text-[11px] leading-snug text-muted-foreground">
               <span className="font-semibold text-foreground">Kapan notifikasi dikirim?</span> Notifikasi
-              otomatis dipicu saat petugas mengubah status permohonan menjadi <span className="font-semibold">Perbaikan Dokumen</span> (REVISI)
-              atau <span className="font-semibold">Surat Selesai</span> (SELESAI). Kegagalan pengiriman tidak membatalkan perubahan status —
-              kegagalan dicatat di Audit Log. Anda juga dapat mengirim ulang notifikasi manual dari halaman detail permohonan.
+              otomatis dipicu dalam 3 momen:
+              <span className="font-semibold"> (1) saat permohonan didaftarkan</span> (Tanda Terima PDF via Email + WA),
+              <span className="font-semibold"> (2) saat status berubah ke Perbaikan Dokumen</span> (REVISI),
+              <span className="font-semibold"> (3) saat status berubah ke Surat Selesai</span> (SELESAI).
+              Kegagalan pengiriman tidak membatalkan perubahan status — kegagalan dicatat di Audit Log.
+              Anda juga dapat mengirim ulang tanda terima atau notifikasi manual dari halaman detail permohonan.
             </div>
           </div>
         </div>
