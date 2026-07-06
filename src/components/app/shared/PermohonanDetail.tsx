@@ -40,12 +40,14 @@ import {
   Phone, MapPinned, Tag, Gauge, ScanLine, FileType2, Printer,
   ChevronDown, FileImage, IdCard, Home, Compass, Paperclip,
   Mail, Send, Bell, Inbox, UserRound, FileCheck2, Plus, Landmark,
+  Wallet,
 } from "lucide-react";
 import { TandaTerima } from "@/components/app/shared/TandaTerima";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { AlteInfoBox } from "@/components/app/AlteInfoBox";
 import { MultiUploadZone, type UploadedDoc } from "@/components/app/shared/MultiUploadZone";
 import { ArsipTab, type ArsipData } from "@/components/app/shared/ArsipTab";
+import { BiayaTab, type BiayaData } from "@/components/app/shared/BiayaTab";
 import { ApiError } from "@/lib/api";
 import {
   STATUS_PENGUASAAN_OPTIONS,
@@ -130,6 +132,7 @@ interface PermohonanDetail {
   riwayat: RiwayatEntry[];
   riwayatTanah?: RiwayatTanahItem[];
   arsip?: ArsipData | null;
+  biaya?: BiayaData | null;
 }
 
 function formatDate(d?: string | null): string {
@@ -1026,6 +1029,24 @@ export function PermohonanDetail() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="biaya">
+            <Wallet className="w-4 h-4" /> Biaya
+            {p.biaya ? (
+              p.biaya.statusPembayaran === "LUNAS" ? (
+                <Badge className="ml-1 text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                  <CheckCircle2 className="w-2.5 h-2.5 mr-0.5" /> Lunas
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 text-amber-600 border-amber-500/40">
+                  <Clock className="w-2.5 h-2.5 mr-0.5" /> Belum
+                </Badge>
+              )
+            ) : (
+              <Badge variant="outline" className="ml-1 text-[10px] px-1.5 py-0 text-muted-foreground">
+                -
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="qr"><QrCode className="w-4 h-4" /> QR Code</TabsTrigger>
           <TabsTrigger value="riwayat"><History className="w-4 h-4" /> Riwayat</TabsTrigger>
         </TabsList>
@@ -1498,6 +1519,27 @@ export function PermohonanDetail() {
             nomorRegister={p.nomorRegister}
             statusSaatIni={p.statusSaatIni}
             arsip={p.arsip ?? null}
+            onChanged={fetchDetail}
+          />
+        </TabsContent>
+
+        {/* ===== Biaya Operasional tab ===== */}
+        <TabsContent value="biaya" className="space-y-4">
+          <BiayaTab
+            permohonanId={p.id}
+            nomorRegister={p.nomorRegister}
+            statusSaatIni={p.statusSaatIni}
+            pemohonNama={p.pemohonNama}
+            pemohonNik={p.pemohonNik}
+            pemohonAlamat={p.pemohonAlamat}
+            pemohonHp={p.pemohonHp}
+            jenisSuratNama={p.jenisSurat?.nama || "-"}
+            keperluan={p.keperluan}
+            biaya={p.biaya ?? null}
+            canEdit={isPetugasOrAdmin}
+            isAdmin={isAdmin}
+            petugasNama={user?.name}
+            petugasJabatan={user?.position || undefined}
             onChanged={fetchDetail}
           />
         </TabsContent>

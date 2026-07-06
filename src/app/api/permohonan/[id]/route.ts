@@ -22,6 +22,7 @@ export async function GET(
       riwayat: { orderBy: { createdAt: "asc" }, include: { petugas: { select: { id: true, name: true, position: true } } } },
       riwayatTanah: { orderBy: [{ urutan: "asc" }, { createdAt: "asc" }] },
       arsip: true,
+      biaya: true,
     },
   });
   if (!p) return NextResponse.json({ error: "Tidak ditemukan" }, { status: 404 });

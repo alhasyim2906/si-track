@@ -111,6 +111,35 @@ export const api = {
     );
   },
 
+  // ===== Biaya Operasional (operational cost) =====
+  // 1:1 with permohonan. Tracks the operational fee charged to the pemohon
+  // and its payment status. When marked LUNAS, an official Kwitansi
+  // (payment receipt) is auto-generated and can be printed from the app.
+  getBiaya: (id: string) =>
+    req<{ biaya: any | null; permohonan: any }>(`/api/permohonan/${id}/biaya`),
+  createBiaya: (id: string, body: any) =>
+    req<{ biaya: any }>(`/api/permohonan/${id}/biaya`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateBiaya: (id: string, body: any) =>
+    req<{ biaya: any }>(`/api/permohonan/${id}/biaya`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  bayarBiaya: (id: string, body: { metodePembayaran: string; diterimaOleh?: string; catatan?: string }) =>
+    req<{ biaya: any; kwitansi: any }>(`/api/permohonan/${id}/biaya/bayar`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  batalBayarBiaya: (id: string, alasan?: string) =>
+    req<{ biaya: any }>(`/api/permohonan/${id}/biaya/batal-bayar`, {
+      method: "POST",
+      body: JSON.stringify({ alasan }),
+    }),
+  kwitansiQr: (id: string) =>
+    req<{ qr: string; payload: any; nomorKwitansi: string }>(`/api/permohonan/${id}/biaya/kwitansi-qr`),
+
   // riwayat tanah (land ownership history) — CRUD per permohonan
   listRiwayatTanah: (id: string) =>
     req<{ items: any[] }>(`/api/permohonan/${id}/riwayat-tanah`),

@@ -136,6 +136,7 @@ model Permohonan {
   riwayatTanah RiwayatTanah[]
   notifikasi   Notifikasi[]
   arsip        ArsipSuratTanah?
+  biaya        BiayaOperasional?
 }
 
 // ===== Arsip Surat Tanah (final, signed land-letter archive) =====
@@ -172,6 +173,50 @@ model ArsipSuratTanah {
 
   @@index([tanggalTerbit])
   @@index([pejabatPenerbit])
+}
+
+// ===== Biaya Operasional (Operational Cost) =====
+// 1:1 with Permohonan. Tracks the operational cost charged to the pemohon
+// for processing their surat tanah application, and its payment status.
+// When status is LUNAS, a Kwitansi (official payment receipt) can be issued
+// and printed directly from the application. The kwitansi number is
+// auto-generated at the moment of payment confirmation.
+//
+// Workflow:
+//  - PETUGAS/ADMIN creates the biaya (sets nominal, keterangan, jatuh tempo).
+//  - When pemohon pays, PETUGAS/ADMIN marks it LUNAS via /bayar endpoint,
+//    which stamps tanggalBayar + auto-generates nomorKwitansi.
+//  - ADMIN can revert LUNAS -> BELUM_LUNAS via /batal-bayar (audit-logged).
+//  - When LUNAS, the UI shows a "Cetak Kwitansi" button -> printable PDF.
+model BiayaOperasional {
+  id              String    @id @default(cuid())
+  permohonanId    String    @unique // 1:1 — one biaya per permohonan
+
+  // ===== Biaya metadata =====
+  nominal         Int       // amount in Rupiah (whole number)
+  keterangan      String?   // description of what the cost covers
+  // Payment state
+  statusPembayaran String   @default("BELUM_LUNAS") // BELUM_LUNAS | LUNAS
+  metodePembayaran String?  // TUNAI | TRANSFER | QRIS | LAINNYA (set when paid)
+  tanggalJatuhTempo DateTime? // optional due date
+  tanggalBayar    DateTime? // stamped when payment confirmed
+
+  // ===== Kwitansi (receipt) =====
+  nomorKwitansi   String?   @unique // auto-generated when LUNAS, e.g., "KWT-2026-000123"
+  diterimaOleh    String?   // name of petugas who received the payment (denormalized for receipt)
+  catatan         String?   // additional notes
+
+  // ===== Audit =====
+  createdBy       String
+  updatedBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
+
+  @@index([statusPembayaran])
+  @@index([tanggalBayar])
+  @@index([nomorKwitansi])
 }
 
 // ===== Riwayat Tanah (Land Ownership History) =====

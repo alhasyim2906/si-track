@@ -62,6 +62,10 @@ import {
   CalendarClock,
   AlertTriangle,
   TrendingUp,
+  Wallet,
+  Coins,
+  Receipt,
+  UserCog,
 } from "lucide-react";
 import { BrandingUploader, type BrandingAssetSpec } from "@/components/app/shared/BrandingUploader";
 import { Logo } from "@/components/app/Logo";
@@ -135,6 +139,14 @@ const DEFAULTS: Record<string, string> = {
   sla_revisi_hours: "168",
   sla_total_target_hours: "336", // 14 days overall target
   sla_alert_atasan_enabled: "true",
+  // ===== Biaya Operasional & Kwitansi defaults (Task 29) =====
+  biaya_operasional_default: "50000", // default nominal in Rupiah
+  biaya_operasional_enabled: "true",
+  kwitansi_prefix: "KWT",
+  kwitansi_digit_count: "6",
+  kwitansi_default_keterangan: "Biaya operasional pendaftaran surat tanah",
+  kwitansi_pejabat_nama: "Lurah Kuala Pembuang II",
+  kwitansi_pejabat_jabatan: "Lurah Kuala Pembuang II",
 };
 
 /* ============================================================
@@ -179,6 +191,64 @@ const REGISTER_FIELDS: FieldDef[] = [
   { key: "register_prefix", label: "Prefix Nomor Register", description: "Awalan nomor register surat", icon: FileDigit, type: "text", placeholder: "KPII-TNH" },
   { key: "register_use_random", label: "Mode Acak (Anti-Tebak)", description: "Gunakan token acak alfanumerik agar nomor register tidak mudah ditebak/ditebus. Disarankan AKTIF untuk privasi pemohon.", icon: ShieldCheck, type: "switch" },
   { key: "register_digit_count", label: "Panjang Token / Serial", description: "Jumlah karakter token acak (mode acak) atau digit nomor urut (mode berurutan). Min 4, maks 16. Disarankan 8+ untuk mode acak.", icon: Hash, type: "number", placeholder: "8" },
+];
+
+const BIAYA_KWITANSI_FIELDS: FieldDef[] = [
+  {
+    key: "biaya_operasional_enabled",
+    label: "Fitur Biaya Operasional Aktif",
+    description: "Aktifkan fitur pencatatan biaya operasional & cetak kwitansi pembayaran. Jika nonaktif, tab Biaya pada detail permohonan disembunyikan.",
+    icon: Wallet,
+    type: "switch",
+  },
+  {
+    key: "biaya_operasional_default",
+    label: "Nominal Default (Rupiah)",
+    description: "Nominal default yang terisi otomatis saat petugas membuat biaya operasional baru. Dapat diubah per permohonan.",
+    icon: Coins,
+    type: "number",
+    placeholder: "50000",
+  },
+  {
+    key: "kwitansi_default_keterangan",
+    label: "Keterangan Default Kwitansi",
+    description: "Teks keterangan default yang terisi saat membuat biaya operasional baru.",
+    icon: FileText,
+    type: "text",
+    placeholder: "Biaya operasional pendaftaran surat tanah",
+  },
+  {
+    key: "kwitansi_prefix",
+    label: "Prefix Nomor Kwitansi",
+    description: "Awalan nomor kwitansi pembayaran. Default: KWT.",
+    icon: Receipt,
+    type: "text",
+    placeholder: "KWT",
+  },
+  {
+    key: "kwitansi_digit_count",
+    label: "Panjang Digit Serial Kwitansi",
+    description: "Jumlah digit serial pada nomor kwitansi (zero-padded). Min 4, maks 10. Default: 6 → KWT-2026-000001.",
+    icon: Hash,
+    type: "number",
+    placeholder: "6",
+  },
+  {
+    key: "kwitansi_pejabat_nama",
+    label: "Nama Pejabat Penerbit Kwitansi",
+    description: "Nama pejabat default yang ditampilkan pada kwitansi (header 'Mengetahui'). Dapat di-overide per kwitansi.",
+    icon: UserCog,
+    type: "text",
+    placeholder: "Lurah Kuala Pembuang II",
+  },
+  {
+    key: "kwitansi_pejabat_jabatan",
+    label: "Jabatan Pejabat Penerbit",
+    description: "Jabatan pejabat default (mis., 'Lurah Kuala Pembuang II').",
+    icon: Stamp,
+    type: "text",
+    placeholder: "Lurah Kuala Pembuang II",
+  },
 ];
 
 const APPEARANCE_FIELDS: FieldDef[] = [
@@ -822,6 +892,69 @@ export function SettingsManagement() {
               className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
             >
               {saving && activeSection === "register_prefix" ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Simpan
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 3b: Biaya Operasional & Kwitansi (Task 29) */}
+      <Card className="glass-card border-primary/15">
+        <CardContent className="p-6 space-y-5">
+          <div className="flex items-center gap-2.5 mb-1">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Wallet className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-base leading-tight">Biaya Operasional &amp; Kwitansi</h3>
+              <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
+                Konfigurasi pencatatan biaya operasional dan penerbitan kwitansi pembayaran resmi.
+              </p>
+            </div>
+          </div>
+          <Separator className="opacity-50" />
+          <div className="space-y-5">
+            {BIAYA_KWITANSI_FIELDS.map((field) => (
+              <SettingRow
+                key={field.key}
+                field={field}
+                value={settings[field.key] ?? DEFAULTS[field.key]}
+                onChange={(v) => updateSetting(field.key, v)}
+              />
+            ))}
+          </div>
+
+          {/* Live preview: Kwitansi number format */}
+          <div className="mt-2 p-4 rounded-lg bg-primary/5 border border-primary/15">
+            <p className="text-[11px] text-muted-foreground mb-2 flex items-center gap-1.5">
+              <Eye className="w-3.5 h-3.5 text-primary" />
+              Pratinjau Format Nomor Kwitansi
+            </p>
+            <p className="text-lg font-mono font-bold gold-gradient-text tracking-wide">
+              {(settings.kwitansi_prefix || "KWT").trim().toUpperCase()}-{new Date().getFullYear()}-
+              {"1".padStart(
+                Math.max(4, Math.min(10, parseInt(settings.kwitansi_digit_count || "6", 10) || 6)),
+                "0"
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Nomor kwitansi dihasilkan otomatis saat pembayaran dikonfirmasi (LUNAS), bersifat
+              unik, dan tidak dapat diubah. Pembatalan pembayaran oleh admin akan membebaskan nomor
+              (tercatat di audit log).
+            </p>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button
+              onClick={() => handleSaveSection(BIAYA_KWITANSI_FIELDS.map((f) => f.key))}
+              disabled={saving}
+              className="bg-gradient-to-r from-[#f5d77a] via-[#d4af37] to-[#b8941f] text-[#0a1628] font-semibold hover:opacity-90"
+            >
+              {saving && activeSection === "biaya_operasional_enabled" ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />

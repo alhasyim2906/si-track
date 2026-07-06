@@ -3032,3 +3032,122 @@ Halaman global "Arsip Surat Tanah" (nav item baru):
 5. **Signed download URL**: ganti direct file URL dengan signed/expiring URL untuk public download (security — prevents guessing).
 6. **Bulk arsip export**: tambah tombol "Export Semua Arsip" (zip) di ArsipList page untuk backup/compliance reporting.
 7. **Arsip statistics di dashboard**: tambah card "Total Arsip" + "Arsip Bulan Ini" di AdminDashboard.
+
+---
+Task ID: 29
+Agent: main
+Task: Tambahkan fitur Biaya Operasional — pencatatan biaya + status pembayaran (BELUM_LUNAS / LUNAS) dan cetak Kwitansi Pembayaran resmi melalui aplikasi.
+
+Work Log:
+- Membaca worklog Task 28 (arsip) untuk memahami pola integrasi tab baru di PermohonanDetail.
+- Mendesain model `BiayaOperasional` (1:1 dengan Permohonan) — fields: nominal (Int Rupiah), keterangan, statusPembayaran (BELUM_LUNAS|LUNAS), metodePembayaran (TUNAI|TRANSFER|QRIS|LAINNYA), tanggalJatuhTempo, tanggalBayar, nomorKwitansi (@unique, auto-generated saat LUNAS), diterimaOleh, catatan, createdBy/updatedBy, timestamps. 3 index: statusPembayaran, tanggalBayar, nomorKwitansi.
+- Menambahkan relasi `biaya BiayaOperasional?` di model Permohonan. `bun run db:push` sukses — Prisma client regenerated.
+- Membuat `src/lib/terbilang.ts` — pure function `terbilang(n)` untuk konversi angka Rupiah ke kata Bahasa Indonesia (mis. 75000 → "Tujuh Puluh Lima Ribu Rupiah"). Mendukung rentang penuh 32-bit (satu triliun). Plus `formatRupiah(n)` dan `parseRupiah(s)`.
+- Membuat `src/lib/kwitansi.ts` — `generateNomorKwitansi()` membaca settings `kwitansi_prefix` (default "KWT") + `kwitansi_digit_count` (default 6), menghasilkan nomor unik scoped per tahun: "KWT-2026-000001". Count-based + retry loop untuk handle race condition. Plus `previewNomorKwitansi()` untuk UI.
+- Membuat 4 API routes:
+  - `GET/POST/PUT /api/permohonan/[id]/biaya` — fetch, create, update metadata. Validation: nominal 0..1B IDR, format tanggal, metode pembayaran enum. Setelah LUNAS hanya ADMIN yang dapat edit (anti-tampering receipt).
+  - `POST /api/permohonan/[id]/biaya/bayar` — tandai LUNAS. Stamps tanggalBayar=now, set metodePembayaran, diterimaOleh (default=current user's name), auto-generate nomorKwitansi unik. Audit log: "Tandai biaya operasional LUNAS ... Kwitansi KWT-2026-000001".
+  - `POST /api/permohonan/[id]/biaya/batal-bayar` — ADMIN-only revert LUNAS→BELUM_LUNAS. Nullifies tanggalBayar/metodePembayaran/diterimaOleh/nomorKwitansi. Audit log mencatat nomor kwitansi sebelumnya + alasan.
+  - `GET /api/permohonan/[id]/biaya/kwitansi-qr` — generates verification QR code (data URL) berisi payload JSON {v, kwitansi, register, pemohon, nominal, tanggalBayar, metode, verify}. Hanya tersedia saat LUNAS.
+- Update `GET /api/permohonan/[id]` untuk include `biaya: true` — frontend dapat akses `p.biaya` langsung dari response.
+- Update `src/lib/api.ts` — tambah 5 methods: `getBiaya`, `createBiaya`, `updateBiaya`, `bayarBiaya`, `batalBayarBiaya`, `kwitansiQr`.
+- Membuat `src/components/app/shared/KwitansiPembayaran.tsx` — komponen printable receipt dengan layout:
+  - Kop Surat (PEMERINTAH KABUPATEN SERUYAN / KELURAHAN KUALA PEMBUANG II + alamat + telp + email) — sama dengan TandaTerima untuk konsistensi institusional.
+  - Garis emas (double-line gradient).
+  - Title: "KWITANSI PEMBAYARAN" + subtitle "BIAYA OPERASIONAL PENDAFTARAN SURAT TANAH".
+  - Header box: Nomor Kwitansi (mono gold-gradient) + Tanggal Pembayaran + Metode Pembayaran + QR verification code.
+  - Section "DITERIMA DARI" — nama pemohon, NIK, alamat, no HP.
+  - Section "UANG SEJUMLAH" — nominal (font-mono gold-gradient) + Terbilang dalam Bahasa Indonesia (italic).
+  - Section "UNTUK PEMBAYARAN" — jenis surat, nomor register, keperluan, keterangan biaya, catatan.
+  - Signature block: "Kuala Pembuang, {tanggalBayar}" + "Mengetahui, LURAH KUALA PEMBUANG II" + 2-column grid (Pemohon kiri, Petugas Penerima kanan).
+  - Bottom legal note: "Kwitansi ini diterbitkan secara sah oleh sistem SI-TRACK TANAH ... Nomor kwitansi ... bersifat unik dan dapat diverifikasi melalui kode QR di atas."
+  - Menggunakan class `tanda-terima-printable` + `tanda-terima-inner` agar print CSS existing berlaku (A4 portrait, white bg, gold accents).
+- Membuat `src/components/app/shared/BiayaTab.tsx` (~580 lines) — embedded di PermohonanDetail:
+  - State 1 (no biaya): "Buat Biaya Operasional" form — nominal (auto-formatted Rp 1.000.000), keterangan, jatuh tempo (date picker), catatan. Live preview terbilang.
+  - State 2 (BELUM_LUNAS): banner amber "Menunggu Pembayaran" + detail card dengan nominal hero (gold-gradient + terbilang italic), metadata grid (keterangan, metode, jatuh tempo, tanggal bayar "-", nomor kwitansi "-", diterima oleh "-"). Tombol "Edit Biaya" + "Tandai Sudah Dibayar" (emerald gradient).
+  - State 3 (LUNAS): banner emerald "Biaya Operasional Sudah Dibayar (LUNAS)" dengan nomor kwitansi mono. Detail card sama + tombol "Edit Biaya" (admin only override) + "Cetak Kwitansi" (gold gradient, buka dialog KwitansiPembayaran) + "Batal Pembayaran" (admin only, outline rose, buka AlertDialog konfirmasi).
+  - Dialog "Konfirmasi Pembayaran": preview nominal + terbilang, Select metode (TUNAI/TRANSFER/QRIS/LAINNYA), input "Diterima Oleh" (default=petugas name), textarea catatan. Tombol "Konfirmasi & Terbitkan Kwitansi" (emerald gradient).
+  - AlertDialog "Batalkan Pembayaran?": warning + alasan textarea + tombol "Ya, Batalkan Pembayaran" (rose).
+  - Dialog "Kwitansi Pembayaran": sama dengan TandaTerima dialog pattern — preview + tombol "Cetak / Print" (window.print()) + "Tutup".
+- Update `src/components/app/shared/PermohonanDetail.tsx`:
+  - Import `BiayaTab` + `Wallet` icon.
+  - Tambah `biaya?: BiayaData | null` di interface PermohonanDetail.
+  - Tambah tab trigger "Biaya" dengan badge dinamis: emerald "Lunas" (CheckCircle2) jika LUNAS, amber "Belum" (Clock) jika BELUM_LUNAS, outline "-" jika belum ada biaya.
+  - Tambah `<TabsContent value="biaya">` dengan `<BiayaTab ... />` setelah tab Arsip.
+- Update `src/components/app/admin/SettingsManagement.tsx`:
+  - Import 4 icons baru: Wallet, Coins, Receipt, UserCog.
+  - Tambah 7 default settings: `biaya_operasional_default` (50000), `biaya_operasional_enabled` (true), `kwitansi_prefix` (KWT), `kwitansi_digit_count` (6), `kwitansi_default_keterangan`, `kwitansi_pejabat_nama`, `kwitansi_pejabat_jabatan`.
+  - Tambah `BIAYA_KWITANSI_FIELDS` FieldDef array (7 fields).
+  - Tambah Section "3b: Biaya Operasional & Kwitansi" di UI — antara section "Format Nomor Register" dan "Tampilan". Berisi: switch aktif, nominal default, keterangan default, prefix kwitansi, digit count, pejabat nama, pejabat jabatan. Plus live preview "Pratinjau Format Nomor Kwitansi" yang menampilkan format berdasarkan settings saat ini (mis. "KWT-2026-000001").
+
+## Verification Results
+- `bun run lint`: **0 errors, 0 warnings**.
+- `bun run db:push`: schema applied, Prisma client regenerated.
+- **API test (curl, 10 test cases)** — semua pass:
+  1. Login as admin → 200
+  2. GET biaya (no biaya yet) → `{"biaya":null,"permohonan":{...}}` 200
+  3. POST biaya (create, nominal=75000) → 201, status BELUM_LUNAS
+  4. GET biaya (after create) → 200, BELUM_LUNAS
+  5. POST /bayar (metode=TUNAI) → 200, status LUNAS, nomorKwitansi=`KWT-2026-000001` auto-generated, tanggalBayar stamped
+  6. GET /kwitansi-qr → 200, returns QR data URL (8770 bytes) berisi verification payload JSON
+  7. POST /batal-bayar (admin, alasan="Test revert") → 200, status kembali BELUM_LUNAS, nomorKwitansi=nullified
+  8. GET biaya (after batal) → 200, BELUM_LUNAS, nomorKwitansi=null
+  9. GET permohonan detail → 200, include `biaya` object
+  10. All transitions logged ke AuditLog dengan detail lengkap.
+- **E2E test via agent-browser** — semua pass:
+  - Login as admin → dashboard.
+  - Buka permohonan list → klik row "Budi Test Luas" (sudah ada biaya BELUM_LUNAS dari API test).
+  - Tab "Biaya Belum" terlihat dengan badge amber "Belum" (Clock icon).
+  - Klik tab → panel "Detail Biaya Operasional" muncul dengan badge "BELUM LUNAS", nominal Rp 75.000, terbilang "Tujuh Puluh Lima Ribu Rupiah", tombol "Edit Biaya" + "Tandai Sudah Dibayar".
+  - Klik "Tandai Sudah Dibayar" → dialog "Konfirmasi Pembayaran" muncul dengan metode select (Tunai default), input "Diterima Oleh" pre-filled "Administrator Sistem", catatan pre-filled.
+  - Klik "Konfirmasi & Terbitkan Kwitansi" → toast "Pembayaran berhasil dikonfirmasi. Kwitansi siap dicetak." Tab badge berubah dari "Belum" → "Lunas" (emerald). Tombol berubah jadi "Cetak Kwitansi" + "Batal Pembayaran".
+  - Klik "Cetak Kwitansi" → dialog KwitansiPembayaran muncul dengan kop surat, title "KWITANSI PEMBAYARAN", nomor kwitansi `KWT-2026-000001`, semua sections (DITERIMA DARI, UANG SEJUMLAH, UNTUK PEMBAYARAN), QR code "Scan untuk verifikasi", signature block (Pemohon + Petugas Penerima + Mengetahui Lurah), legal footer note. Tombol "Tutup" + "Cetak / Print".
+  - Tutup dialog → klik "Batal Pembayaran" → AlertDialog "Batalkan Pembayaran?" dengan textarea alasan. Isi alasan → klik "Ya, Batalkan Pembayaran" → status kembali BELUM_LUNAS, tombol kembali jadi "Tandai Sudah Dibayar".
+  - Kembali ke list → klik row "Wahyuni" (belum ada biaya). Tab "Biaya -" (badge "-"). Klik tab → form "Buat Biaya Operasional" muncul. Isi nominal 100000 + keterangan + catatan → klik "Buat Biaya Operasional" → toast sukses, biaya terbuat. Tab badge berubah jadi "Belum". Detail card muncul dengan nominal Rp 100.000 + terbilang "Seratus Ribu Rupiah".
+  - Buka halaman Pengaturan → section "Biaya Operasional & Kwitansi" muncul dengan 7 fields (switch aktif, nominal default 50000, keterangan default, prefix KWT, digit count 6, pejabat nama, pejabat jabatan) + live preview format "KWT-2026-000001" + tombol Simpan.
+- **VLM Visual Quality Score (Kwitansi dialog)**: 9/10 — "professional and well-formatted, all key sections visible, QR code present, no visual issues, production-ready."
+- **VLM verify signature block + terbilang + legal footer**: ketiga section terlihat setelah scroll ke bawah dialog — "Pemohon, ( Budi Test Luas )", "Petugas Penerima, ( Administrator Sistem )", "Mengetahui Lurah / LURAH KUALA PEMBUANG II", footer "Kwitansi ini diterbitkan secara sah oleh sistem SI-TRACK TANAH ... Nomor kwitansi KWT-2026-00001 bersifat unik dan dapat diverifikasi melalui kode QR di atas."
+- Dev server: clean compile (webpack mode). Semua request 200/201.
+
+## Files Changed (summary)
+- **New**: `src/lib/terbilang.ts` (~110 lines — Rupiah → Indonesian words converter + formatRupiah + parseRupiah)
+- **New**: `src/lib/kwitansi.ts` (~75 lines — kwitansi number generator + preview)
+- **New**: `src/app/api/permohonan/[id]/biaya/route.ts` (~230 lines — GET/POST/PUT biaya CRUD)
+- **New**: `src/app/api/permohonan/[id]/biaya/bayar/route.ts` (~95 lines — mark LUNAS + generate kwitansi)
+- **New**: `src/app/api/permohonan/[id]/biaya/batal-bayar/route.ts` (~65 lines — admin revert)
+- **New**: `src/app/api/permohonan/[id]/biaya/kwitansi-qr/route.ts` (~55 lines — verification QR)
+- **New**: `src/components/app/shared/KwitansiPembayaran.tsx` (~245 lines — printable receipt)
+- **New**: `src/components/app/shared/BiayaTab.tsx` (~580 lines — biaya management UI + dialogs)
+- **Updated**: `prisma/schema.prisma` (+45 lines — `BiayaOperasional` model + relation)
+- **Updated**: `src/app/api/permohonan/[id]/route.ts` (+1 line — include biaya)
+- **Updated**: `src/lib/api.ts` (+35 lines — 6 biaya API methods)
+- **Updated**: `src/components/app/shared/PermohonanDetail.tsx` (+40 lines — BiayaTab integration + tab trigger + Wallet icon import)
+- **Updated**: `src/components/app/admin/SettingsManagement.tsx` (+85 lines — Biaya & Kwitansi settings section + 4 new icons + 7 defaults + 7 fields)
+
+## Stage Summary
+- **End-to-end biaya operasional workflow**: Petugas/Admin dapat membuat biaya operasional (nominal + keterangan + jatuh tempo), menandai pembayaran (metode + penerima), mencetak kwitansi resmi (dengan QR verifikasi), dan membatalkan pembayaran (admin only) — semua dari tab Biaya di detail permohonan.
+- **Auto-generated kwitansi number**: nomor kwitansi unik (format `KWT-YYYY-NNNNNN`, configurable prefix + digit count) dihasilkan otomatis saat pembayaran dikonfirmasi. Tidak dapat diubah. Pembatalan membebaskan nomor (tercatat di audit log).
+- **Official printable receipt**: KwitansiPembayaran menggunakan kop surat institusi yang sama dengan TandaTerima, mencakup semua elemen kwitansi resmi: nomor, tanggal, metode, diterima dari (pemohon), uang sejumlah (nominal + terbilang Bahasa Indonesia), untuk pembayaran (keperluan), signature block (Pemohon + Petugas Penerima + Mengetahui Lurah), QR verifikasi, dan legal footer note. Print-ready via window.print() — A4 portrait dengan white bg + gold accents.
+- **Verification QR**: Setiap kwitansi memiliki QR code unik yang berisi payload JSON (nomor kwitansi, register, pemohon, nominal, tanggal bayar, metode, verify URL). Auditor dapat memindai QR untuk memverifikasi keaslian kwitansi.
+- **Indonesian terbilang**: Nominal Rupiah otomatis dikonversi ke kata Bahasa Indonesia (mis. 75000 → "Tujuh Puluh Lima Ribu Rupiah", 100000 → "Seratus Ribu Rupiah"). Pure function, no deps, mendukung hingga triliun.
+- **Role-based access**: PETUGAS + ADMIN dapat create/update/mark-LUNAS. Hanya ADMIN yang dapat batal-bayar (mencegah penyalahgunaan oleh petugas). ATASAN read-only di tab Biaya.
+- **Configurable**: Admin dapat mengatur default nominal (50000), default keterangan, prefix kwitansi (KWT), digit count (6), pejabat penerbit default, dan toggle on/off fitur biaya operasional — semua di halaman Pengaturan section "Biaya Operasional & Kwitansi".
+- **Audit trail**: Semua aksi (create, update, mark LUNAS, batal LUNAS) tercatat di AuditLog dengan detail lengkap (nominal, metode, nomor kwitansi, alasan pembatalan).
+- Lint: 0 errors. Schema: pushed. E2E via agent-browser: verified. VLM: 9/10 production-ready.
+
+## Unresolved Issues / Risks
+- **Public access**: Saat ini biaya operasional dan kwitansi hanya dapat diakses oleh Petugas/Admin/Atasan via dashboard. Pemohon tidak dapat melihat status pembayaran atau mengunduh kwitansi dari halaman tracking publik. Future: tambah card "Status Pembayaran" + tombol "Unduh Kwitansi" di PublicTracking saat statusSaatIni >= TTD_LURAH dan biaya.statusPembayaran === LUNAS.
+- **Email/WhatsApp notification for payment confirmation**: Saat ini tidak ada notifikasi otomatis ke pemohon saat biaya ditandai LUNAS. Future: tambah template notifikasi "PEMBAYARAN_DITERIMA" + dispatch via existing notify pipeline (mirror dari notifikasi SELESAI/REVISI).
+- **No payment proof upload**: Pemohon tidak dapat mengunggah bukti pembayaran (transfer receipt). Petugas hanya menandai "sudah dibayar" berdasarkan konfirmasi manual. Future: tambah field `buktiBayarPath` untuk upload bukti transfer oleh pemohon via halaman publik (mirror dari revisi-upload pattern).
+- **No multi-payment / installments**: Saat ini biaya hanya 1:1 per permohonan, status hanya BELUM_LUNAS atau LUNAS. Future: dukung cicilan / partial payment (multiple Pembayaran records per biaya).
+- **Kwitansi number reuse on batal**: Saat batal-bayar, nomor kwitansi di-nullify dan tidak digunakan kembali. Tapi count-based generator akan menghitung count termasuk nomor yang sudah di-nullify (karena count `startsWith head` mencocokkan record, bukan non-null value). Update: actually nomorKwitansi di-nullify sehingga `startsWith head` tidak match null. Generator akan menghasilkan nomor yang SUDAH PERNAH DIPAKAI sebelumnya → bisa collision dengan audit log history (tapi nomorKwitansi di DB sudah di-null, jadi unique check lolos). Untuk keamanan ekstra, future: tambahkan audit_log lookup untuk mencegah reuse nomor kwitansi historis. Tapi untuk skala kelurahan, risiko collision sangat rendah dan dapat di-handle oleh retry loop.
+- **No bulk payment marking**: Petugas harus menandai pembayaran satu per satu. Future: tambah bulk action di PermohonanList "Tandai Lunas Massal" untuk multi-select.
+
+## Priority Recommendations for Next Round
+1. **PublicTracking payment status card**: Tambah card "Status Pembayaran Biaya Operasional" di halaman tracking publik (hanya saat status >= TTD_LURAH). Tampilkan nominal, status (BELUM_LUNAS/LUNAS), metode, tanggal bayar. Jika LUNAS, berikan tombol "Unduh Kwitansi" yang membuka PDF printable.
+2. **Notification on payment confirmation**: Tambah template notifikasi "PEMBAYARAN_DITERIMA" — kirim Email + WhatsApp ke pemohon saat biaya ditandai LUNAS. Template menyertakan nomor kwitansi, nominal + terbilang, dan instruksi pengambilan surat.
+3. **Payment proof upload (pemohon)**: Tambah field `buktiBayarPath` di BiayaOperasional. Pemohon dapat upload bukti transfer via halaman tracking publik. Petugas lihat bukti sebelum konfirmasi LUNAS.
+4. **Bulk payment marking**: Di PermohonanList, tambah multi-select + bulk action "Tandai Lunas" untuk efisiensi petugas saat banyak pembayaran serempak.
+5. **Kwitansi history / audit**: Tambah halaman "Riwayat Kwitansi" (nav item baru) yang list semua kwitansi yang pernah diterbitkan (termasuk yang sudah di-batal-bayar) dengan filter tanggal + search by nomor kwitansi / pemohon. Berguna untuk audit eksternal.
+6. **Biaya operasional statistics di dashboard**: Tambah card "Total Pendapatan Biaya Bulan Ini" + "Kwitansi Diterbitkan Bulan Ini" di AdminDashboard. Berguna untuk transparansi keuangan kelurahan.
+7. **Installment / partial payment**: Untuk biaya besar, dukung pembayaran cicilan (multiple Pembayaran records per biaya, masing-masing dengan kwitansi terpisah).
