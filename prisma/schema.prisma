@@ -1,93 +1,76 @@
-// SI-TRACK TANAH — Prisma schema
-// Sistem Informasi Tracking Pendaftaran Surat Tanah
-// Kelurahan Kuala Pembuang II
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// ===== Master: Status Proses =====
 model StatusProses {
-  id          String   @id @default(cuid())
-  kode        String   @unique // PENGAJUAN, CEK_ADMIN, ...
-  nama        String
-  urutan      Int
-  warna       String   @default("#d4af37") // hex color for UI
-  icon        String?
-  keterangan  String?
-  isKhusus    Boolean  @default(false) // REVISI, DITOLAK
-  isFinal     Boolean  @default(false) // SELESAI, DITOLAK
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  kode       String   @unique
+  nama       String
+  urutan     Int
+  warna      String   @default("#d4af37")
+  icon       String?
+  keterangan String?
+  isKhusus   Boolean  @default(false)
+  isFinal    Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
 }
 
-// ===== Master: Jenis Surat Tanah =====
 model JenisSurat {
-  id               String   @id @default(cuid())
-  kode             String   @unique
-  nama             String
-  deskripsi        String?
-  butuhPengukuran  Boolean  @default(true)
-  butuhTtdCamat    Boolean  @default(false)
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  permohonan       Permohonan[]
+  id              String       @id @default(cuid())
+  kode            String       @unique
+  nama            String
+  deskripsi       String?
+  butuhPengukuran Boolean      @default(true)
+  butuhTtdCamat   Boolean      @default(false)
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  permohonan      Permohonan[]
 }
 
-// ===== Master: Status Penguasaan Tanah =====
-// Master data for the "Status Penguasaan" dropdown on the permohonan form.
-// Admin-managed (CRUD). The Permohonan.statusPenguasaan field stores the
-// `nama` value of the selected option as a plain string (denormalized),
-// so historical records remain readable even if a master row is later
-// deactivated or deleted.
 model StatusPenguasaan {
-  id          String   @id @default(cuid())
-  kode        String   @unique // e.g. SHM, HGB, GIRIK — uppercase business key
-  nama        String   // display label, e.g. "Milik Sendiri (SHM)"
-  deskripsi   String?  // short explanation, e.g. "Sertifikat Hak Milik"
-  urutan      Int      @default(0) // display order (lower = first)
-  warna       String?  // optional hex color for UI badge
-  isDefault   Boolean  @default(false) // whether this is the default selection on new permohonan
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  kode      String   @unique
+  nama      String
+  deskripsi String?
+  urutan    Int      @default(0)
+  warna     String?
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// ===== User =====
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  password     String
-  name         String
-  role         String    @default("PETUGAS") // ADMIN | PETUGAS | ATASAN
-  phone        String?
-  position     String?
-  nip          String?
-  avatar       String?
-  isActive     Boolean   @default(true)
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  permohonanDibuat  Permohonan[]
-  riwayatProses     RiwayatProses[]
-  auditLogs         AuditLog[]
-  notifikasi        Notifikasi[]
+  id               String          @id @default(cuid())
+  email            String          @unique
+  password         String
+  name             String
+  role             String          @default("PETUGAS")
+  phone            String?
+  position         String?
+  nip              String?
+  avatar           String?
+  isActive         Boolean         @default(true)
+  lastLoginAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  auditLogs        AuditLog[]
+  notifikasi       Notifikasi[]
+  permohonanDibuat Permohonan[]
+  riwayatProses    RiwayatProses[]
 }
 
-// ===== Permohonan (core) =====
 model Permohonan {
-  id            String    @id @default(cuid())
-  nomorRegister String    @unique
-  jenisSuratId  String
-
-  // Data pemohon
+  id                  String            @id @default(cuid())
+  nomorRegister       String            @unique
+  jenisSuratId        String
   pemohonNik          String
   pemohonNama         String
   pemohonTempatLahir  String?
@@ -97,8 +80,6 @@ model Permohonan {
   pemohonRw           String?
   pemohonHp           String?
   pemohonEmail        String?
-
-  // Data tanah
   lokasiTanah         String?
   tanahRt             String?
   tanahRw             String?
@@ -109,204 +90,146 @@ model Permohonan {
   batasBarat          String?
   statusPenguasaan    String?
   keperluan           String?
-
-  // Proses
-  statusSaatIni       String    @default("PENGAJUAN")
+  statusSaatIni       String            @default("PENGAJUAN")
   alasanDitolak       String?
   catatan             String?
-  prioritas           String    @default("NORMAL") // NORMAL | TINGGI | MENDESAK
-
-  // Audit
+  prioritas           String            @default("NORMAL")
   createdBy           String
   updatedBy           String?
-
-  // QR
   qrToken             String?
-
-  // Timestamps
   tanggalSelesai      DateTime?
   estimasiSelesai     DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-
-  jenisSurat   JenisSurat      @relation(fields: [jenisSuratId], references: [id])
-  creator      User            @relation(fields: [createdBy], references: [id])
-  dokumen      Dokumen[]
-  riwayat      RiwayatProses[]
-  riwayatTanah RiwayatTanah[]
-  notifikasi   Notifikasi[]
-  arsip        ArsipSuratTanah?
-  biaya        BiayaOperasional?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  arsip               ArsipSuratTanah?
+  biaya               BiayaOperasional?
+  dokumen             Dokumen[]
+  notifikasi          Notifikasi[]
+  creator             User              @relation(fields: [createdBy], references: [id])
+  jenisSurat          JenisSurat        @relation(fields: [jenisSuratId], references: [id])
+  riwayat             RiwayatProses[]
+  riwayatTanah        RiwayatTanah[]
 }
 
-// ===== Arsip Surat Tanah (final, signed land-letter archive) =====
-// 1:1 with Permohonan. The single canonical "finished" surat tanah document
-// that must be uploaded BEFORE a permohonan can be moved to status SELESAI.
-// Stores both the file and rich metadata (nomor surat, pejabat penerbit,
-// lokasi arsip fisik) for offline retrieval & compliance audit.
 model ArsipSuratTanah {
-  id              String    @id @default(cuid())
-  permohonanId    String    @unique // 1:1 — one final archive per permohonan
-
-  // ===== Surat metadata =====
-  nomorSurat      String?   // nomor surat resmi, e.g., "470/001/SKT/2026"
-  tanggalTerbit   DateTime? // tanggal surat diterbitkan (bisa beda dari tanggalSelesai)
-  pejabatPenerbit String?   // nama pejabat yang menerbitkan & menandatangani
-  jabatanPejabat  String?   // jabatan pejabat (e.g., "Lurah Kuala Pembuang II")
-  nomorLembar     String?   // nomor lembar arsip fisik untuk pencarian offline
-  lokasiArsip     String?   // lokasi penyimpanan fisik (e.g., "Lemari A-3, Rak 2")
-  catatan         String?   // catatan tambahan petugas
-
-  // ===== File =====
-  namaFile        String    // display name (original filename as uploaded)
-  filePath        String    // public URL path, e.g., /uploads/permohonan/{id}/arsip/xxx.pdf
-  ukuran          Int?      // file size in bytes
-  mimeType        String?   // MIME type
-  fileHash        String?   // sha256 hex digest for integrity check
-
-  // ===== Audit =====
+  id              String     @id @default(cuid())
+  permohonanId    String     @unique
+  nomorSurat      String?
+  tanggalTerbit   DateTime?
+  pejabatPenerbit String?
+  jabatanPejabat  String?
+  nomorLembar     String?
+  lokasiArsip     String?
+  catatan         String?
+  namaFile        String
+  filePath        String
+  ukuran          Int?
+  mimeType        String?
+  fileHash        String?
   uploadedBy      String
-  uploadedAt      DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
+  uploadedAt      DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  permohonan      Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
 
   @@index([tanggalTerbit])
   @@index([pejabatPenerbit])
 }
 
-// ===== Biaya Operasional (Operational Cost) =====
-// 1:1 with Permohonan. Tracks the operational cost charged to the pemohon
-// for processing their surat tanah application, and its payment status.
-// When status is LUNAS, a Kwitansi (official payment receipt) can be issued
-// and printed directly from the application. The kwitansi number is
-// auto-generated at the moment of payment confirmation.
-//
-// Workflow:
-//  - PETUGAS/ADMIN creates the biaya (sets nominal, keterangan, jatuh tempo).
-//  - When pemohon pays, PETUGAS/ADMIN marks it LUNAS via /bayar endpoint,
-//    which stamps tanggalBayar + auto-generates nomorKwitansi.
-//  - ADMIN can revert LUNAS -> BELUM_LUNAS via /batal-bayar (audit-logged).
-//  - When LUNAS, the UI shows a "Cetak Kwitansi" button -> printable PDF.
 model BiayaOperasional {
-  id              String    @id @default(cuid())
-  permohonanId    String    @unique // 1:1 — one biaya per permohonan
-
-  // ===== Biaya metadata =====
-  nominal         Int       // amount in Rupiah (whole number)
-  keterangan      String?   // description of what the cost covers
-  // Payment state
-  statusPembayaran String   @default("BELUM_LUNAS") // BELUM_LUNAS | LUNAS
-  metodePembayaran String?  // TUNAI | TRANSFER | QRIS | LAINNYA (set when paid)
-  tanggalJatuhTempo DateTime? // optional due date
-  tanggalBayar    DateTime? // stamped when payment confirmed
-
-  // ===== Kwitansi (receipt) =====
-  nomorKwitansi   String?   @unique // auto-generated when LUNAS, e.g., "KWT-2026-000123"
-  diterimaOleh    String?   // name of petugas who received the payment (denormalized for receipt)
-  catatan         String?   // additional notes
-
-  // ===== Audit =====
-  createdBy       String
-  updatedBy       String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
+  id                String     @id @default(cuid())
+  permohonanId      String     @unique
+  nominal           Int
+  keterangan        String?
+  statusPembayaran  String     @default("BELUM_LUNAS")
+  metodePembayaran  String?
+  tanggalJatuhTempo DateTime?
+  tanggalBayar      DateTime?
+  nomorKwitansi     String?    @unique
+  diterimaOleh      String?
+  catatan           String?
+  createdBy         String
+  updatedBy         String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  permohonan        Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
 
   @@index([statusPembayaran])
   @@index([tanggalBayar])
   @@index([nomorKwitansi])
 }
 
-// ===== Riwayat Tanah (Land Ownership History) =====
-// Tracks the chain of ownership/acquisition events for the land
-// being registered. Multiple entries per permohonan, ordered by urutan.
 model RiwayatTanah {
-  id                String   @id @default(cuid())
+  id                String     @id @default(cuid())
   permohonanId      String
-  urutan            Int      @default(1) // display order (1 = earliest)
-  tahun             String?  // year of acquisition (string for flexibility, e.g., "2019" or "sebelum 2000")
-  pemilikSebelumnya String?  // name of the previous owner / land holder
-  hubunganPemilik   String?  // relationship of previous owner to current owner (Ayah, Ibu, Kakek, Nenek, Saudara, dll.)
-  caraPerolehan     String?  // how the land was acquired (Jual Beli, Warisan, Hibah, Lelang, Tukar Menukar, Sumbang, Lainnya)
-  noDokumen         String?  // supporting doc number (e.g., akta jual beli, surat waris)
-  keterangan        String?  // free-text note
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
+  urutan            Int        @default(1)
+  tahun             String?
+  pemilikSebelumnya String?
+  hubunganPemilik   String?
+  caraPerolehan     String?
+  noDokumen         String?
+  keterangan        String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  permohonan        Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
 
   @@index([permohonanId])
   @@index([urutan])
 }
 
-// ===== Dokumen =====
 model Dokumen {
-  id            String   @id @default(cuid())
-  permohonanId  String
-  jenisDokumen  String   // KTP, KK, SPPT_PBB, BUKTI_PENGUASAAN, SURAT_PERNYATAAN, FOTO_LOKASI, DOKUMEN_PENDUKUNG
-  namaFile      String
-  filePath      String
-  ukuran        Int?
-  mimeType      String?
-  // Who uploaded: PETUGAS (via admin dashboard) or PEMOHON (via public tracking page during REVISI)
-  uploadedBy    String   @default("PETUGAS") // PETUGAS | PEMOHON
-  // True when this document was uploaded by the pemohon as part of a revision request
-  isRevisionUpload Boolean @default(false)
-  // Optional catatan from pemohon when uploading revision docs
-  catatanPemohon String?
-  createdAt     DateTime @default(now())
-
-  permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
+  id               String     @id @default(cuid())
+  permohonanId     String
+  jenisDokumen     String
+  namaFile         String
+  filePath         String
+  ukuran           Int?
+  mimeType         String?
+  uploadedBy       String     @default("PETUGAS")
+  isRevisionUpload Boolean    @default(false)
+  catatanPemohon   String?
+  createdAt        DateTime   @default(now())
+  permohonan       Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
 }
 
-// ===== Riwayat Proses =====
 model RiwayatProses {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   permohonanId String
   statusKode   String
   statusNama   String
   catatan      String?
   petugasId    String
-  createdAt    DateTime @default(now())
-
-  permohonan Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
-  petugas    User       @relation(fields: [petugasId], references: [id])
+  createdAt    DateTime   @default(now())
+  permohonan   Permohonan @relation(fields: [permohonanId], references: [id], onDelete: Cascade)
+  petugas      User       @relation(fields: [petugasId], references: [id])
 }
 
-// ===== Notifikasi =====
 model Notifikasi {
-  id           String   @id @default(cuid())
+  id           String      @id @default(cuid())
   permohonanId String?
   userId       String?
   judul        String
   pesan        String
-  tipe         String   @default("INFO") // INFO | SUCCESS | WARNING | DANGER
-  dibaca       Boolean  @default(false)
-  createdAt    DateTime @default(now())
-
-  permohonan Permohonan? @relation(fields: [permohonanId], references: [id])
-  user       User?       @relation(fields: [userId], references: [id])
+  tipe         String      @default("INFO")
+  dibaca       Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  permohonan   Permohonan? @relation(fields: [permohonanId], references: [id])
+  user         User?       @relation(fields: [userId], references: [id])
 }
 
-// ===== Audit Log =====
 model AuditLog {
   id        String   @id @default(cuid())
   userId    String?
   userName  String?
   userRole  String?
-  aksi      String   // LOGIN | LOGOUT | CREATE | UPDATE | DELETE | STATUS_CHANGE | APPROVE
-  modul     String   // AUTH | PERMOHONAN | USER | JENIS_SURAT | STATUS | LAPORAN
+  aksi      String
+  modul     String
   entitasId String?
   detail    String?
   ip        String?
   createdAt DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
 }
 
-// ===== Settings =====
 model Settings {
   id        String   @id @default(cuid())
   key       String   @unique
