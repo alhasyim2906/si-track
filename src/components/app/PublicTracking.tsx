@@ -141,18 +141,6 @@ export function PublicTracking({ initialRegister, onLoginClick }: { initialRegis
             <div className="mt-4 flex flex-wrap justify-center gap-2 items-center text-xs text-foreground/60">
               <QrCode className="w-4 h-4 text-primary/70" />
               <span>Atau pindai QR Code pada tanda terima Anda.</span>
-              <span className="text-foreground/30">·</span>
-              <span className="font-medium">Coba:</span>
-              {["KPII-TNH-2026-XK7M2P9Q", "KPII-TNH-2026-RB4F8NKW", "KPII-TNH-2026-QH3JY6MT"].map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => { setQuery(r); doSearch(r); }}
-                  className="font-mono text-[11px] px-2 py-1 rounded-md bg-primary/15 text-primary hover:bg-primary/25 border border-primary/20 hover:border-primary/40 transition-all"
-                >
-                  {r}
-                </button>
-              ))}
             </div>
           </CardContent>
         </Card>
