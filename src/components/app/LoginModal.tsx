@@ -82,20 +82,6 @@ export function LoginModal({ open, onOpenChange }: { open: boolean; onOpenChange
             Masuk
           </Button>
         </form>
-        <div className="pt-2 border-t border-border/40">
-          <p className="text-[10px] text-center text-muted-foreground mb-2 uppercase tracking-wide">Akun Demo (klik untuk isi otomatis)</p>
-          <div className="grid grid-cols-3 gap-2">
-            <Button type="button" variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-2 text-[10px]" onClick={() => quickFill("admin")}>
-              <ShieldCheck className="w-4 h-4 text-primary" /> Admin
-            </Button>
-            <Button type="button" variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-2 text-[10px]" onClick={() => quickFill("petugas")}>
-              <UserCog className="w-4 h-4 text-primary" /> Petugas
-            </Button>
-            <Button type="button" variant="outline" size="sm" className="flex flex-col items-center gap-1 h-auto py-2 text-[10px]" onClick={() => quickFill("atasan")}>
-              <Crown className="w-4 h-4 text-primary" /> Lurah
-            </Button>
-          </div>
-        </div>
       </DialogContent>
     </Dialog>
   );
